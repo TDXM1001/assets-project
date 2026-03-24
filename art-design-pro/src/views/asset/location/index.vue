@@ -199,8 +199,12 @@
         listUser({ pageNum: 1, pageSize: 200 })
       ])
 
-      const deptData = Array.isArray(deptRes) ? deptRes : deptRes?.data || []
-      const userData = Array.isArray(userRes) ? userRes : userRes?.rows || userRes?.data || []
+      const deptResponse = deptRes as any
+      const userResponse = userRes as any
+      const deptData = Array.isArray(deptResponse) ? deptResponse : deptResponse?.data || []
+      const userData = Array.isArray(userResponse)
+        ? userResponse
+        : userResponse?.rows || userResponse?.data || []
 
       const deptMap: Record<string, string> = {}
       flattenTreeLabels(deptData, deptMap)

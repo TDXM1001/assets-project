@@ -226,9 +226,16 @@
         listUser({ pageNum: 1, pageSize: 200 })
       ])
 
-      const locationData = Array.isArray(locationRes) ? locationRes : locationRes?.data || []
-      const deptData = Array.isArray(deptRes) ? deptRes : deptRes?.data || []
-      const userData = Array.isArray(userRes) ? userRes : userRes?.rows || userRes?.data || []
+      const locationResponse = locationRes as any
+      const deptResponse = deptRes as any
+      const userResponse = userRes as any
+      const locationData = Array.isArray(locationResponse)
+        ? locationResponse
+        : locationResponse?.data || []
+      const deptData = Array.isArray(deptResponse) ? deptResponse : deptResponse?.data || []
+      const userData = Array.isArray(userResponse)
+        ? userResponse
+        : userResponse?.rows || userResponse?.data || []
 
       locationOptions.value = buildRootOption('顶级位置', locationData)
       deptOptions.value = buildRootOption('全部部门', deptData)

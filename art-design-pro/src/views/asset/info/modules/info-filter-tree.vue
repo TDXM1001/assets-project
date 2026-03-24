@@ -101,7 +101,7 @@
     }
   )
 
-  const filterNode = (value: string, data: TreeNode) => {
+  const filterNode = (value: string, data: any) => {
     if (!value) return true
     return data.label.includes(value)
   }
