@@ -1,0 +1,43 @@
+import http from '@/utils/http'
+
+/**
+ * 查询资产分类列表
+ */
+export function listCategory(query?: any) {
+  return http.request({ url: '/asset/category/list', method: 'get', params: query })
+}
+
+/**
+ * 查询资产分类树
+ */
+export function treeCategorySelect(query?: any) {
+  return http.request({ url: '/asset/category/treeSelect', method: 'get', params: query })
+}
+
+/**
+ * 查询资产分类详情
+ */
+export function getCategory(categoryId: number | string) {
+  return http.request({ url: '/asset/category/' + categoryId, method: 'get' })
+}
+
+/**
+ * 新增资产分类
+ */
+export function addCategory(data: any) {
+  return http.request({ url: '/asset/category', method: 'post', data })
+}
+
+/**
+ * 修改资产分类
+ */
+export function updateCategory(data: any) {
+  return http.request({ url: '/asset/category', method: 'put', data })
+}
+
+/**
+ * 删除资产分类
+ */
+export function delCategory(categoryId: number | string) {
+  return http.request({ url: '/asset/category/' + categoryId, method: 'delete' })
+}
