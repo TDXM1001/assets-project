@@ -17,6 +17,15 @@ export const assetRoutes: AppRouteRecord = {
         title: '资产分类',
         keepAlive: true
       }
+    },
+    {
+      path: 'location',
+      name: 'AssetLocation',
+      component: '/asset/location',
+      meta: {
+        title: '存放位置',
+        keepAlive: true
+      }
     }
   ]
 }
