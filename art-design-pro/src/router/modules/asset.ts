@@ -5,7 +5,7 @@ export const assetRoutes: AppRouteRecord = {
   name: 'Asset',
   component: '/index/index',
   meta: {
-    title: '璧勪骇绠＄悊',
+    title: '资产管理',
     icon: 'ri:archive-line'
   },
   children: [
@@ -14,7 +14,7 @@ export const assetRoutes: AppRouteRecord = {
       name: 'AssetCategory',
       component: '/asset/category',
       meta: {
-        title: '璧勪骇鍒嗙被',
+        title: '资产分类',
         keepAlive: true
       }
     },
@@ -23,7 +23,7 @@ export const assetRoutes: AppRouteRecord = {
       name: 'AssetLocation',
       component: '/asset/location',
       meta: {
-        title: '瀛樻斁浣嶇疆',
+        title: '存放位置',
         keepAlive: true
       }
     },
@@ -32,7 +32,25 @@ export const assetRoutes: AppRouteRecord = {
       name: 'AssetInfo',
       component: '/asset/info',
       meta: {
-        title: '璧勪骇鍙拌处',
+        title: '资产台账',
+        keepAlive: true
+      }
+    },
+    {
+      path: 'order',
+      name: 'AssetOrder',
+      component: '/asset/order',
+      meta: {
+        title: '业务单据',
+        keepAlive: true
+      }
+    },
+    {
+      path: 'inventory',
+      name: 'AssetInventory',
+      component: '/asset/inventory',
+      meta: {
+        title: '盘点任务',
         keepAlive: true
       }
     }
