@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.asset.AssetOperateOrderMapper">
+
+    <resultMap id="AssetOperateOrderResult" type="com.ruoyi.system.domain.asset.AssetOperateOrder">
+        <id property="orderId" column="order_id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="orderType" column="order_type"/>
+        <result property="orderStatus" column="order_status"/>
+        <result property="bizDate" column="biz_date"/>
+        <result property="applyUserId" column="apply_user_id"/>
+        <result property="applyUserName" column="apply_user_name"/>
+        <result property="applyDeptId" column="apply_dept_id"/>
+        <result property="applyDeptName" column="apply_dept_name"/>
+        <result property="approveUserId" column="approve_user_id"/>
+        <result property="approveUserName" column="approve_user_name"/>
+        <result property="approveTime" column="approve_time"/>
+        <result property="approveResult" column="approve_result"/>
+        <result property="fromDeptId" column="from_dept_id"/>
+        <result property="fromDeptName" column="from_dept_name"/>
+        <result property="toDeptId" column="to_dept_id"/>
+        <result property="toDeptName" column="to_dept_name"/>
+        <result property="fromUserId" column="from_user_id"/>
+        <result property="fromUserName" column="from_user_name"/>
+        <result property="toUserId" column="to_user_id"/>
+        <result property="toUserName" column="to_user_name"/>
+        <result property="fromLocationId" column="from_location_id"/>
+        <result property="fromLocationName" column="from_location_name"/>
+        <result property="toLocationId" column="to_location_id"/>
+        <result property="toLocationName" column="to_location_name"/>
+        <result property="expectedReturnDate" column="expected_return_date"/>
+        <result property="disposalReason" column="disposal_reason"/>
+        <result property="disposalAmount" column="disposal_amount"/>
+        <result property="attachmentCount" column="attachment_count"/>
+        <result property="status" column="status"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="AssetOperateOrderItemResult" type="com.ruoyi.system.domain.asset.AssetOperateOrderItem">
+        <id property="itemId" column="item_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="assetId" column="asset_id"/>
+        <result property="assetCode" column="asset_code"/>
+        <result property="assetName" column="asset_name"/>
+        <result property="beforeStatus" column="before_status"/>
+        <result property="afterStatus" column="after_status"/>
+        <result property="beforeUserId" column="before_user_id"/>
+        <result property="afterUserId" column="after_user_id"/>
+        <result property="beforeDeptId" column="before_dept_id"/>
+        <result property="afterDeptId" column="after_dept_id"/>
+        <result property="beforeLocationId" column="before_location_id"/>
+        <result property="afterLocationId" column="after_location_id"/>
+        <result property="itemStatus" column="item_status"/>
+        <result property="itemResult" column="item_result"/>
+    </resultMap>
+
+    <sql id="selectAssetOperateOrderVo">
+        select o.order_id,
+               o.order_no,
+               o.order_type,
+               o.order_status,
+               o.biz_date,
+               o.apply_user_id,
+               apply_user.nick_name as apply_user_name,
+               o.apply_dept_id,
+               apply_dept.dept_name as apply_dept_name,
+               o.approve_user_id,
+               approve_user.nick_name as approve_user_name,
+               o.approve_time,
+               o.approve_result,
+               o.from_dept_id,
+               from_dept.dept_name as from_dept_name,
+               o.to_dept_id,
+               to_dept.dept_name as to_dept_name,
+               o.from_user_id,
+               from_user.nick_name as from_user_name,
+               o.to_user_id,
+               to_user.nick_name as to_user_name,
+               o.from_location_id,
+               from_location.location_name as from_location_name,
+               o.to_location_id,
+               to_location.location_name as to_location_name,
+               o.expected_return_date,
+               o.disposal_reason,
+               o.disposal_amount,
+               o.attachment_count,
+               o.status,
+               o.del_flag,
+               o.create_by,
+               o.create_time,
+               o.update_by,
+               o.update_time,
+               o.remark
+        from asset_operate_order o
+        left join sys_user apply_user on apply_user.user_id = o.apply_user_id
+        left join sys_user approve_user on approve_user.user_id = o.approve_user_id
+        left join sys_user from_user on from_user.user_id = o.from_user_id
+        left join sys_user to_user on to_user.user_id = o.to_user_id
+        left join sys_dept apply_dept on apply_dept.dept_id = o.apply_dept_id
+        left join sys_dept from_dept on from_dept.dept_id = o.from_dept_id
+        left join sys_dept to_dept on to_dept.dept_id = o.to_dept_id
+        left join asset_location from_location on from_location.location_id = o.from_location_id
+        left join asset_location to_location on to_location.location_id = o.to_location_id
+    </sql>
+
+    <select id="selectAssetOperateOrderList" parameterType="com.ruoyi.system.domain.asset.AssetOperateOrder" resultMap="AssetOperateOrderResult">
+        <include refid="selectAssetOperateOrderVo"/>
+        <where>
+            o.del_flag = '0'
+            <if test="orderId != null">and o.order_id = #{orderId}</if>
+            <if test="orderNo != null and orderNo != ''">and o.order_no like concat('%', #{orderNo}, '%')</if>
+            <if test="orderType != null and orderType != ''">and o.order_type = #{orderType}</if>
+            <if test="orderStatus != null and orderStatus != ''">and o.order_status = #{orderStatus}</if>
+            <if test="applyUserId != null">and o.apply_user_id = #{applyUserId}</if>
+            <if test="applyUserName != null and applyUserName != ''">and apply_user.nick_name like concat('%', #{applyUserName}, '%')</if>
+            <if test="applyDeptId != null">and o.apply_dept_id = #{applyDeptId}</if>
+            <if test="applyDeptName != null and applyDeptName != ''">and apply_dept.dept_name like concat('%', #{applyDeptName}, '%')</if>
+            <if test="bizDateStart != null and bizDateStart != ''">and date_format(o.biz_date, '%Y-%m-%d') &gt;= #{bizDateStart}</if>
+            <if test="bizDateEnd != null and bizDateEnd != ''">and date_format(o.biz_date, '%Y-%m-%d') &lt;= #{bizDateEnd}</if>
+        </where>
+        order by o.order_id desc
+    </select>
+
+    <select id="selectAssetOperateOrderById" parameterType="Long" resultMap="AssetOperateOrderResult">
+        <include refid="selectAssetOperateOrderVo"/>
+        where o.order_id = #{orderId}
+          and o.del_flag = '0'
+    </select>
+
+    <select id="selectAssetOperateOrderItemsByOrderId" parameterType="Long" resultMap="AssetOperateOrderItemResult">
+        select i.item_id,
+               i.order_id,
+               i.asset_id,
+               a.asset_code,
+               a.asset_name,
+               i.before_status,
+               i.after_status,
+               i.before_user_id,
+               i.after_user_id,
+               i.before_dept_id,
+               i.after_dept_id,
+               i.before_location_id,
+               i.after_location_id,
+               i.item_status,
+               i.item_result
+        from asset_operate_order_item i
+        left join asset_info a on a.asset_id = i.asset_id
+        where i.order_id = #{orderId}
+        order by i.item_id asc
+    </select>
+
+    <insert id="insertAssetOperateOrder" parameterType="com.ruoyi.system.domain.asset.AssetOperateOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into asset_operate_order (
+            order_no, order_type, order_status, biz_date, apply_user_id, apply_dept_id,
+            approve_user_id, approve_time, approve_result, from_dept_id, to_dept_id,
+            from_user_id, to_user_id, from_location_id, to_location_id, expected_return_date,
+            disposal_reason, disposal_amount, attachment_count, status, del_flag, create_by,
+            create_time, remark
+        ) values (
+            #{orderNo}, #{orderType}, #{orderStatus}, #{bizDate}, #{applyUserId}, #{applyDeptId},
+            #{approveUserId}, #{approveTime}, #{approveResult}, #{fromDeptId}, #{toDeptId},
+            #{fromUserId}, #{toUserId}, #{fromLocationId}, #{toLocationId}, #{expectedReturnDate},
+            #{disposalReason}, #{disposalAmount}, #{attachmentCount}, #{status}, '0', #{createBy},
+            sysdate(), #{remark}
+        )
+    </insert>
+
+    <update id="updateAssetOperateOrder" parameterType="com.ruoyi.system.domain.asset.AssetOperateOrder">
+        update asset_operate_order
+        <set>
+            <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
+            <if test="orderType != null and orderType != ''">order_type = #{orderType},</if>
+            <if test="orderStatus != null and orderStatus != ''">order_status = #{orderStatus},</if>
+            <if test="bizDate != null">biz_date = #{bizDate},</if>
+            <if test="applyUserId != null">apply_user_id = #{applyUserId},</if>
+            <if test="applyDeptId != null">apply_dept_id = #{applyDeptId},</if>
+            <if test="approveUserId != null">approve_user_id = #{approveUserId},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveResult != null">approve_result = #{approveResult},</if>
+            <if test="fromDeptId != null">from_dept_id = #{fromDeptId},</if>
+            <if test="toDeptId != null">to_dept_id = #{toDeptId},</if>
+            <if test="fromUserId != null">from_user_id = #{fromUserId},</if>
+            <if test="toUserId != null">to_user_id = #{toUserId},</if>
+            <if test="fromLocationId != null">from_location_id = #{fromLocationId},</if>
+            <if test="toLocationId != null">to_location_id = #{toLocationId},</if>
+            <if test="expectedReturnDate != null">expected_return_date = #{expectedReturnDate},</if>
+            <if test="disposalReason != null">disposal_reason = #{disposalReason},</if>
+            <if test="disposalAmount != null">disposal_amount = #{disposalAmount},</if>
+            <if test="attachmentCount != null">attachment_count = #{attachmentCount},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where order_id = #{orderId}
+    </update>
+
+    <update id="updateAssetOperateOrderStatus" parameterType="com.ruoyi.system.domain.asset.AssetOperateOrder">
+        update asset_operate_order
+        <set>
+            <if test="orderStatus != null and orderStatus != ''">order_status = #{orderStatus},</if>
+            <if test="approveUserId != null">approve_user_id = #{approveUserId},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveResult != null">approve_result = #{approveResult},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where order_id = #{orderId}
+    </update>
+
+    <update id="deleteAssetOperateOrderByIds" parameterType="Long">
+        update asset_operate_order
+        set del_flag = '2', update_time = sysdate()
+        where order_id in
+        <foreach collection="array" item="orderId" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </update>
+
+    <delete id="deleteAssetOperateOrderItemsByOrderIds" parameterType="Long">
+        delete from asset_operate_order_item
+        where order_id in
+        <foreach collection="array" item="orderId" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteAssetOperateOrderItemsByOrderId" parameterType="Long">
+        delete from asset_operate_order_item where order_id = #{orderId}
+    </delete>
+
+    <insert id="batchInsertAssetOperateOrderItems">
+        insert into asset_operate_order_item (
+            order_id, asset_id, before_status, after_status, before_user_id, after_user_id,
+            before_dept_id, after_dept_id, before_location_id, after_location_id, item_status, item_result
+        ) values
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.orderId}, #{item.assetId}, #{item.beforeStatus}, #{item.afterStatus},
+                #{item.beforeUserId}, #{item.afterUserId}, #{item.beforeDeptId}, #{item.afterDeptId},
+                #{item.beforeLocationId}, #{item.afterLocationId}, #{item.itemStatus}, #{item.itemResult}
+            )
+        </foreach>
+    </insert>
+
+</mapper>
