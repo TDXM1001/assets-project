@@ -278,12 +278,18 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
         {
             return;
         }
-        assetOperateOrderMapper.deleteAssetOperateOrderItemsByOrderId(assetOperateOrder.getOrderId());
-        if (assetOperateOrder.getItemList() == null || assetOperateOrder.getItemList().isEmpty())
+        if (assetOperateOrder.getItemList() == null)
         {
             return;
         }
-        for (AssetOperateOrderItem item : assetOperateOrder.getItemList())
+
+        List<AssetOperateOrderItem> normalizedItems = normalizeOrderItems(assetOperateOrder);
+        assetOperateOrderMapper.deleteAssetOperateOrderItemsByOrderId(assetOperateOrder.getOrderId());
+        if (normalizedItems.isEmpty())
+        {
+            return;
+        }
+        for (AssetOperateOrderItem item : normalizedItems)
         {
             item.setOrderId(assetOperateOrder.getOrderId());
             if (StringUtils.isBlank(item.getItemStatus()))
@@ -291,7 +297,73 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
                 item.setItemStatus(assetOperateOrder.getOrderStatus());
             }
         }
-        assetOperateOrderMapper.batchInsertAssetOperateOrderItems(assetOperateOrder.getItemList());
+        assetOperateOrderMapper.batchInsertAssetOperateOrderItems(normalizedItems);
+    }
+
+    /**
+     * 单据明细在新增、编辑、详情三个场景共用一套快照口径：
+     * 1. 拦住缺少资产ID、重复资产ID 这类明显脏数据；
+     * 2. 用当前台账补齐变更前快照，避免前端自己拼 before_*；
+     * 3. 若前端未显式传 after_*，就基于单据头推导一个预期变更后快照，方便详情回显。
+     */
+    private List<AssetOperateOrderItem> normalizeOrderItems(AssetOperateOrder assetOperateOrder)
+    {
+        if (assetOperateOrder.getItemList() == null || assetOperateOrder.getItemList().isEmpty())
+        {
+            return new ArrayList<>();
+        }
+
+        Set<Long> duplicateCheck = new LinkedHashSet<>();
+        Set<Long> assetIds = new LinkedHashSet<>();
+        for (AssetOperateOrderItem item : assetOperateOrder.getItemList())
+        {
+            if (item.getAssetId() == null)
+            {
+                throw new ServiceException("单据明细缺少资产ID，请先重新选择资产");
+            }
+            if (!duplicateCheck.add(item.getAssetId()))
+            {
+                throw new ServiceException("单据明细中存在重复资产，资产ID：" + item.getAssetId());
+            }
+            assetIds.add(item.getAssetId());
+        }
+
+        List<AssetInfo> assetList = assetInfoMapper.selectAssetInfoByIds(assetIds);
+        Map<Long, AssetInfo> assetMap = assetList.stream()
+            .collect(Collectors.toMap(AssetInfo::getAssetId, Function.identity()));
+
+        List<AssetOperateOrderItem> normalizedItems = new ArrayList<>();
+        for (AssetOperateOrderItem item : assetOperateOrder.getItemList())
+        {
+            AssetInfo beforeAsset = assetMap.get(item.getAssetId());
+            if (beforeAsset == null)
+            {
+                throw new ServiceException("单据明细中的资产不存在或无权限访问，资产ID：" + item.getAssetId());
+            }
+            normalizedItems.add(buildNormalizedItem(assetOperateOrder, item, beforeAsset));
+        }
+        return normalizedItems;
+    }
+
+    private AssetOperateOrderItem buildNormalizedItem(AssetOperateOrder order, AssetOperateOrderItem source, AssetInfo beforeAsset)
+    {
+        AssetOperateOrderItem target = new AssetOperateOrderItem();
+        target.setItemId(source.getItemId());
+        target.setOrderId(source.getOrderId());
+        target.setAssetId(beforeAsset.getAssetId());
+        target.setAssetCode(beforeAsset.getAssetCode());
+        target.setAssetName(beforeAsset.getAssetName());
+        target.setBeforeStatus(StringUtils.isNotBlank(source.getBeforeStatus()) ? source.getBeforeStatus() : beforeAsset.getAssetStatus());
+        target.setBeforeUserId(source.getBeforeUserId() != null ? source.getBeforeUserId() : beforeAsset.getCurrentUserId());
+        target.setBeforeDeptId(source.getBeforeDeptId() != null ? source.getBeforeDeptId() : beforeAsset.getUseOrgDeptId());
+        target.setBeforeLocationId(source.getBeforeLocationId() != null ? source.getBeforeLocationId() : beforeAsset.getCurrentLocationId());
+        target.setAfterStatus(StringUtils.isNotBlank(source.getAfterStatus()) ? source.getAfterStatus() : resolveAfterStatus(order, source, beforeAsset));
+        target.setAfterUserId(source.getAfterUserId() != null ? source.getAfterUserId() : resolveAfterUser(order, source, beforeAsset));
+        target.setAfterDeptId(source.getAfterDeptId() != null ? source.getAfterDeptId() : resolveAfterDept(order, source, beforeAsset));
+        target.setAfterLocationId(source.getAfterLocationId() != null ? source.getAfterLocationId() : resolveAfterLocation(order, source, beforeAsset));
+        target.setItemStatus(StringUtils.isNotBlank(source.getItemStatus()) ? source.getItemStatus() : order.getOrderStatus());
+        target.setItemResult(source.getItemResult());
+        return target;
     }
 
     /**

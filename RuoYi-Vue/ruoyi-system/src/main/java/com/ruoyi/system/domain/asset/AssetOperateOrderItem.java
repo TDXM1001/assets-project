@@ -20,10 +20,16 @@ public class AssetOperateOrderItem implements Serializable
     private String afterStatus;
     private Long beforeUserId;
     private Long afterUserId;
+    private String beforeUserName;
+    private String afterUserName;
     private Long beforeDeptId;
     private Long afterDeptId;
+    private String beforeDeptName;
+    private String afterDeptName;
     private Long beforeLocationId;
     private Long afterLocationId;
+    private String beforeLocationName;
+    private String afterLocationName;
     private String itemStatus;
     private String itemResult;
 
@@ -117,6 +123,26 @@ public class AssetOperateOrderItem implements Serializable
         this.afterUserId = afterUserId;
     }
 
+    public String getBeforeUserName()
+    {
+        return beforeUserName;
+    }
+
+    public void setBeforeUserName(String beforeUserName)
+    {
+        this.beforeUserName = beforeUserName;
+    }
+
+    public String getAfterUserName()
+    {
+        return afterUserName;
+    }
+
+    public void setAfterUserName(String afterUserName)
+    {
+        this.afterUserName = afterUserName;
+    }
+
     public Long getBeforeDeptId()
     {
         return beforeDeptId;
@@ -137,6 +163,26 @@ public class AssetOperateOrderItem implements Serializable
         this.afterDeptId = afterDeptId;
     }
 
+    public String getBeforeDeptName()
+    {
+        return beforeDeptName;
+    }
+
+    public void setBeforeDeptName(String beforeDeptName)
+    {
+        this.beforeDeptName = beforeDeptName;
+    }
+
+    public String getAfterDeptName()
+    {
+        return afterDeptName;
+    }
+
+    public void setAfterDeptName(String afterDeptName)
+    {
+        this.afterDeptName = afterDeptName;
+    }
+
     public Long getBeforeLocationId()
     {
         return beforeLocationId;
@@ -155,6 +201,26 @@ public class AssetOperateOrderItem implements Serializable
     public void setAfterLocationId(Long afterLocationId)
     {
         this.afterLocationId = afterLocationId;
+    }
+
+    public String getBeforeLocationName()
+    {
+        return beforeLocationName;
+    }
+
+    public void setBeforeLocationName(String beforeLocationName)
+    {
+        this.beforeLocationName = beforeLocationName;
+    }
+
+    public String getAfterLocationName()
+    {
+        return afterLocationName;
+    }
+
+    public void setAfterLocationName(String afterLocationName)
+    {
+        this.afterLocationName = afterLocationName;
     }
 
     public String getItemStatus()
@@ -190,10 +256,16 @@ public class AssetOperateOrderItem implements Serializable
             .append("afterStatus", getAfterStatus())
             .append("beforeUserId", getBeforeUserId())
             .append("afterUserId", getAfterUserId())
+            .append("beforeUserName", getBeforeUserName())
+            .append("afterUserName", getAfterUserName())
             .append("beforeDeptId", getBeforeDeptId())
             .append("afterDeptId", getAfterDeptId())
+            .append("beforeDeptName", getBeforeDeptName())
+            .append("afterDeptName", getAfterDeptName())
             .append("beforeLocationId", getBeforeLocationId())
             .append("afterLocationId", getAfterLocationId())
+            .append("beforeLocationName", getBeforeLocationName())
+            .append("afterLocationName", getAfterLocationName())
             .append("itemStatus", getItemStatus())
             .append("itemResult", getItemResult())
             .toString();

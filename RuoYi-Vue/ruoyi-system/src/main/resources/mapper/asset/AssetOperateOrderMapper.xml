@@ -53,10 +53,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="afterStatus" column="after_status"/>
         <result property="beforeUserId" column="before_user_id"/>
         <result property="afterUserId" column="after_user_id"/>
+        <result property="beforeUserName" column="before_user_name"/>
+        <result property="afterUserName" column="after_user_name"/>
         <result property="beforeDeptId" column="before_dept_id"/>
         <result property="afterDeptId" column="after_dept_id"/>
+        <result property="beforeDeptName" column="before_dept_name"/>
+        <result property="afterDeptName" column="after_dept_name"/>
         <result property="beforeLocationId" column="before_location_id"/>
         <result property="afterLocationId" column="after_location_id"/>
+        <result property="beforeLocationName" column="before_location_name"/>
+        <result property="afterLocationName" column="after_location_name"/>
         <result property="itemStatus" column="item_status"/>
         <result property="itemResult" column="item_result"/>
     </resultMap>
@@ -161,14 +167,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                i.after_status,
                i.before_user_id,
                i.after_user_id,
+               before_user.nick_name as before_user_name,
+               after_user.nick_name as after_user_name,
                i.before_dept_id,
                i.after_dept_id,
+               before_dept.dept_name as before_dept_name,
+               after_dept.dept_name as after_dept_name,
                i.before_location_id,
                i.after_location_id,
+               before_location.location_name as before_location_name,
+               after_location.location_name as after_location_name,
                i.item_status,
                i.item_result
         from asset_operate_order_item i
         left join asset_info a on a.asset_id = i.asset_id
+        left join sys_user before_user on before_user.user_id = i.before_user_id
+        left join sys_user after_user on after_user.user_id = i.after_user_id
+        left join sys_dept before_dept on before_dept.dept_id = i.before_dept_id
+        left join sys_dept after_dept on after_dept.dept_id = i.after_dept_id
+        left join asset_location before_location on before_location.location_id = i.before_location_id
+        left join asset_location after_location on after_location.location_id = i.after_location_id
         where i.order_id = #{orderId}
         order by i.item_id asc
     </select>

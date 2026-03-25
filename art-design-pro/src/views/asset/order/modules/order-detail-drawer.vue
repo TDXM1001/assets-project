@@ -18,16 +18,9 @@
         <div class="order-detail-drawer__actions">
           <ElTag effect="light" type="info">单据状态</ElTag>
           <DictTag :options="asset_order_status" :value="currentStatus" />
+          <ElTag effect="plain" type="primary">明细 {{ detailItems.length }} 项</ElTag>
         </div>
       </div>
-
-      <ElAlert
-        class="mb-4"
-        type="warning"
-        :closable="false"
-        show-icon
-        title="详情抽屉先承载流程操作和单据摘要，后端明细列表接通后这里会补齐单据项。"
-      />
 
       <ElCard shadow="never" class="mb-4">
         <template #header>基础信息</template>
@@ -107,24 +100,63 @@
       <ElCard shadow="never">
         <template #header>
           <div class="flex items-center justify-between">
-            <span>单据项明细</span>
-            <ElTag effect="plain" type="info">后端接通后展示单据项列表</ElTag>
+            <span>单据明细</span>
+            <ElTag effect="plain" type="success">
+              明细已经接通，流程动作会以这些资产为落账对象
+            </ElTag>
           </div>
         </template>
 
         <template v-if="detailItems.length">
           <ElTable :data="detailItems" border stripe>
-            <ElTableColumn prop="assetId" label="资产ID" width="120" />
-            <ElTableColumn prop="beforeStatus" label="变更前状态" width="120" />
-            <ElTableColumn prop="afterStatus" label="变更后状态" width="120" />
-            <ElTableColumn prop="itemStatus" label="处理状态" width="120" />
+            <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
+            <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
+            <ElTableColumn label="变更前状态" width="130" align="center">
+              <template #default="{ row }">
+                <DictTag :options="asset_status" :value="row.beforeStatus" />
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更后状态" width="130" align="center">
+              <template #default="{ row }">
+                <DictTag :options="asset_status" :value="row.afterStatus" />
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更前部门" min-width="140">
+              <template #default="{ row }">
+                {{ displayText(row.beforeDeptName || row.beforeDeptId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更前责任人" min-width="140">
+              <template #default="{ row }">
+                {{ displayText(row.beforeUserName || row.beforeUserId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更前位置" min-width="160">
+              <template #default="{ row }">
+                {{ displayText(row.beforeLocationName || row.beforeLocationId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更后部门" min-width="140">
+              <template #default="{ row }">
+                {{ displayText(row.afterDeptName || row.afterDeptId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更后责任人" min-width="140">
+              <template #default="{ row }">
+                {{ displayText(row.afterUserName || row.afterUserId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="变更后位置" min-width="160">
+              <template #default="{ row }">
+                {{ displayText(row.afterLocationName || row.afterLocationId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn prop="itemStatus" label="处理状态" width="120" align="center" />
             <ElTableColumn prop="itemResult" label="处理说明" min-width="180" />
           </ElTable>
         </template>
         <template v-else>
-          <ElEmpty
-            description="当前单据还没有接入明细列表，先通过单据头信息和流程操作支撑业务流转。"
-          />
+          <ElEmpty description="当前单据还没有资产明细，完成前需要先补齐 itemList。" />
         </template>
       </ElCard>
     </div>
@@ -198,7 +230,11 @@
   import { useUserStore } from '@/store/modules/user'
   import DictTag from '@/components/DictTag/index.vue'
 
-  const { asset_order_type, asset_order_status } = useDict('asset_order_type', 'asset_order_status')
+  const { asset_order_type, asset_order_status, asset_status } = useDict(
+    'asset_order_type',
+    'asset_order_status',
+    'asset_status'
+  )
   const userStore = useUserStore()
 
   const props = defineProps<{
@@ -228,8 +264,7 @@
   })
 
   const drawerTitle = computed(() => {
-    const title = props.orderData?.orderNo ? `单据详情 - ${props.orderData.orderNo}` : '单据详情'
-    return title
+    return props.orderData?.orderNo ? `单据详情 - ${props.orderData.orderNo}` : '单据详情'
   })
 
   const scopeSummary = computed(() => {
@@ -263,9 +298,6 @@
     }
   })
 
-  /**
-   * 这里统一判断单据流转状态，保证列表页和详情抽屉看到的是同一套动作规则。
-   */
   const canEdit = computed(() => ['DRAFT', 'REJECTED'].includes(currentStatus.value))
   const canSubmit = computed(() => ['DRAFT', 'REJECTED'].includes(currentStatus.value))
   const canApprove = computed(() => ['SUBMITTED', 'APPROVING'].includes(currentStatus.value))
@@ -275,9 +307,6 @@
     ['DRAFT', 'SUBMITTED', 'APPROVING', 'APPROVED'].includes(currentStatus.value)
   )
 
-  /**
-   * 详情展示时把空值兜底成短横线，避免抽屉里出现一堆空白字段。
-   */
   const displayText = (value: unknown) => {
     if (value === null || value === undefined || value === '') return '-'
     return String(value)
