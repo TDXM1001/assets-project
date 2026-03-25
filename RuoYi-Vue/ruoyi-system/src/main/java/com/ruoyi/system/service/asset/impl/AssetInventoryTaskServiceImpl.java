@@ -9,9 +9,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ruoyi.common.annotation.DataScope;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.system.domain.asset.AssetInfo;
 import com.ruoyi.system.domain.asset.AssetInventoryTask;
@@ -51,7 +54,12 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
     @Autowired
     private IAssetEventLogService assetEventLogService;
 
+    @Autowired
+    @Lazy
+    private IAssetInventoryTaskService assetInventoryTaskServiceProxy;
+
     @Override
+    @DataScope(deptAlias = "scope_dept", userAlias = "scope_user")
     public List<AssetInventoryTask> selectAssetInventoryTaskList(AssetInventoryTask task)
     {
         return inventoryTaskMapper.selectAssetInventoryTaskList(task);
@@ -60,7 +68,10 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
     @Override
     public AssetInventoryTask selectAssetInventoryTaskById(Long taskId)
     {
-        AssetInventoryTask task = inventoryTaskMapper.selectAssetInventoryTaskById(taskId);
+        AssetInventoryTask query = new AssetInventoryTask();
+        query.setTaskId(taskId);
+        List<AssetInventoryTask> scopedTasks = assetInventoryTaskServiceProxy.selectAssetInventoryTaskList(query);
+        AssetInventoryTask task = scopedTasks.isEmpty() ? null : scopedTasks.get(0);
         if (StringUtils.isNotNull(task))
         {
             task.setItemList(selectAssetInventoryTaskItemsByTaskId(taskId));
@@ -71,6 +82,12 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
     @Override
     public List<AssetInventoryTaskItem> selectAssetInventoryTaskItemsByTaskId(Long taskId)
     {
+        AssetInventoryTask query = new AssetInventoryTask();
+        query.setTaskId(taskId);
+        if (assetInventoryTaskServiceProxy.selectAssetInventoryTaskList(query).isEmpty())
+        {
+            return new ArrayList<>();
+        }
         return inventoryTaskMapper.selectAssetInventoryTaskItemListByTaskId(taskId);
     }
 
@@ -87,6 +104,7 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
     public int insertAssetInventoryTask(AssetInventoryTask task)
     {
         normalizeTask(task);
+        validateCategoryScopePermission(task);
         task.setTaskStatus(TASK_STATUS_DRAFT);
         task.setSummaryTotal(0);
         task.setSummaryOk(0);
@@ -110,10 +128,27 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
             throw new ServiceException("只有草稿状态的盘点任务才能编辑");
         }
         normalizeTask(task);
+        validateCategoryScopePermission(task);
         task.setTaskStatus(StringUtils.isEmpty(dbTask.getTaskStatus()) ? TASK_STATUS_DRAFT : dbTask.getTaskStatus());
         int rows = inventoryTaskMapper.updateAssetInventoryTask(task);
         refreshTaskItems(requireTask(task.getTaskId()));
         return rows;
+    }
+
+    /**
+     * 按分类盘点一期只开放给资产管理员和审计角色，避免部门主管绕过前端直接发请求。
+     */
+    private void validateCategoryScopePermission(AssetInventoryTask task)
+    {
+        if (!StringUtils.equals(task.getTaskScopeType(), "CATEGORY"))
+        {
+            return;
+        }
+        if (SecurityUtils.isAdmin() || SecurityUtils.hasRole("asset_admin") || SecurityUtils.hasRole("asset_auditor"))
+        {
+            return;
+        }
+        throw new ServiceException("按分类盘点仅资产管理员或审计角色可创建");
     }
 
     @Override
@@ -570,7 +605,7 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
 
     private AssetInventoryTask requireTask(Long taskId)
     {
-        AssetInventoryTask task = inventoryTaskMapper.selectAssetInventoryTaskById(taskId);
+        AssetInventoryTask task = selectAssetInventoryTaskById(taskId);
         if (StringUtils.isNull(task))
         {
             throw new ServiceException("盘点任务不存在");

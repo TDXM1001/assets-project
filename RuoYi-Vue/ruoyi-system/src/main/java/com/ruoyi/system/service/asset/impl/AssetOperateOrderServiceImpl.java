@@ -10,8 +10,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ruoyi.common.annotation.DataScope;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
@@ -47,7 +49,12 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
     @Autowired
     private IAssetEventLogService assetEventLogService;
 
+    @Autowired
+    @Lazy
+    private IAssetOperateOrderService assetOperateOrderServiceProxy;
+
     @Override
+    @DataScope(deptAlias = "scope_dept", userAlias = "apply_user")
     public List<AssetOperateOrder> selectAssetOperateOrderList(AssetOperateOrder assetOperateOrder)
     {
         return assetOperateOrderMapper.selectAssetOperateOrderList(assetOperateOrder);
@@ -56,7 +63,10 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
     @Override
     public AssetOperateOrder selectAssetOperateOrderById(Long orderId)
     {
-        AssetOperateOrder order = assetOperateOrderMapper.selectAssetOperateOrderById(orderId);
+        AssetOperateOrder query = new AssetOperateOrder();
+        query.setOrderId(orderId);
+        List<AssetOperateOrder> scopedOrders = assetOperateOrderServiceProxy.selectAssetOperateOrderList(query);
+        AssetOperateOrder order = scopedOrders.isEmpty() ? null : scopedOrders.get(0);
         if (StringUtils.isNotNull(order))
         {
             order.setItemList(assetOperateOrderMapper.selectAssetOperateOrderItemsByOrderId(orderId));
@@ -458,7 +468,7 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
 
     private AssetOperateOrder requireOrder(Long orderId)
     {
-        AssetOperateOrder order = assetOperateOrderMapper.selectAssetOperateOrderById(orderId);
+        AssetOperateOrder order = selectAssetOperateOrderById(orderId);
         if (StringUtils.isNull(order))
         {
             throw new ServiceException("资产业务单据不存在");

@@ -43,6 +43,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                e.operate_time
         from asset_event_log e
         left join asset_info a on a.asset_id = e.asset_id
+        left join sys_dept scope_dept on scope_dept.dept_id = a.use_org_dept_id
+        left join sys_user scope_user on scope_user.user_id = a.current_user_id
         left join sys_user operator_user on operator_user.user_id = e.operator_user_id
         left join asset_operate_order o on o.order_id = e.source_order_id
             and (e.source_order_type is null or e.source_order_type &lt;&gt; 'INVENTORY_TASK')
@@ -79,8 +81,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="endOperateTime != null and endOperateTime != ''">
                 and date_format(e.operate_time, '%Y-%m-%d') &lt;= #{endOperateTime}
             </if>
+            ${params.dataScope}
         </where>
         order by e.operate_time desc, e.event_id desc
+        <if test="limitSize != null and limitSize &gt; 0">
+            limit #{limitSize}
+        </if>
     </select>
 
     <select id="selectAssetEventLogById" parameterType="Long" resultMap="AssetEventLogResult">

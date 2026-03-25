@@ -22,6 +22,15 @@
           </ElTag>
         </div>
 
+        <ElAlert
+          v-if="infoScopeNotice"
+          class="asset-info-scope-alert"
+          type="info"
+          :closable="false"
+          show-icon
+          :title="infoScopeNotice"
+        />
+
         <ArtSearchBar
           :key="searchBarKey"
           v-model="formFilters"
@@ -152,6 +161,7 @@
   import { useUserStore } from '@/store/modules/user'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import DictTag from '@/components/DictTag/index.vue'
+  import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import InfoDialog from './modules/info-dialog.vue'
   import InfoEventDrawer from './modules/info-event-drawer.vue'
   import InfoFilterTree from './modules/info-filter-tree.vue'
@@ -173,6 +183,7 @@
   const { width } = useWindowSize()
   const isMobile = computed(() => width.value < 768)
   const userStore = useUserStore()
+  const { isSelfScopedAssetUser } = useAssetRoleScope()
   const { asset_status, asset_source } = useDict('asset_status', 'asset_source')
 
   const filterMode = ref<'category' | 'location'>('category')
@@ -227,7 +238,7 @@
 
   const searchBarKey = computed(
     () =>
-      `${asset_status.value.length}-${asset_source.value.length}-${userOptions.value.length}-${filterMode.value}`
+      `${asset_status.value.length}-${asset_source.value.length}-${userOptions.value.length}-${filterMode.value}-${isSelfScopedAssetUser.value}`
   )
 
   const multiple = computed(() => selection.value.length === 0)
@@ -237,7 +248,7 @@
       Boolean(formFilters.assetCode?.trim()) ||
       Boolean(formFilters.assetName?.trim()) ||
       Boolean(formFilters.assetStatus) ||
-      Boolean(formFilters.currentUserId) ||
+      (!isSelfScopedAssetUser.value && Boolean(formFilters.currentUserId)) ||
       Boolean(selectedCategoryId.value) ||
       Boolean(selectedLocationId.value)
   )
@@ -250,49 +261,60 @@
     return permissions.includes('*:*:*') || permissions.includes(permission)
   }
 
-  const formItems = computed(() => [
-    {
-      label: '资产编码',
-      key: 'assetCode',
-      type: 'input',
-      props: {
-        placeholder: '请输入资产编码',
-        clearable: true
+  const infoScopeNotice = computed(() =>
+    isSelfScopedAssetUser.value ? '当前为“我的资产”视角，系统仅展示你本人可见的资产数据。' : ''
+  )
+
+  const formItems = computed(() => {
+    const items = [
+      {
+        label: '资产编码',
+        key: 'assetCode',
+        type: 'input',
+        props: {
+          placeholder: '请输入资产编码',
+          clearable: true
+        }
+      },
+      {
+        label: '资产名称',
+        key: 'assetName',
+        type: 'input',
+        props: {
+          placeholder: '请输入资产名称',
+          clearable: true
+        }
+      },
+      {
+        label: '资产状态',
+        key: 'assetStatus',
+        type: 'select',
+        props: {
+          placeholder: '请选择资产状态',
+          clearable: true,
+          options: asset_status.value
+        }
       }
-    },
-    {
-      label: '资产名称',
-      key: 'assetName',
-      type: 'input',
-      props: {
-        placeholder: '请输入资产名称',
-        clearable: true
-      }
-    },
-    {
-      label: '资产状态',
-      key: 'assetStatus',
-      type: 'select',
-      props: {
-        placeholder: '请选择资产状态',
-        clearable: true,
-        options: asset_status.value
-      }
-    },
-    {
-      label: '责任人',
-      key: 'currentUserId',
-      type: 'select',
-      props: {
-        placeholder: '请选择责任人',
-        clearable: true,
-        options: userOptions.value.map((item) => ({
-          label: item.userName,
-          value: item.userId
-        }))
-      }
+    ]
+
+    if (!isSelfScopedAssetUser.value) {
+      items.push({
+        label: '责任人',
+        key: 'currentUserId',
+        type: 'select',
+        props: {
+          placeholder: '请选择责任人',
+          clearable: true,
+          options: userOptions.value.map((item) => ({
+            label: item.userName,
+            value: item.userId
+          }))
+        }
+      })
     }
-  ])
+
+    return items
+  })
 
   /**
    * 扁平化树节点，既用于列表映射，也用于筛选节点回显。
@@ -548,7 +570,9 @@
       assetCode: formFilters.assetCode || undefined,
       assetName: formFilters.assetName || undefined,
       assetStatus: formFilters.assetStatus || undefined,
-      currentUserId: formFilters.currentUserId || undefined,
+      currentUserId: isSelfScopedAssetUser.value
+        ? undefined
+        : formFilters.currentUserId || undefined,
       pageNum: 1
     })
     applyTreeFilterToSearch()
@@ -619,7 +643,9 @@
         assetCode: formFilters.assetCode || undefined,
         assetName: formFilters.assetName || undefined,
         assetStatus: formFilters.assetStatus || undefined,
-        currentUserId: formFilters.currentUserId || undefined,
+        currentUserId: isSelfScopedAssetUser.value
+          ? undefined
+          : formFilters.currentUserId || undefined,
         categoryId:
           filterMode.value === 'category' ? selectedCategoryId.value || undefined : undefined,
         currentLocationId:
@@ -686,6 +712,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .asset-info-scope-alert {
+    margin-bottom: 12px;
   }
 
   @media (max-width: 767px) {

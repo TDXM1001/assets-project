@@ -5,12 +5,15 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
+import com.ruoyi.common.core.domain.BaseEntity;
 
 /**
  * 资产事件流水对象 asset_event_log
  */
-public class AssetEventLog
+public class AssetEventLog extends BaseEntity
 {
+    private static final long serialVersionUID = 1L;
+
     private Long eventId;
 
     private Long assetId;
@@ -53,6 +56,11 @@ public class AssetEventLog
     private String beginOperateTime;
 
     private String endOperateTime;
+
+    /**
+     * 抽屉接口会按资产读取最近几条流水，这里复用同一套查询模型承接 limit。
+     */
+    private Integer limitSize;
 
     public Long getEventId()
     {
@@ -222,6 +230,16 @@ public class AssetEventLog
     public void setEndOperateTime(String endOperateTime)
     {
         this.endOperateTime = endOperateTime;
+    }
+
+    public Integer getLimitSize()
+    {
+        return limitSize;
+    }
+
+    public void setLimitSize(Integer limitSize)
+    {
+        this.limitSize = limitSize;
     }
 
     @Override

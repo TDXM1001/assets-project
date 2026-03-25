@@ -2,8 +2,10 @@ package com.ruoyi.system.service.asset.impl;
 
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ruoyi.common.annotation.DataScope;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.system.domain.asset.AssetInfo;
 import com.ruoyi.system.mapper.asset.AssetInfoMapper;
@@ -18,7 +20,12 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     @Autowired
     private AssetInfoMapper assetInfoMapper;
 
+    @Autowired
+    @Lazy
+    private IAssetInfoService assetInfoServiceProxy;
+
     @Override
+    @DataScope(deptAlias = "scope_dept", userAlias = "scope_user")
     public List<AssetInfo> selectAssetInfoList(AssetInfo assetInfo)
     {
         return assetInfoMapper.selectAssetInfoList(assetInfo);
@@ -27,7 +34,10 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     @Override
     public AssetInfo selectAssetInfoById(Long assetId)
     {
-        return assetInfoMapper.selectAssetInfoById(assetId);
+        AssetInfo query = new AssetInfo();
+        query.setAssetId(assetId);
+        List<AssetInfo> list = assetInfoServiceProxy.selectAssetInfoList(query);
+        return list.isEmpty() ? null : list.get(0);
     }
 
     @Override

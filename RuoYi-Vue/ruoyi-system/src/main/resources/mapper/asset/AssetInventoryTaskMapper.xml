@@ -50,11 +50,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectAssetInventoryTaskVo">
-        select task_id, task_no, task_name, task_scope_type, task_status, target_dept_id,
-               target_location_id, target_category_id, plan_start_time, plan_end_time,
-               owner_user_id, execute_user_id, summary_total, summary_ok, summary_diff,
-               status, del_flag, create_by, create_time, update_by, update_time, remark
-        from asset_inventory_task
+        select distinct t.task_id, t.task_no, t.task_name, t.task_scope_type, t.task_status, t.target_dept_id,
+               t.target_location_id, t.target_category_id, t.plan_start_time, t.plan_end_time,
+               t.owner_user_id, t.execute_user_id, t.summary_total, t.summary_ok, t.summary_diff,
+               t.status, t.del_flag, t.create_by, t.create_time, t.update_by, t.update_time, t.remark
+        from asset_inventory_task t
+        left join asset_location scope_location on scope_location.location_id = t.target_location_id
+        left join sys_dept scope_dept on scope_dept.dept_id = ifnull(t.target_dept_id, scope_location.dept_id)
+        left join sys_user scope_user on scope_user.user_id = t.owner_user_id
     </sql>
 
     <sql id="selectAssetInventoryTaskItemVo">
@@ -69,26 +72,27 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectAssetInventoryTaskList" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask" resultMap="AssetInventoryTaskResult">
         <include refid="selectAssetInventoryTaskVo"/>
         <where>
-            del_flag = '0'
-            <if test="taskNo != null and taskNo != ''">and task_no like concat('%', #{taskNo}, '%')</if>
-            <if test="taskName != null and taskName != ''">and task_name like concat('%', #{taskName}, '%')</if>
-            <if test="taskScopeType != null and taskScopeType != ''">and task_scope_type = #{taskScopeType}</if>
-            <if test="taskStatus != null and taskStatus != ''">and task_status = #{taskStatus}</if>
-            <if test="ownerUserId != null">and owner_user_id = #{ownerUserId}</if>
-            <if test="executeUserId != null">and execute_user_id = #{executeUserId}</if>
-            <if test="status != null and status != ''">and status = #{status}</if>
+            t.del_flag = '0'
+            <if test="taskNo != null and taskNo != ''">and t.task_no like concat('%', #{taskNo}, '%')</if>
+            <if test="taskName != null and taskName != ''">and t.task_name like concat('%', #{taskName}, '%')</if>
+            <if test="taskScopeType != null and taskScopeType != ''">and t.task_scope_type = #{taskScopeType}</if>
+            <if test="taskStatus != null and taskStatus != ''">and t.task_status = #{taskStatus}</if>
+            <if test="ownerUserId != null">and t.owner_user_id = #{ownerUserId}</if>
+            <if test="executeUserId != null">and t.execute_user_id = #{executeUserId}</if>
+            <if test="status != null and status != ''">and t.status = #{status}</if>
+            ${params.dataScope}
         </where>
-        order by task_id desc
+        order by t.task_id desc
     </select>
 
     <select id="selectAssetInventoryTaskById" parameterType="Long" resultMap="AssetInventoryTaskResult">
         <include refid="selectAssetInventoryTaskVo"/>
-        where task_id = #{taskId} and del_flag = '0'
+        where t.task_id = #{taskId} and t.del_flag = '0'
     </select>
 
     <select id="checkTaskNoUnique" parameterType="String" resultMap="AssetInventoryTaskResult">
         <include refid="selectAssetInventoryTaskVo"/>
-        where task_no = #{taskNo} and del_flag = '0' limit 1
+        where t.task_no = #{taskNo} and t.del_flag = '0' limit 1
     </select>
 
     <select id="selectAssetInventoryTaskItemListByTaskId" parameterType="Long" resultMap="AssetInventoryTaskItemResult">

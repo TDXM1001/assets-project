@@ -21,7 +21,7 @@
           </ElRadioGroup>
         </div>
         <div class="asset-order-toolbar__tip">
-          这里不是普通表格页，而是单据流转工作台，先用类型切换把流程边界收住。
+          {{ orderScopeTip }}
         </div>
       </div>
 
@@ -116,6 +116,7 @@
   } from '@/api/asset/order'
   import DictTag from '@/components/DictTag/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
+  import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import OrderApproveDialog from './modules/order-approve-dialog.vue'
   import OrderDetailDrawer from './modules/order-detail-drawer.vue'
   import OrderDialog from './modules/order-dialog.vue'
@@ -124,6 +125,7 @@
 
   const { asset_order_type, asset_order_status } = useDict('asset_order_type', 'asset_order_status')
   const userStore = useUserStore()
+  const { isSelfScopedAssetUser } = useAssetRoleScope()
 
   const activeOrderType = ref<'ALL' | string>('ALL')
   const orderDialogVisible = ref(false)
@@ -147,7 +149,13 @@
   const orderTypeOptions = computed(() => asset_order_type.value || [])
   const searchBarKey = computed(
     () =>
-      `${asset_order_type.value.length}-${asset_order_status.value.length}-${activeOrderType.value}`
+      `${asset_order_type.value.length}-${asset_order_status.value.length}-${activeOrderType.value}-${isSelfScopedAssetUser.value}`
+  )
+
+  const orderScopeTip = computed(() =>
+    isSelfScopedAssetUser.value
+      ? '当前为“我的单据”视角，只展示由你本人发起的资产单据。'
+      : '这里不是普通表格页，而是单据流转工作台，先用类型切换把流程边界收住。'
   )
 
   const hasPermission = (permission: string) => {
@@ -159,8 +167,8 @@
     () =>
       Boolean(formFilters.orderNo?.trim()) ||
       Boolean(formFilters.orderStatus) ||
-      Boolean(formFilters.applyUserName?.trim()) ||
-      Boolean(formFilters.applyDeptName?.trim()) ||
+      (!isSelfScopedAssetUser.value && Boolean(formFilters.applyUserName?.trim())) ||
+      (!isSelfScopedAssetUser.value && Boolean(formFilters.applyDeptName?.trim())) ||
       Boolean(formFilters.bizDateRange?.length) ||
       activeOrderType.value !== 'ALL'
   )
@@ -180,8 +188,12 @@
     return {
       orderNo: formFilters.orderNo || undefined,
       orderStatus: formFilters.orderStatus || undefined,
-      applyUserName: formFilters.applyUserName || undefined,
-      applyDeptName: formFilters.applyDeptName || undefined,
+      applyUserName: isSelfScopedAssetUser.value
+        ? undefined
+        : formFilters.applyUserName || undefined,
+      applyDeptName: isSelfScopedAssetUser.value
+        ? undefined
+        : formFilters.applyDeptName || undefined,
       bizDateStart: bizDateStart || undefined,
       bizDateEnd: bizDateEnd || undefined,
       orderType: activeOrderType.value === 'ALL' ? undefined : activeOrderType.value
@@ -308,56 +320,63 @@
     }
   })
 
-  const searchItems = computed(() => [
-    {
-      label: '单据编号',
-      key: 'orderNo',
-      type: 'input',
-      props: {
-        placeholder: '请输入单据编号',
-        clearable: true
+  const searchItems = computed(() => {
+    const items = [
+      {
+        label: '单据编号',
+        key: 'orderNo',
+        type: 'input',
+        props: {
+          placeholder: '请输入单据编号',
+          clearable: true
+        }
+      },
+      {
+        label: '单据状态',
+        key: 'orderStatus',
+        type: 'select',
+        props: {
+          placeholder: '请选择单据状态',
+          clearable: true,
+          options: asset_order_status.value
+        }
+      },
+      {
+        label: '业务时间',
+        key: 'bizDateRange',
+        type: 'daterange',
+        props: {
+          startPlaceholder: '开始日期',
+          endPlaceholder: '结束日期',
+          rangeSeparator: '至',
+          valueFormat: 'YYYY-MM-DD'
+        }
       }
-    },
-    {
-      label: '发起部门',
-      key: 'applyDeptName',
-      type: 'input',
-      props: {
-        placeholder: '请输入发起部门',
-        clearable: true
-      }
-    },
-    {
-      label: '发起人',
-      key: 'applyUserName',
-      type: 'input',
-      props: {
-        placeholder: '请输入发起人',
-        clearable: true
-      }
-    },
-    {
-      label: '单据状态',
-      key: 'orderStatus',
-      type: 'select',
-      props: {
-        placeholder: '请选择单据状态',
-        clearable: true,
-        options: asset_order_status.value
-      }
-    },
-    {
-      label: '业务时间',
-      key: 'bizDateRange',
-      type: 'daterange',
-      props: {
-        startPlaceholder: '开始日期',
-        endPlaceholder: '结束日期',
-        rangeSeparator: '至',
-        valueFormat: 'YYYY-MM-DD'
-      }
+    ]
+
+    if (!isSelfScopedAssetUser.value) {
+      items.splice(1, 0, {
+        label: '发起部门',
+        key: 'applyDeptName',
+        type: 'input',
+        props: {
+          placeholder: '请输入发起部门',
+          clearable: true
+        }
+      })
+      items.splice(2, 0, {
+        label: '发起人',
+        key: 'applyUserName',
+        type: 'input',
+        props: {
+          placeholder: '请输入发起人',
+          clearable: true
+        }
+      })
     }
-  ])
+
+    return items
+  })
 
   /**
    * 这里把单据行内动作拆出来，避免模板里塞满 if/else。

@@ -38,40 +38,43 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectAssetInfoVo">
-        select asset_id, asset_code, asset_name, category_id, brand, model, specification,
-               serial_no, asset_status, asset_source, use_org_dept_id, manage_dept_id,
-               current_user_id, current_location_id, purchase_date, inbound_date, start_use_date,
-               original_value, residual_value, warranty_expire_date, supplier_name, qr_code,
-               version_no, status, del_flag, create_by, create_time, update_by, update_time, remark
-        from asset_info
+        select a.asset_id, a.asset_code, a.asset_name, a.category_id, a.brand, a.model, a.specification,
+               a.serial_no, a.asset_status, a.asset_source, a.use_org_dept_id, a.manage_dept_id,
+               a.current_user_id, a.current_location_id, a.purchase_date, a.inbound_date, a.start_use_date,
+               a.original_value, a.residual_value, a.warranty_expire_date, a.supplier_name, a.qr_code,
+               a.version_no, a.status, a.del_flag, a.create_by, a.create_time, a.update_by, a.update_time, a.remark
+        from asset_info a
+        left join sys_dept scope_dept on scope_dept.dept_id = a.use_org_dept_id
+        left join sys_user scope_user on scope_user.user_id = a.current_user_id
     </sql>
 
     <select id="selectAssetInfoList" parameterType="com.ruoyi.system.domain.asset.AssetInfo" resultMap="AssetInfoResult">
         <include refid="selectAssetInfoVo"/>
         <where>
-            del_flag = '0'
-            <if test="assetId != null">and asset_id = #{assetId}</if>
-            <if test="assetCode != null and assetCode != ''">and asset_code like concat('%', #{assetCode}, '%')</if>
-            <if test="assetName != null and assetName != ''">and asset_name like concat('%', #{assetName}, '%')</if>
-            <if test="categoryId != null">and category_id = #{categoryId}</if>
-            <if test="assetStatus != null and assetStatus != ''">and asset_status = #{assetStatus}</if>
-            <if test="useOrgDeptId != null">and use_org_dept_id = #{useOrgDeptId}</if>
-            <if test="manageDeptId != null">and manage_dept_id = #{manageDeptId}</if>
-            <if test="currentUserId != null">and current_user_id = #{currentUserId}</if>
-            <if test="currentLocationId != null">and current_location_id = #{currentLocationId}</if>
+            a.del_flag = '0'
+            <if test="assetId != null">and a.asset_id = #{assetId}</if>
+            <if test="assetCode != null and assetCode != ''">and a.asset_code like concat('%', #{assetCode}, '%')</if>
+            <if test="assetName != null and assetName != ''">and a.asset_name like concat('%', #{assetName}, '%')</if>
+            <if test="categoryId != null">and a.category_id = #{categoryId}</if>
+            <if test="assetStatus != null and assetStatus != ''">and a.asset_status = #{assetStatus}</if>
+            <if test="useOrgDeptId != null">and a.use_org_dept_id = #{useOrgDeptId}</if>
+            <if test="manageDeptId != null">and a.manage_dept_id = #{manageDeptId}</if>
+            <if test="currentUserId != null">and a.current_user_id = #{currentUserId}</if>
+            <if test="currentLocationId != null">and a.current_location_id = #{currentLocationId}</if>
+            ${params.dataScope}
         </where>
-        order by asset_id desc
+        order by a.asset_id desc
     </select>
 
     <select id="selectAssetInfoById" parameterType="Long" resultMap="AssetInfoResult">
         <include refid="selectAssetInfoVo"/>
-        where asset_id = #{assetId} and del_flag = '0'
+        where a.asset_id = #{assetId} and a.del_flag = '0'
     </select>
 
     <select id="selectAssetInfoByIds" resultMap="AssetInfoResult">
         <include refid="selectAssetInfoVo"/>
-        where del_flag = '0'
-          and asset_id in
+        where a.del_flag = '0'
+          and a.asset_id in
         <foreach collection="collection" item="assetId" open="(" separator="," close=")">
             #{assetId}
         </foreach>
@@ -79,7 +82,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="checkAssetCodeUnique" parameterType="String" resultMap="AssetInfoResult">
         <include refid="selectAssetInfoVo"/>
-        where asset_code = #{assetCode} and del_flag = '0' limit 1
+        where a.asset_code = #{assetCode} and a.del_flag = '0' limit 1
     </select>
 
     <update id="updateAssetSnapshot" parameterType="com.ruoyi.system.domain.asset.AssetInfo">

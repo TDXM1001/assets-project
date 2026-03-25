@@ -9,6 +9,15 @@
       @reset="handleReset"
     />
 
+    <ElAlert
+      v-if="inventoryScopeNotice"
+      class="mb-3"
+      type="info"
+      :closable="false"
+      show-icon
+      :title="inventoryScopeNotice"
+    />
+
     <ElCard class="art-table-card" shadow="never">
       <ArtTableHeader
         :showZebra="false"
@@ -86,7 +95,7 @@
       :location-options="locationTreeOptions"
       :dept-options="deptTreeOptions"
       :user-options="userOptions"
-      :scope-type-options="scopeTypeOptions"
+      :scope-type-options="availableScopeTypeOptions"
       @success="handleDialogSuccess"
     />
 
@@ -94,7 +103,7 @@
       :key="drawerKey"
       v-model="drawerVisible"
       :task-data="currentTask"
-      :scope-type-options="scopeTypeOptions"
+      :scope-type-options="allScopeTypeOptions"
       :category-label-map="categoryLabelMap"
       :location-label-map="locationLabelMap"
       :dept-label-map="deptLabelMap"
@@ -127,6 +136,7 @@
   import { useTable } from '@/hooks/core/useTable'
   import { useUserStore } from '@/store/modules/user'
   import { useDict } from '@/utils/dict'
+  import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import DictTag from '@/components/DictTag/index.vue'
   import { deptTreeSelect, listUser } from '@/api/system/user'
   import { treeCategorySelect } from '@/api/asset/category'
@@ -201,17 +211,25 @@
   }
 
   const userStore = useUserStore()
+  const { canUseCategoryInventoryScope, isAssetDeptManager, isSelfScopedAssetUser } =
+    useAssetRoleScope()
   const { asset_inventory_task_status, asset_inventory_result } = useDict(
     'asset_inventory_task_status',
     'asset_inventory_result'
   )
 
-  const scopeTypeOptions: ScopeOption[] = [
+  const allScopeTypeOptions: ScopeOption[] = [
     { label: '全量盘点', value: 'ALL' },
     { label: '按部门盘点', value: 'DEPT' },
     { label: '按位置盘点', value: 'LOCATION' },
     { label: '按分类盘点', value: 'CATEGORY' }
   ]
+
+  const availableScopeTypeOptions = computed(() =>
+    canUseCategoryInventoryScope.value
+      ? allScopeTypeOptions
+      : allScopeTypeOptions.filter((item) => item.value !== 'CATEGORY')
+  )
 
   const exportLoading = ref(false)
   const tableError = ref('')
@@ -249,7 +267,7 @@
 
   const searchBarKey = computed(
     () =>
-      `${asset_inventory_task_status.value.length}-${asset_inventory_result.value.length}-${userOptions.value.length}`
+      `${asset_inventory_task_status.value.length}-${asset_inventory_result.value.length}-${userOptions.value.length}-${availableScopeTypeOptions.value.length}-${isSelfScopedAssetUser.value}`
   )
 
   const multiple = computed(() => selection.value.length === 0)
@@ -260,8 +278,8 @@
       Boolean(formFilters.taskName?.trim()) ||
       Boolean(formFilters.taskStatus) ||
       Boolean(formFilters.taskScopeType) ||
-      Boolean(formFilters.ownerUserId) ||
-      Boolean(formFilters.executeUserId)
+      (!isSelfScopedAssetUser.value && Boolean(formFilters.ownerUserId)) ||
+      (!isSelfScopedAssetUser.value && Boolean(formFilters.executeUserId))
   )
 
   const hasPermission = (permission: string) => {
@@ -280,8 +298,18 @@
 
   const formatScopeType = (scopeType?: string) => {
     if (!scopeType) return '-'
-    return scopeTypeOptions.find((item) => item.value === scopeType)?.label || scopeType
+    return allScopeTypeOptions.find((item) => item.value === scopeType)?.label || scopeType
   }
+
+  const inventoryScopeNotice = computed(() => {
+    if (isSelfScopedAssetUser.value) {
+      return '当前为“我的盘点任务”视角，仅展示你本人负责或执行的盘点任务。'
+    }
+    if (isAssetDeptManager.value && !canUseCategoryInventoryScope.value) {
+      return '部门主管仅支持创建全量、按部门或按位置盘点任务，按分类盘点保留给管理员和审计角色。'
+    }
+    return ''
+  })
 
   const resolveLabel = (map: LabelMap, value?: number | string) => {
     if (value === null || value === undefined || value === '') {
@@ -541,72 +569,81 @@
     return '当前还没有盘点任务，先新建任务再开始盘点流程。'
   })
 
-  const formItems = computed(() => [
-    {
-      label: '任务编号',
-      key: 'taskNo',
-      type: 'input',
-      props: {
-        placeholder: '请输入任务编号',
-        clearable: true
+  const formItems = computed(() => {
+    const items = [
+      {
+        label: '任务编号',
+        key: 'taskNo',
+        type: 'input',
+        props: {
+          placeholder: '请输入任务编号',
+          clearable: true
+        }
+      },
+      {
+        label: '任务名称',
+        key: 'taskName',
+        type: 'input',
+        props: {
+          placeholder: '请输入任务名称',
+          clearable: true
+        }
+      },
+      {
+        label: '任务状态',
+        key: 'taskStatus',
+        type: 'select',
+        props: {
+          placeholder: '请选择任务状态',
+          clearable: true,
+          options: asset_inventory_task_status.value
+        }
+      },
+      {
+        label: '盘点范围',
+        key: 'taskScopeType',
+        type: 'select',
+        props: {
+          placeholder: '请选择盘点范围',
+          clearable: true,
+          options: availableScopeTypeOptions.value
+        }
       }
-    },
-    {
-      label: '任务名称',
-      key: 'taskName',
-      type: 'input',
-      props: {
-        placeholder: '请输入任务名称',
-        clearable: true
-      }
-    },
-    {
-      label: '任务状态',
-      key: 'taskStatus',
-      type: 'select',
-      props: {
-        placeholder: '请选择任务状态',
-        clearable: true,
-        options: asset_inventory_task_status.value
-      }
-    },
-    {
-      label: '盘点范围',
-      key: 'taskScopeType',
-      type: 'select',
-      props: {
-        placeholder: '请选择盘点范围',
-        clearable: true,
-        options: scopeTypeOptions
-      }
-    },
-    {
-      label: '负责人',
-      key: 'ownerUserId',
-      type: 'select',
-      props: {
-        placeholder: '请选择负责人',
-        clearable: true,
-        options: userOptions.value.map((item) => ({
-          label: item.userName,
-          value: item.userId
-        }))
-      }
-    },
-    {
-      label: '执行人',
-      key: 'executeUserId',
-      type: 'select',
-      props: {
-        placeholder: '请选择执行人',
-        clearable: true,
-        options: userOptions.value.map((item) => ({
-          label: item.userName,
-          value: item.userId
-        }))
-      }
+    ]
+
+    if (!isSelfScopedAssetUser.value) {
+      items.push(
+        {
+          label: '负责人',
+          key: 'ownerUserId',
+          type: 'select',
+          props: {
+            placeholder: '请选择负责人',
+            clearable: true,
+            options: userOptions.value.map((item) => ({
+              label: item.userName,
+              value: item.userId
+            }))
+          }
+        },
+        {
+          label: '执行人',
+          key: 'executeUserId',
+          type: 'select',
+          props: {
+            placeholder: '请选择执行人',
+            clearable: true,
+            options: userOptions.value.map((item) => ({
+              label: item.userName,
+              value: item.userId
+            }))
+          }
+        }
+      )
     }
-  ])
+
+    return items
+  })
 
   /**
    * 列表渲染时统一处理流程动作，避免状态判断散落到模板里。
@@ -667,8 +704,10 @@
       taskName: formFilters.taskName || undefined,
       taskStatus: formFilters.taskStatus || undefined,
       taskScopeType: formFilters.taskScopeType || undefined,
-      ownerUserId: formFilters.ownerUserId || undefined,
-      executeUserId: formFilters.executeUserId || undefined,
+      ownerUserId: isSelfScopedAssetUser.value ? undefined : formFilters.ownerUserId || undefined,
+      executeUserId: isSelfScopedAssetUser.value
+        ? undefined
+        : formFilters.executeUserId || undefined,
       pageNum: 1
     })
   }

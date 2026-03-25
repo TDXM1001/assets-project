@@ -10,6 +10,15 @@
     />
 
     <ElAlert
+      v-if="eventScopeNotice"
+      class="mb-3"
+      type="info"
+      :closable="false"
+      show-icon
+      :title="eventScopeNotice"
+    />
+
+    <ElAlert
       v-if="lockedAssetId"
       class="mb-3"
       type="info"
@@ -91,12 +100,14 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useDict } from '@/utils/dict'
+  import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import AssetEventDrawer from '../shared/asset-event-drawer.vue'
 
   defineOptions({ name: 'AssetEvent' })
 
   const route = useRoute()
   const router = useRouter()
+  const { isSelfScopedAssetUser } = useAssetRoleScope()
   const { asset_event_type, asset_order_type } = useDict('asset_event_type', 'asset_order_type')
 
   const initialSearchState = {
@@ -125,7 +136,11 @@
 
   const searchBarKey = computed(
     () =>
-      `${asset_event_type.value.length}-${sourceTypeOptions.value.length}-${lockedAssetId.value || ''}`
+      `${asset_event_type.value.length}-${sourceTypeOptions.value.length}-${lockedAssetId.value || ''}-${isSelfScopedAssetUser.value}`
+  )
+
+  const eventScopeNotice = computed(() =>
+    isSelfScopedAssetUser.value ? '当前仅展示你本人可见资产的流水记录。' : ''
   )
 
   const lockedAssetLabel = computed(() => {
@@ -142,7 +157,7 @@
       Boolean(formFilters.eventType) ||
       Boolean(formFilters.sourceOrderNo?.trim()) ||
       Boolean(formFilters.sourceOrderType) ||
-      Boolean(formFilters.operatorUserName?.trim()) ||
+      (!isSelfScopedAssetUser.value && Boolean(formFilters.operatorUserName?.trim())) ||
       Boolean(formFilters.operateTimeRange?.length) ||
       Boolean(lockedAssetId.value)
   )
@@ -180,7 +195,9 @@
       eventType: formFilters.eventType || undefined,
       sourceOrderNo: formFilters.sourceOrderNo || undefined,
       sourceOrderType: formFilters.sourceOrderType || undefined,
-      operatorUserName: formFilters.operatorUserName || undefined,
+      operatorUserName: isSelfScopedAssetUser.value
+        ? undefined
+        : formFilters.operatorUserName || undefined,
       beginOperateTime: beginOperateTime || undefined,
       endOperateTime: endOperateTime || undefined
     }
@@ -276,75 +293,82 @@
     }
   })
 
-  const searchItems = computed(() => [
-    {
-      label: '资产编码',
-      key: 'assetCode',
-      type: 'input',
-      props: {
-        placeholder: '请输入资产编码',
-        clearable: true
+  const searchItems = computed(() => {
+    const items = [
+      {
+        label: '资产编码',
+        key: 'assetCode',
+        type: 'input',
+        props: {
+          placeholder: '请输入资产编码',
+          clearable: true
+        }
+      },
+      {
+        label: '资产名称',
+        key: 'assetName',
+        type: 'input',
+        props: {
+          placeholder: '请输入资产名称',
+          clearable: true
+        }
+      },
+      {
+        label: '事件类型',
+        key: 'eventType',
+        type: 'select',
+        props: {
+          placeholder: '请选择事件类型',
+          clearable: true,
+          options: asset_event_type.value
+        }
+      },
+      {
+        label: '来源单据',
+        key: 'sourceOrderNo',
+        type: 'input',
+        props: {
+          placeholder: '请输入来源单据编号',
+          clearable: true
+        }
+      },
+      {
+        label: '来源业务',
+        key: 'sourceOrderType',
+        type: 'select',
+        props: {
+          placeholder: '请选择来源业务',
+          clearable: true,
+          options: sourceTypeOptions.value
+        }
+      },
+      {
+        label: '操作时间',
+        key: 'operateTimeRange',
+        type: 'daterange',
+        props: {
+          startPlaceholder: '开始日期',
+          endPlaceholder: '结束日期',
+          rangeSeparator: '至',
+          valueFormat: 'YYYY-MM-DD'
+        }
       }
-    },
-    {
-      label: '资产名称',
-      key: 'assetName',
-      type: 'input',
-      props: {
-        placeholder: '请输入资产名称',
-        clearable: true
-      }
-    },
-    {
-      label: '事件类型',
-      key: 'eventType',
-      type: 'select',
-      props: {
-        placeholder: '请选择事件类型',
-        clearable: true,
-        options: asset_event_type.value
-      }
-    },
-    {
-      label: '来源单据',
-      key: 'sourceOrderNo',
-      type: 'input',
-      props: {
-        placeholder: '请输入来源单据编号',
-        clearable: true
-      }
-    },
-    {
-      label: '来源业务',
-      key: 'sourceOrderType',
-      type: 'select',
-      props: {
-        placeholder: '请选择来源业务',
-        clearable: true,
-        options: sourceTypeOptions.value
-      }
-    },
-    {
-      label: '操作人',
-      key: 'operatorUserName',
-      type: 'input',
-      props: {
-        placeholder: '请输入操作人',
-        clearable: true
-      }
-    },
-    {
-      label: '操作时间',
-      key: 'operateTimeRange',
-      type: 'daterange',
-      props: {
-        startPlaceholder: '开始日期',
-        endPlaceholder: '结束日期',
-        rangeSeparator: '至',
-        valueFormat: 'YYYY-MM-DD'
-      }
+    ]
+
+    if (!isSelfScopedAssetUser.value) {
+      items.splice(5, 0, {
+        label: '操作人',
+        key: 'operatorUserName',
+        type: 'input',
+        props: {
+          placeholder: '请输入操作人',
+          clearable: true
+        }
+      })
     }
-  ])
+
+    return items
+  })
 
   /**
    * 独立流水页按资产维度继续下钻时，统一复用同一套只读抽屉。

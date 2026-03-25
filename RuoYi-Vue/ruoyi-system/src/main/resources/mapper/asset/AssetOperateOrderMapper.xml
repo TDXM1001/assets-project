@@ -62,7 +62,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectAssetOperateOrderVo">
-        select o.order_id,
+        select distinct o.order_id,
                o.order_no,
                o.order_type,
                o.order_status,
@@ -108,6 +108,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         left join sys_dept to_dept on to_dept.dept_id = o.to_dept_id
         left join asset_location from_location on from_location.location_id = o.from_location_id
         left join asset_location to_location on to_location.location_id = o.to_location_id
+        left join (
+            select distinct order_id, dept_id
+            from (
+                select order_id, apply_dept_id as dept_id
+                from asset_operate_order
+                where del_flag = '0' and apply_dept_id is not null
+                union all
+                select order_id, from_dept_id as dept_id
+                from asset_operate_order
+                where del_flag = '0' and from_dept_id is not null
+                union all
+                select order_id, to_dept_id as dept_id
+                from asset_operate_order
+                where del_flag = '0' and to_dept_id is not null
+            ) order_scope_union
+        ) scope_dept on scope_dept.order_id = o.order_id
     </sql>
 
     <select id="selectAssetOperateOrderList" parameterType="com.ruoyi.system.domain.asset.AssetOperateOrder" resultMap="AssetOperateOrderResult">
@@ -124,6 +140,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="applyDeptName != null and applyDeptName != ''">and apply_dept.dept_name like concat('%', #{applyDeptName}, '%')</if>
             <if test="bizDateStart != null and bizDateStart != ''">and date_format(o.biz_date, '%Y-%m-%d') &gt;= #{bizDateStart}</if>
             <if test="bizDateEnd != null and bizDateEnd != ''">and date_format(o.biz_date, '%Y-%m-%d') &lt;= #{bizDateEnd}</if>
+            ${params.dataScope}
         </where>
         order by o.order_id desc
     </select>

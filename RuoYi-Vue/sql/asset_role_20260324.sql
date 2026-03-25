@@ -32,7 +32,7 @@ insert into sys_role (
   status, del_flag, create_by, create_time, update_by, update_time, remark
 )
 select
-  '资产使用人', 'asset_user', 102, '2', 1, 1,
+  '资产使用人', 'asset_user', 102, '5', 1, 1,
   '0', '0', 'admin', sysdate(), '', null, '资产模块普通使用人角色'
 where not exists (
   select 1 from sys_role where role_key = 'asset_user'

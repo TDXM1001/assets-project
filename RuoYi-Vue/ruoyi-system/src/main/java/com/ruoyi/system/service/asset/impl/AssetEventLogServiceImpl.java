@@ -5,8 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import com.alibaba.fastjson2.JSON;
+import com.ruoyi.common.annotation.DataScope;
 import com.ruoyi.system.domain.asset.AssetEventLog;
 import com.ruoyi.system.domain.asset.AssetInfo;
 import com.ruoyi.system.mapper.asset.AssetEventLogMapper;
@@ -23,7 +25,12 @@ public class AssetEventLogServiceImpl implements IAssetEventLogService
     @Autowired
     private AssetEventLogMapper assetEventLogMapper;
 
+    @Autowired
+    @Lazy
+    private IAssetEventLogService assetEventLogServiceProxy;
+
     @Override
+    @DataScope(deptAlias = "scope_dept", userAlias = "scope_user")
     public List<AssetEventLog> selectAssetEventLogList(AssetEventLog assetEventLog)
     {
         return assetEventLogMapper.selectAssetEventLogList(assetEventLog);
@@ -32,14 +39,21 @@ public class AssetEventLogServiceImpl implements IAssetEventLogService
     @Override
     public AssetEventLog selectAssetEventLogById(Long eventId)
     {
-        return assetEventLogMapper.selectAssetEventLogById(eventId);
+        AssetEventLog query = new AssetEventLog();
+        query.setEventId(eventId);
+        query.setLimitSize(1);
+        List<AssetEventLog> scopedLogs = assetEventLogServiceProxy.selectAssetEventLogList(query);
+        return scopedLogs.isEmpty() ? null : scopedLogs.get(0);
     }
 
     @Override
     public List<AssetEventLog> selectRecentAssetEventLogListByAssetId(Long assetId, Integer limit)
     {
         int safeLimit = limit == null || limit <= 0 ? DEFAULT_ASSET_EVENT_LIMIT : Math.min(limit, 100);
-        return assetEventLogMapper.selectRecentAssetEventLogListByAssetId(assetId, safeLimit);
+        AssetEventLog query = new AssetEventLog();
+        query.setAssetId(assetId);
+        query.setLimitSize(safeLimit);
+        return assetEventLogServiceProxy.selectAssetEventLogList(query);
     }
 
     @Override
