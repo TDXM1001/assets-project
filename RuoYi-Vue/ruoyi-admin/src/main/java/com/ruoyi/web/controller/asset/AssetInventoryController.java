@@ -1,5 +1,6 @@
 package com.ruoyi.web.controller.asset;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.system.domain.asset.AssetInventoryTask;
@@ -144,7 +146,7 @@ public class AssetInventoryController extends BaseController
     @PostMapping("/{taskId}/scan")
     public AjaxResult scan(@PathVariable Long taskId, @RequestBody Map<String, Object> body)
     {
-        String scanCode = body == null ? null : StringUtils.trim((String) body.get("scanCode"));
+        String scanCode = body == null ? null : StringUtils.trim(body.get("scanCode") == null ? null : String.valueOf(body.get("scanCode")));
         return toAjax(inventoryTaskService.scanAssetInventoryTask(taskId, scanCode, getUserId(), getUsername()));
     }
 
@@ -168,16 +170,37 @@ public class AssetInventoryController extends BaseController
     @SuppressWarnings("unchecked")
     public AjaxResult processDiff(@PathVariable Long taskId, @RequestBody Map<String, Object> body)
     {
+        List<Long> itemIds = resolveItemIds(body);
+        String processStatus = body == null ? null : StringUtils.trim(body.get("processStatus") == null ? null : String.valueOf(body.get("processStatus")));
+        String processDesc = body == null ? null : StringUtils.trim(body.get("processDesc") == null ? null : String.valueOf(body.get("processDesc")));
+        return toAjax(inventoryTaskService.processAssetInventoryDiff(taskId, itemIds, processStatus, processDesc, getUsername()));
+    }
+
+    /**
+     * 差异处理参数兼容数字和字符串形式的 itemId，非法值直接按业务异常返回。
+     */
+    private List<Long> resolveItemIds(Map<String, Object> body)
+    {
         List<Long> itemIds = null;
         if (body != null && body.get("itemIds") instanceof List<?> rawList)
         {
-            itemIds = rawList.stream()
-                .filter(item -> item != null)
-                .map(item -> Long.valueOf(String.valueOf(item)))
-                .toList();
+            itemIds = new ArrayList<>();
+            for (Object rawItem : rawList)
+            {
+                if (rawItem == null)
+                {
+                    continue;
+                }
+                try
+                {
+                    itemIds.add(Long.valueOf(String.valueOf(rawItem)));
+                }
+                catch (NumberFormatException ex)
+                {
+                    throw new ServiceException("差异明细 itemIds 参数格式不正确");
+                }
+            }
         }
-        String processStatus = body == null ? null : (String) body.get("processStatus");
-        String processDesc = body == null ? null : (String) body.get("processDesc");
-        return toAjax(inventoryTaskService.processAssetInventoryDiff(taskId, itemIds, processStatus, processDesc, getUsername()));
+        return itemIds;
     }
 }

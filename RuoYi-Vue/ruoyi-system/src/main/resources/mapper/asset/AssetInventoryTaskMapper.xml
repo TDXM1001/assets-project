@@ -37,14 +37,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="assetName" column="asset_name"/>
         <result property="expectedUserId" column="expected_user_id"/>
         <result property="actualUserId" column="actual_user_id"/>
+        <result property="expectedUserName" column="expected_user_name"/>
+        <result property="actualUserName" column="actual_user_name"/>
         <result property="expectedLocationId" column="expected_location_id"/>
         <result property="actualLocationId" column="actual_location_id"/>
+        <result property="expectedLocationName" column="expected_location_name"/>
+        <result property="actualLocationName" column="actual_location_name"/>
         <result property="expectedStatus" column="expected_status"/>
         <result property="actualStatus" column="actual_status"/>
         <result property="inventoryResult" column="inventory_result"/>
         <result property="inventoryDesc" column="inventory_desc"/>
         <result property="inventoryTime" column="inventory_time"/>
         <result property="inventoryUserId" column="inventory_user_id"/>
+        <result property="inventoryUserName" column="inventory_user_name"/>
         <result property="processStatus" column="process_status"/>
         <result property="processDesc" column="process_desc"/>
     </resultMap>
@@ -62,11 +67,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <sql id="selectAssetInventoryTaskItemVo">
         select i.item_id, i.task_id, i.asset_id, a.asset_code, a.asset_name,
-               i.expected_user_id, i.actual_user_id, i.expected_location_id, i.actual_location_id,
+               i.expected_user_id, expected_user.nick_name as expected_user_name,
+               i.actual_user_id, actual_user.nick_name as actual_user_name,
+               i.expected_location_id, expected_location.location_name as expected_location_name,
+               i.actual_location_id, actual_location.location_name as actual_location_name,
                i.expected_status, i.actual_status, i.inventory_result, i.inventory_desc,
-               i.inventory_time, i.inventory_user_id, i.process_status, i.process_desc
+               i.inventory_time, i.inventory_user_id, inventory_user.nick_name as inventory_user_name,
+               i.process_status, i.process_desc
         from asset_inventory_task_item i
         left join asset_info a on a.asset_id = i.asset_id
+        left join sys_user expected_user on expected_user.user_id = i.expected_user_id
+        left join sys_user actual_user on actual_user.user_id = i.actual_user_id
+        left join sys_user inventory_user on inventory_user.user_id = i.inventory_user_id
+        left join asset_location expected_location on expected_location.location_id = i.expected_location_id
+        left join asset_location actual_location on actual_location.location_id = i.actual_location_id
     </sql>
 
     <select id="selectAssetInventoryTaskList" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask" resultMap="AssetInventoryTaskResult">
@@ -109,15 +123,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                a.asset_code,
                a.asset_name,
                a.current_user_id as expected_user_id,
+               null as expected_user_name,
                null as actual_user_id,
+               null as actual_user_name,
                a.current_location_id as expected_location_id,
+               null as expected_location_name,
                null as actual_location_id,
+               null as actual_location_name,
                a.asset_status as expected_status,
                null as actual_status,
                null as inventory_result,
                null as inventory_desc,
                null as inventory_time,
                null as inventory_user_id,
+               null as inventory_user_name,
                null as process_status,
                null as process_desc
         from asset_info a
@@ -137,13 +156,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectInventoryTaskItemByScanCode" resultMap="AssetInventoryTaskItemResult">
         select i.item_id, i.task_id, i.asset_id, a.asset_code, a.asset_name,
-               i.expected_user_id, a.current_user_id as actual_user_id,
-               i.expected_location_id, a.current_location_id as actual_location_id,
+               i.expected_user_id, expected_user.nick_name as expected_user_name,
+               a.current_user_id as actual_user_id, actual_user.nick_name as actual_user_name,
+               i.expected_location_id, expected_location.location_name as expected_location_name,
+               a.current_location_id as actual_location_id, actual_location.location_name as actual_location_name,
                i.expected_status, a.asset_status as actual_status,
                i.inventory_result, i.inventory_desc, i.inventory_time, i.inventory_user_id,
+               inventory_user.nick_name as inventory_user_name,
                i.process_status, i.process_desc
         from asset_inventory_task_item i
         left join asset_info a on a.asset_id = i.asset_id
+        left join sys_user expected_user on expected_user.user_id = i.expected_user_id
+        left join sys_user actual_user on actual_user.user_id = a.current_user_id
+        left join sys_user inventory_user on inventory_user.user_id = i.inventory_user_id
+        left join asset_location expected_location on expected_location.location_id = i.expected_location_id
+        left join asset_location actual_location on actual_location.location_id = a.current_location_id
         where i.task_id = #{taskId}
           and (a.asset_code = #{scanCode} or a.qr_code = #{scanCode})
         limit 1

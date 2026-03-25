@@ -202,7 +202,7 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         item.setInventoryUserId(operateUserId);
         item.setInventoryTime(new Date());
         item.setInventoryResult(resolveInventoryResult(item));
-        item.setInventoryDesc(resolveInventoryDesc(item));
+        item.setInventoryDesc(resolveInventoryDescForDisplay(item));
         item.setProcessStatus(INVENTORY_RESULT_NORMAL.equals(item.getInventoryResult()) ? null : PROCESS_STATUS_PENDING);
         item.setProcessDesc(null);
         item.setUpdateBy(operateBy);
@@ -258,12 +258,13 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         {
             throw new ServiceException("只有已完成的盘点任务才能处理差异");
         }
-        if (itemIds == null || itemIds.isEmpty())
+        List<Long> normalizedItemIds = normalizeDiffItemIds(itemIds);
+        if (normalizedItemIds.isEmpty())
         {
             throw new ServiceException("请选择需要处理的差异明细");
         }
 
-        List<AssetInventoryTaskItem> processableItems = selectProcessableDiffItems(taskId, itemIds);
+        List<AssetInventoryTaskItem> processableItems = selectProcessableDiffItems(taskId, normalizedItemIds);
         if (processableItems.isEmpty())
         {
             throw new ServiceException("所选差异明细已处理或当前不可处理，请刷新后重试");
@@ -273,7 +274,7 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
             .map(AssetInventoryTaskItem::getItemId)
             .filter(Objects::nonNull)
             .toList();
-        String targetProcessStatus = StringUtils.isEmpty(processStatus) ? PROCESS_STATUS_PENDING : processStatus;
+        String targetProcessStatus = normalizeProcessStatus(processStatus);
         int rows = inventoryTaskMapper.batchUpdateInventoryProcess(taskId, processableItemIds, targetProcessStatus, processDesc);
         if (rows <= 0)
         {
@@ -338,22 +339,81 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         return INVENTORY_RESULT_NORMAL;
     }
 
-    private String resolveInventoryDesc(AssetInventoryTaskItem item)
+    private String resolveInventoryDescForDisplay(AssetInventoryTaskItem item)
     {
         List<String> messages = new ArrayList<>();
         if (!Objects.equals(item.getExpectedLocationId(), item.getActualLocationId()))
         {
-            messages.add("现场位置与账面位置不一致");
+            messages.add("位置差异: 现场[" + resolveLocationDisplayName(item.getActualLocationId(), item.getActualLocationName())
+                + "] 账面[" + resolveLocationDisplayName(item.getExpectedLocationId(), item.getExpectedLocationName()) + "]");
         }
         if (!Objects.equals(item.getExpectedUserId(), item.getActualUserId()))
         {
-            messages.add("现场责任人与账面责任人不一致");
+            messages.add("责任人差异: 现场[" + resolveUserDisplayName(item.getActualUserId(), item.getActualUserName())
+                + "] 账面[" + resolveUserDisplayName(item.getExpectedUserId(), item.getExpectedUserName()) + "]");
         }
         if (!StringUtils.equals(item.getExpectedStatus(), item.getActualStatus()))
         {
-            messages.add("现场状态与账面状态不一致");
+            messages.add("状态差异: 现场[" + resolveStatusDisplayName(item.getActualStatus())
+                + "] 账面[" + resolveStatusDisplayName(item.getExpectedStatus()) + "]");
         }
         return messages.isEmpty() ? "盘点正常" : String.join("；", messages);
+    }
+
+    /**
+     * 差异处理只接受有效且去重后的明细编号，避免空值或重复提交造成无效更新。
+     */
+    private List<Long> normalizeDiffItemIds(List<Long> itemIds)
+    {
+        if (itemIds == null)
+        {
+            return List.of();
+        }
+        return itemIds.stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    /**
+     * 盘点差异处理状态目前只支持 PENDING 和 PROCESSED，避免前端传入非约定值。
+     */
+    private String normalizeProcessStatus(String processStatus)
+    {
+        String targetProcessStatus = StringUtils.trim(processStatus);
+        if (StringUtils.isEmpty(targetProcessStatus))
+        {
+            return PROCESS_STATUS_PENDING;
+        }
+        if (StringUtils.equals(targetProcessStatus, PROCESS_STATUS_PENDING)
+            || StringUtils.equals(targetProcessStatus, PROCESS_STATUS_PROCESSED))
+        {
+            return targetProcessStatus;
+        }
+        throw new ServiceException("盘点差异处理状态仅支持 PENDING 或 PROCESSED");
+    }
+
+    private String resolveUserDisplayName(Long userId, String userName)
+    {
+        if (userId == null)
+        {
+            return "未登记责任人";
+        }
+        return StringUtils.defaultIfBlank(userName, "用户#" + userId);
+    }
+
+    private String resolveLocationDisplayName(Long locationId, String locationName)
+    {
+        if (locationId == null)
+        {
+            return "未登记位置";
+        }
+        return StringUtils.defaultIfBlank(locationName, "位置#" + locationId);
+    }
+
+    private String resolveStatusDisplayName(String assetStatus)
+    {
+        return StringUtils.defaultIfBlank(assetStatus, "未登记状态");
     }
 
     private void recalculateTaskSummary(Long taskId, String operateBy)

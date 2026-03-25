@@ -1,45 +1,47 @@
 <template>
-  <ElDrawer v-model="visible" :title="drawerTitle" size="760px" append-to-body destroy-on-close>
+  <ElDrawer v-model="visible" :title="drawerTitle" size="920px" append-to-body destroy-on-close>
     <template v-if="taskData">
-      <ElSpace wrap class="mb-4">
-        <ElButton
-          v-auth="'asset:inventory:edit'"
-          type="primary"
-          plain
-          :disabled="taskData.taskStatus !== 'DRAFT'"
-          @click="emitEdit"
-        >
-          编辑任务
-        </ElButton>
-        <ElButton
-          v-auth="'asset:inventory:start'"
-          type="success"
-          plain
-          :disabled="taskData.taskStatus !== 'DRAFT'"
-          @click="emitStart"
-        >
-          开始盘点
-        </ElButton>
-        <ElButton
-          v-auth="'asset:inventory:finish'"
-          type="warning"
-          plain
-          :disabled="taskData.taskStatus !== 'RUNNING'"
-          @click="emitFinish"
-        >
-          结束盘点
-        </ElButton>
-        <ElButton
-          v-auth="'asset:inventory:processDiff'"
-          type="danger"
-          plain
-          :disabled="!hasPendingDiffItems"
-          @click="emitProcessDiff"
-        >
-          处理差异
-        </ElButton>
-        <ElButton plain @click="emitRefresh">刷新明细</ElButton>
-      </ElSpace>
+      <div class="inventory-detail-toolbar">
+        <ElSpace wrap>
+          <ElButton
+            v-auth="'asset:inventory:edit'"
+            type="primary"
+            plain
+            :disabled="taskData.taskStatus !== 'DRAFT'"
+            @click="emit('edit')"
+          >
+            编辑任务
+          </ElButton>
+          <ElButton
+            v-auth="'asset:inventory:start'"
+            type="success"
+            plain
+            :disabled="taskData.taskStatus !== 'DRAFT'"
+            @click="emit('start')"
+          >
+            开始盘点
+          </ElButton>
+          <ElButton
+            v-auth="'asset:inventory:finish'"
+            type="warning"
+            plain
+            :disabled="taskData.taskStatus !== 'RUNNING'"
+            @click="emit('finish')"
+          >
+            结束盘点
+          </ElButton>
+          <ElButton
+            v-auth="'asset:inventory:processDiff'"
+            type="danger"
+            plain
+            :disabled="!hasPendingDiffItems"
+            @click="emit('process-diff')"
+          >
+            处理差异
+          </ElButton>
+          <ElButton plain @click="emitRefresh">刷新明细</ElButton>
+        </ElSpace>
+      </div>
 
       <ElDescriptions :column="2" border class="mb-4">
         <ElDescriptionsItem label="任务编号">{{ taskData.taskNo || '-' }}</ElDescriptionsItem>
@@ -74,29 +76,43 @@
         <ElDescriptionsItem label="备注">{{ taskData.remark || '-' }}</ElDescriptionsItem>
       </ElDescriptions>
 
+      <div class="inventory-metrics">
+        <ElCard shadow="never">
+          <ElStatistic title="已录入" :value="scannedCount" />
+        </ElCard>
+        <ElCard shadow="never">
+          <ElStatistic title="待处理差异" :value="pendingDiffCount" />
+        </ElCard>
+        <ElCard shadow="never">
+          <ElStatistic title="盘亏" :value="lossCount" />
+        </ElCard>
+      </div>
+
       <ElCard class="mb-4" shadow="never">
         <template #header>
-          <div class="flex items-center justify-between">
-            <span>快速盘点录入</span>
-            <ElTag effect="light" type="info">扫描后会通过后端 `scan` 接口记录盘点结果</ElTag>
+          <div class="inventory-card-header">
+            <span>盘点执行台</span>
+            <ElTag effect="light" type="info">支持扫码枪回车或手动录入编码</ElTag>
           </div>
         </template>
 
         <ElAlert
-          class="mb-3"
-          type="warning"
+          class="mb-4"
+          :type="scanAlertType"
           :closable="false"
           show-icon
-          title="这里先保留一个轻量录入入口，便于后续直接接扫码枪或手工录入。"
+          :title="scanAlertTitle"
         />
 
         <ElForm inline :model="scanForm">
           <ElFormItem label="扫描内容">
             <ElInput
+              ref="scanInputRef"
               v-model="scanForm.scanCode"
-              class="w-[260px]"
+              class="inventory-scan-input"
               placeholder="请输入资产编码、二维码或盘点标识"
               clearable
+              @keyup.enter="handleScan"
             />
           </ElFormItem>
           <ElFormItem>
@@ -104,26 +120,60 @@
               v-auth="'asset:inventory:start'"
               type="primary"
               :loading="scanLoading"
+              :disabled="taskData.taskStatus !== 'RUNNING'"
               @click="handleScan"
             >
               提交盘点
             </ElButton>
           </ElFormItem>
         </ElForm>
+
+        <div v-if="lastScanFeedback" class="inventory-last-feedback">
+          <ElTag :type="lastScanFeedback.type" effect="light">{{ lastScanFeedback.title }}</ElTag>
+          <span>{{ lastScanFeedback.description }}</span>
+        </div>
+
+        <div class="inventory-recent-block">
+          <div class="inventory-recent-block__title">最近扫码</div>
+          <ElEmpty v-if="recentScannedItems.length === 0" description="当前还没有盘点录入记录" />
+          <ElTimeline v-else>
+            <ElTimelineItem
+              v-for="item in recentScannedItems"
+              :key="item.itemId"
+              :timestamp="item.inventoryTime || '未记录时间'"
+              placement="top"
+            >
+              <div class="inventory-recent-item">
+                <div class="inventory-recent-item__main">
+                  <strong>{{ item.assetCode || '-' }}</strong>
+                  <span>{{ item.assetName || '-' }}</span>
+                </div>
+                <div class="inventory-recent-item__meta">
+                  <DictTag :options="asset_inventory_result" :value="item.inventoryResult" />
+                  <span>{{
+                    item.inventoryUserName || resolveUserLabel(item.inventoryUserId)
+                  }}</span>
+                </div>
+              </div>
+            </ElTimelineItem>
+          </ElTimeline>
+        </div>
       </ElCard>
 
       <ElCard shadow="never">
         <template #header>
-          <div class="flex items-center justify-between">
+          <div class="inventory-card-header">
             <span>盘点明细</span>
-            <ElText type="info">差异项后续会在“处理差异”弹窗里统一处理</ElText>
+            <ElText type="info"
+              >差异项会在“处理差异”里统一落账，明细页负责快速核对现场结果。</ElText
+            >
           </div>
         </template>
 
         <div v-loading="itemLoading">
           <ElEmpty
             v-if="itemRows.length === 0"
-            description="暂无盘点明细，等待后端接入或先进行盘点录入。"
+            description="暂无盘点明细，等待任务生成资产清单或先开始盘点。"
           >
             <template #image>
               <ElIcon size="48">
@@ -133,16 +183,36 @@
           </ElEmpty>
 
           <ElTable v-else :data="itemRows" row-key="itemId" border stripe>
-            <ElTableColumn prop="assetCode" label="资产编码" min-width="130" />
+            <ElTableColumn prop="assetCode" label="资产编码" min-width="130" fixed="left" />
             <ElTableColumn prop="assetName" label="资产名称" min-width="160" />
-            <ElTableColumn label="账面位置" min-width="140">
+            <ElTableColumn label="账面责任人" min-width="150">
               <template #default="{ row }">
-                {{ resolveLocationLabel(row.expectedLocationId) }}
+                {{ row.expectedUserName || resolveUserLabel(row.expectedUserId) }}
               </template>
             </ElTableColumn>
-            <ElTableColumn label="实际位置" min-width="140">
+            <ElTableColumn label="现场责任人" min-width="150">
               <template #default="{ row }">
-                {{ resolveLocationLabel(row.actualLocationId) }}
+                {{ row.actualUserName || resolveUserLabel(row.actualUserId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="账面位置" min-width="150">
+              <template #default="{ row }">
+                {{ row.expectedLocationName || resolveLocationLabel(row.expectedLocationId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="现场位置" min-width="150">
+              <template #default="{ row }">
+                {{ row.actualLocationName || resolveLocationLabel(row.actualLocationId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="账面状态" width="130" align="center">
+              <template #default="{ row }">
+                <DictTag :options="asset_status" :value="row.expectedStatus" />
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="现场状态" width="130" align="center">
+              <template #default="{ row }">
+                <DictTag :options="asset_status" :value="row.actualStatus" />
               </template>
             </ElTableColumn>
             <ElTableColumn label="盘点结果" width="120" align="center">
@@ -155,16 +225,22 @@
                 <DictTag :options="asset_inventory_process_status" :value="row.processStatus" />
               </template>
             </ElTableColumn>
+            <ElTableColumn label="盘点人" min-width="140">
+              <template #default="{ row }">
+                {{ row.inventoryUserName || resolveUserLabel(row.inventoryUserId) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn prop="inventoryTime" label="盘点时间" min-width="170" />
             <ElTableColumn
               prop="inventoryDesc"
               label="差异说明"
-              min-width="180"
+              min-width="220"
               show-overflow-tooltip
             />
             <ElTableColumn
               prop="processDesc"
               label="处理说明"
-              min-width="180"
+              min-width="220"
               show-overflow-tooltip
             />
           </ElTable>
@@ -183,9 +259,9 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, reactive, ref, watch } from 'vue'
+  import { computed, nextTick, reactive, ref, watch } from 'vue'
   import { Document } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, type ElInput } from 'element-plus'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { getAssetInventoryItems, scanAssetInventory } from '@/api/asset/inventory'
@@ -213,10 +289,21 @@
     itemId?: number
     assetCode?: string
     assetName?: string
+    expectedUserId?: number
+    actualUserId?: number
+    expectedUserName?: string
+    actualUserName?: string
     expectedLocationId?: number
     actualLocationId?: number
+    expectedLocationName?: string
+    actualLocationName?: string
+    expectedStatus?: string
+    actualStatus?: string
     inventoryResult?: string
     inventoryDesc?: string
+    inventoryTime?: string
+    inventoryUserId?: number
+    inventoryUserName?: string
     processStatus?: string
     processDesc?: string
   }
@@ -230,12 +317,23 @@
     value: string
   }
 
-  const { asset_inventory_task_status, asset_inventory_result, asset_inventory_process_status } =
-    useDict(
-      'asset_inventory_task_status',
-      'asset_inventory_result',
-      'asset_inventory_process_status'
-    )
+  interface ScanFeedback {
+    type: 'success' | 'warning' | 'info'
+    title: string
+    description: string
+  }
+
+  const {
+    asset_inventory_task_status,
+    asset_inventory_result,
+    asset_inventory_process_status,
+    asset_status
+  } = useDict(
+    'asset_inventory_task_status',
+    'asset_inventory_result',
+    'asset_inventory_process_status',
+    'asset_status'
+  )
 
   const props = defineProps<{
     modelValue: boolean
@@ -264,14 +362,13 @@
   const itemLoading = ref(false)
   const scanLoading = ref(false)
   const itemRows = ref<InventoryItemRow[]>([])
+  const scanInputRef = ref<InstanceType<typeof ElInput>>()
+  const lastScanFeedback = ref<ScanFeedback>()
 
   const scanForm = reactive({
     scanCode: ''
   })
 
-  /**
-   * 只有已完成任务里的待处理差异，才应该继续进入差异处理流程。
-   */
   const hasPendingDiffItems = computed(
     () =>
       props.taskData?.taskStatus === 'FINISHED' &&
@@ -290,6 +387,46 @@
     return `盘点任务详情 - ${props.taskData.taskName}`
   })
 
+  const scannedItems = computed(() =>
+    itemRows.value
+      .filter((item) => Boolean(item.inventoryTime))
+      .sort(
+        (a, b) =>
+          new Date(b.inventoryTime || 0).getTime() - new Date(a.inventoryTime || 0).getTime()
+      )
+  )
+
+  const recentScannedItems = computed(() => scannedItems.value.slice(0, 6))
+  const scannedCount = computed(() => scannedItems.value.length)
+  const pendingDiffCount = computed(
+    () =>
+      itemRows.value.filter(
+        (item) =>
+          item.inventoryResult &&
+          item.inventoryResult !== 'NORMAL' &&
+          item.processStatus !== 'PROCESSED'
+      ).length
+  )
+  const lossCount = computed(
+    () => itemRows.value.filter((item) => item.inventoryResult === 'LOSS').length
+  )
+
+  const scanAlertType = computed(() => {
+    if (props.taskData?.taskStatus === 'RUNNING') return 'success'
+    if (props.taskData?.taskStatus === 'FINISHED') return 'info'
+    return 'warning'
+  })
+
+  const scanAlertTitle = computed(() => {
+    if (props.taskData?.taskStatus === 'RUNNING') {
+      return '任务已开始，可以连续扫码盘点；每次录入后都会刷新明细和统计。'
+    }
+    if (props.taskData?.taskStatus === 'FINISHED') {
+      return '任务已结束，当前只读查看盘点结果；如仍有待处理差异，请直接进入差异处理。'
+    }
+    return '任务还未开始，先确认范围后启动任务，再进入现场扫码。'
+  })
+
   const resolveFromMap = (map: LabelMap, value?: number | string) => {
     if (value === null || value === undefined || value === '') {
       return '-'
@@ -304,12 +441,9 @@
 
   const resolveCategoryLabel = (value?: number | string) =>
     resolveFromMap(props.categoryLabelMap, value)
-
   const resolveLocationLabel = (value?: number | string) =>
     resolveFromMap(props.locationLabelMap, value)
-
   const resolveDeptLabel = (value?: number | string) => resolveFromMap(props.deptLabelMap, value)
-
   const resolveUserLabel = (value?: number | string) => resolveFromMap(props.userLabelMap, value)
 
   const formatTimeRange = (startTime?: string, endTime?: string) => {
@@ -319,9 +453,6 @@
     return `${startTime || '-'} ~ ${endTime || '-'}`
   }
 
-  /**
-   * 只要抽屉打开，就重新拉一次明细，避免列表状态变更后数据陈旧。
-   */
   const loadTaskItems = async () => {
     if (!props.taskData?.taskId) {
       itemRows.value = []
@@ -346,39 +477,77 @@
     async ([isOpen]) => {
       if (isOpen) {
         await loadTaskItems()
+        await nextTick()
+        if (props.taskData?.taskStatus === 'RUNNING') {
+          scanInputRef.value?.focus?.()
+        }
       } else {
         itemRows.value = []
         scanForm.scanCode = ''
+        lastScanFeedback.value = undefined
       }
     },
     { immediate: true }
   )
 
-  const emitEdit = () => emit('edit')
-  const emitStart = () => emit('start')
-  const emitFinish = () => emit('finish')
-  const emitProcessDiff = () => emit('process-diff')
   const emitRefresh = async () => {
     await loadTaskItems()
     emit('refresh')
   }
 
+  const buildScanFeedback = (scanCode: string): ScanFeedback => {
+    const latestMatchedItem = itemRows.value.find((item) => item.assetCode === scanCode)
+    if (!latestMatchedItem) {
+      return {
+        type: 'success',
+        title: '扫码成功',
+        description: `已记录扫描内容 ${scanCode}，明细已刷新。`
+      }
+    }
+
+    const resultText =
+      asset_inventory_result.value.find(
+        (item: { value?: string; label?: string }) =>
+          item.value === latestMatchedItem.inventoryResult
+      )?.label ||
+      latestMatchedItem.inventoryResult ||
+      '待确认'
+
+    return {
+      type:
+        latestMatchedItem.inventoryResult && latestMatchedItem.inventoryResult !== 'NORMAL'
+          ? 'warning'
+          : 'success',
+      title: `${latestMatchedItem.assetCode || scanCode} 已录入`,
+      description: `盘点结果：${resultText}，盘点人：${
+        latestMatchedItem.inventoryUserName || resolveUserLabel(latestMatchedItem.inventoryUserId)
+      }。`
+    }
+  }
+
   /**
-   * 盘点扫码的轻量入口，后续可以直接替换成扫码枪回车录入。
+   * 详情抽屉直接承担一线执行工作台，扫码完成后立刻刷新明细并给出最近一次录入反馈。
    */
   const handleScan = async () => {
     if (!props.taskData?.taskId || !scanForm.scanCode.trim()) {
+      ElMessage.warning('请先输入待盘点的资产编码或二维码')
+      return
+    }
+    if (props.taskData.taskStatus !== 'RUNNING') {
+      ElMessage.warning('只有进行中的盘点任务才能录入盘点结果')
       return
     }
 
+    const scanCode = scanForm.scanCode.trim()
     scanLoading.value = true
     try {
-      await scanAssetInventory(props.taskData.taskId, {
-        scanCode: scanForm.scanCode.trim()
-      })
+      await scanAssetInventory(props.taskData.taskId, { scanCode })
       ElMessage.success('盘点录入成功')
       scanForm.scanCode = ''
       await emitRefresh()
+      lastScanFeedback.value = buildScanFeedback(scanCode)
+      await nextTick()
+      scanInputRef.value?.focus?.()
     } catch (error) {
       console.error('盘点录入失败:', error)
     } finally {
@@ -386,3 +555,53 @@
     }
   }
 </script>
+
+<style scoped>
+  .inventory-detail-toolbar {
+    margin-bottom: 16px;
+  }
+
+  .inventory-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .inventory-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .inventory-scan-input {
+    width: 320px;
+  }
+
+  .inventory-last-feedback {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .inventory-recent-block__title {
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .inventory-recent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .inventory-recent-item__main,
+  .inventory-recent-item__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+</style>

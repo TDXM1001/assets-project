@@ -2,17 +2,17 @@
   <ElDialog
     :title="dialogTitle"
     v-model="visible"
-    width="980px"
+    width="1100px"
     destroy-on-close
     append-to-body
     @closed="handleClosed"
   >
     <ElAlert
       class="mb-4"
-      type="warning"
+      type="info"
       :closable="false"
       show-icon
-      title="这里只做差异处理的工作台骨架，后续后端返回更细的处理方式后，可以继续扩展成批量修正。"
+      title="这里只处理已结束任务中的待处理差异。处理完成后，后端会根据结果决定是否回写台账并记录流水。"
     />
 
     <template v-if="taskData">
@@ -25,6 +25,21 @@
         <ElDescriptionsItem label="差异数量">{{ taskData.summaryDiff ?? 0 }}</ElDescriptionsItem>
       </ElDescriptions>
     </template>
+
+    <div class="inventory-diff-metrics">
+      <ElCard shadow="never">
+        <ElStatistic title="差异总数" :value="diffItems.length" />
+      </ElCard>
+      <ElCard shadow="never">
+        <ElStatistic title="待处理" :value="pendingDiffItems.length" />
+      </ElCard>
+      <ElCard shadow="never">
+        <ElStatistic title="已处理" :value="processedDiffItems.length" />
+      </ElCard>
+      <ElCard shadow="never">
+        <ElStatistic title="盘亏" :value="lossCount" />
+      </ElCard>
+    </div>
 
     <ElForm :model="formData" label-width="110px" class="mb-4">
       <ElRow :gutter="16">
@@ -41,8 +56,13 @@
           </ElFormItem>
         </ElCol>
         <ElCol :span="12">
-          <ElFormItem label="已选差异">
-            <ElTag type="warning" effect="light">{{ selectedRows.length }} 条</ElTag>
+          <ElFormItem label="筛选视图">
+            <ElRadioGroup v-model="activeFilter">
+              <ElRadioButton label="待处理" value="PENDING" />
+              <ElRadioButton label="已处理" value="PROCESSED" />
+              <ElRadioButton label="盘亏" value="LOSS" />
+              <ElRadioButton label="全部" value="ALL" />
+            </ElRadioGroup>
           </ElFormItem>
         </ElCol>
         <ElCol :span="24">
@@ -53,42 +73,58 @@
               :rows="3"
               maxlength="500"
               show-word-limit
-              placeholder="请输入差异处理说明，例如：已核实、已修正、待补充资料等"
+              placeholder="请输入差异处理说明，例如：已核实现场位置、责任人已调整、确认盘亏待追责等。"
             />
           </ElFormItem>
         </ElCol>
       </ElRow>
     </ElForm>
 
+    <div class="inventory-diff-toolbar">
+      <ElText type="info"> 默认仅勾选待处理差异，已处理项保留为只读核对，避免重复落账。 </ElText>
+      <ElTag type="warning" effect="light">已选 {{ selectedRows.length }} 项</ElTag>
+    </div>
+
     <ElTable
-      :data="items"
+      ref="tableRef"
+      :data="filteredItems"
       row-key="itemId"
       border
       stripe
-      height="380px"
+      height="440px"
       @selection-change="handleSelectionChange"
     >
       <ElTableColumn type="selection" width="55" :selectable="isSelectableDiffRow" />
-      <ElTableColumn prop="assetCode" label="资产编码" min-width="130" />
+      <ElTableColumn prop="assetCode" label="资产编码" min-width="130" fixed="left" />
       <ElTableColumn prop="assetName" label="资产名称" min-width="160" />
-      <ElTableColumn label="账面位置" min-width="140">
-        <template #default="{ row }">
-          {{ resolveLocationLabel(row.expectedLocationId) }}
-        </template>
-      </ElTableColumn>
-      <ElTableColumn label="实际位置" min-width="140">
-        <template #default="{ row }">
-          {{ resolveLocationLabel(row.actualLocationId) }}
-        </template>
-      </ElTableColumn>
       <ElTableColumn label="账面责任人" min-width="140">
         <template #default="{ row }">
-          {{ resolveUserLabel(row.expectedUserId) }}
+          {{ resolveUserName(row, 'expected') }}
         </template>
       </ElTableColumn>
-      <ElTableColumn label="实际责任人" min-width="140">
+      <ElTableColumn label="现场责任人" min-width="140">
         <template #default="{ row }">
-          {{ resolveUserLabel(row.actualUserId) }}
+          {{ resolveUserName(row, 'actual') }}
+        </template>
+      </ElTableColumn>
+      <ElTableColumn label="账面位置" min-width="150">
+        <template #default="{ row }">
+          {{ resolveLocationName(row, 'expected') }}
+        </template>
+      </ElTableColumn>
+      <ElTableColumn label="现场位置" min-width="150">
+        <template #default="{ row }">
+          {{ resolveLocationName(row, 'actual') }}
+        </template>
+      </ElTableColumn>
+      <ElTableColumn label="账面状态" width="120" align="center">
+        <template #default="{ row }">
+          <DictTag :options="asset_status" :value="row.expectedStatus" />
+        </template>
+      </ElTableColumn>
+      <ElTableColumn label="现场状态" width="120" align="center">
+        <template #default="{ row }">
+          <DictTag :options="asset_status" :value="row.actualStatus" />
         </template>
       </ElTableColumn>
       <ElTableColumn label="盘点结果" width="120" align="center">
@@ -101,8 +137,8 @@
           <DictTag :options="asset_inventory_process_status" :value="row.processStatus" />
         </template>
       </ElTableColumn>
-      <ElTableColumn prop="inventoryDesc" label="差异说明" min-width="180" show-overflow-tooltip />
-      <ElTableColumn prop="processDesc" label="处理说明" min-width="180" show-overflow-tooltip />
+      <ElTableColumn prop="inventoryDesc" label="差异说明" min-width="220" show-overflow-tooltip />
+      <ElTableColumn prop="processDesc" label="处理说明" min-width="220" show-overflow-tooltip />
     </ElTable>
 
     <template #footer>
@@ -122,8 +158,8 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, reactive, ref, watch } from 'vue'
-  import { ElMessage } from 'element-plus'
+  import { computed, nextTick, reactive, ref, watch } from 'vue'
+  import { ElMessage, type ElTable } from 'element-plus'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { processAssetInventoryDiff } from '@/api/asset/inventory'
@@ -140,10 +176,16 @@
     itemId?: number
     assetCode?: string
     assetName?: string
-    expectedLocationId?: number
-    actualLocationId?: number
     expectedUserId?: number
     actualUserId?: number
+    expectedUserName?: string
+    actualUserName?: string
+    expectedLocationId?: number
+    actualLocationId?: number
+    expectedLocationName?: string
+    actualLocationName?: string
+    expectedStatus?: string
+    actualStatus?: string
     inventoryResult?: string
     inventoryDesc?: string
     processStatus?: string
@@ -159,12 +201,19 @@
     value: string
   }
 
-  const { asset_inventory_task_status, asset_inventory_result, asset_inventory_process_status } =
-    useDict(
-      'asset_inventory_task_status',
-      'asset_inventory_result',
-      'asset_inventory_process_status'
-    )
+  type DiffFilter = 'PENDING' | 'PROCESSED' | 'LOSS' | 'ALL'
+
+  const {
+    asset_inventory_task_status,
+    asset_inventory_result,
+    asset_inventory_process_status,
+    asset_status
+  } = useDict(
+    'asset_inventory_task_status',
+    'asset_inventory_result',
+    'asset_inventory_process_status',
+    'asset_status'
+  )
 
   const props = defineProps<{
     modelValue: boolean
@@ -186,8 +235,10 @@
     set: (value: boolean) => emit('update:modelValue', value)
   })
 
+  const tableRef = ref<InstanceType<typeof ElTable>>()
   const submitLoading = ref(false)
   const selectedRows = ref<InventoryItemRow[]>([])
+  const activeFilter = ref<DiffFilter>('PENDING')
 
   const formData = reactive({
     processStatus: 'PROCESSED',
@@ -213,6 +264,37 @@
         item.processStatus !== 'PROCESSED'
     )
 
+  const isProcessedDiffItem = (item?: InventoryItemRow) =>
+    Boolean(
+      item?.inventoryResult &&
+        item.inventoryResult !== 'NORMAL' &&
+        item.processStatus === 'PROCESSED'
+    )
+
+  const diffItems = computed(() =>
+    props.items.filter((item) => item.inventoryResult && item.inventoryResult !== 'NORMAL')
+  )
+  const pendingDiffItems = computed(() => diffItems.value.filter((item) => isPendingDiffItem(item)))
+  const processedDiffItems = computed(() =>
+    diffItems.value.filter((item) => isProcessedDiffItem(item))
+  )
+  const lossCount = computed(
+    () => diffItems.value.filter((item) => item.inventoryResult === 'LOSS').length
+  )
+
+  const filteredItems = computed(() => {
+    if (activeFilter.value === 'ALL') {
+      return diffItems.value
+    }
+    if (activeFilter.value === 'LOSS') {
+      return diffItems.value.filter((item) => item.inventoryResult === 'LOSS')
+    }
+    if (activeFilter.value === 'PROCESSED') {
+      return processedDiffItems.value
+    }
+    return pendingDiffItems.value
+  })
+
   const hasPendingSelection = computed(() =>
     selectedRows.value.some((item) => isPendingDiffItem(item))
   )
@@ -226,21 +308,42 @@
 
   const resolveLocationLabel = (value?: number | string) =>
     resolveFromMap(props.locationLabelMap, value)
-
   const resolveUserLabel = (value?: number | string) => resolveFromMap(props.userLabelMap, value)
 
-  /**
-   * 默认只勾选待处理差异，避免把已处理项再次带进提交流程。
-   */
-  const syncSelection = () => {
-    selectedRows.value = props.items.filter((item) => isPendingDiffItem(item))
+  const resolveLocationName = (row: InventoryItemRow, scene: 'expected' | 'actual') => {
+    if (scene === 'expected') {
+      return row.expectedLocationName || resolveLocationLabel(row.expectedLocationId)
+    }
+    return row.actualLocationName || resolveLocationLabel(row.actualLocationId)
+  }
+
+  const resolveUserName = (row: InventoryItemRow, scene: 'expected' | 'actual') => {
+    if (scene === 'expected') {
+      return row.expectedUserName || resolveUserLabel(row.expectedUserId)
+    }
+    return row.actualUserName || resolveUserLabel(row.actualUserId)
+  }
+
+  // 只默认勾选待处理差异，避免把已处理项再次带入处理流程。
+  const syncSelection = async () => {
+    const pendingIds = new Set(
+      filteredItems.value.filter((item) => isPendingDiffItem(item)).map((item) => item.itemId)
+    )
+    selectedRows.value = filteredItems.value.filter((item) => pendingIds.has(item.itemId))
+    await nextTick()
+    tableRef.value?.clearSelection()
+    filteredItems.value.forEach((item) => {
+      if (pendingIds.has(item.itemId)) {
+        tableRef.value?.toggleRowSelection(item, true)
+      }
+    })
   }
 
   watch(
-    () => [props.modelValue, props.items.length],
-    ([isOpen]) => {
+    () => [props.modelValue, props.items.length, activeFilter.value],
+    async ([isOpen]) => {
       if (isOpen) {
-        syncSelection()
+        await syncSelection()
       }
     },
     { immediate: true }
@@ -288,8 +391,26 @@
   }
 
   const handleClosed = () => {
+    activeFilter.value = 'PENDING'
     formData.processStatus = 'PROCESSED'
     formData.processDesc = ''
     selectedRows.value = []
   }
 </script>
+
+<style scoped>
+  .inventory-diff-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .inventory-diff-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+</style>

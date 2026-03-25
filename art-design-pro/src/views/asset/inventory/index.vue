@@ -200,12 +200,21 @@
     itemId?: number
     assetCode?: string
     assetName?: string
-    expectedLocationId?: number
-    actualLocationId?: number
     expectedUserId?: number
     actualUserId?: number
+    expectedUserName?: string
+    actualUserName?: string
+    expectedLocationId?: number
+    actualLocationId?: number
+    expectedLocationName?: string
+    actualLocationName?: string
+    expectedStatus?: string
+    actualStatus?: string
     inventoryResult?: string
     inventoryDesc?: string
+    inventoryTime?: string
+    inventoryUserId?: number
+    inventoryUserName?: string
     processStatus?: string
     processDesc?: string
   }

@@ -26,8 +26,12 @@ public class AssetInventoryTaskItem extends BaseEntity
 
     private Long expectedUserId;
     private Long actualUserId;
+    private String expectedUserName;
+    private String actualUserName;
     private Long expectedLocationId;
     private Long actualLocationId;
+    private String expectedLocationName;
+    private String actualLocationName;
     private String expectedStatus;
     private String actualStatus;
 
@@ -41,6 +45,7 @@ public class AssetInventoryTaskItem extends BaseEntity
     private Date inventoryTime;
 
     private Long inventoryUserId;
+    private String inventoryUserName;
 
     @Excel(name = "处理状态")
     private String processStatus;
@@ -118,6 +123,26 @@ public class AssetInventoryTaskItem extends BaseEntity
         this.actualUserId = actualUserId;
     }
 
+    public String getExpectedUserName()
+    {
+        return expectedUserName;
+    }
+
+    public void setExpectedUserName(String expectedUserName)
+    {
+        this.expectedUserName = expectedUserName;
+    }
+
+    public String getActualUserName()
+    {
+        return actualUserName;
+    }
+
+    public void setActualUserName(String actualUserName)
+    {
+        this.actualUserName = actualUserName;
+    }
+
     public Long getExpectedLocationId()
     {
         return expectedLocationId;
@@ -136,6 +161,26 @@ public class AssetInventoryTaskItem extends BaseEntity
     public void setActualLocationId(Long actualLocationId)
     {
         this.actualLocationId = actualLocationId;
+    }
+
+    public String getExpectedLocationName()
+    {
+        return expectedLocationName;
+    }
+
+    public void setExpectedLocationName(String expectedLocationName)
+    {
+        this.expectedLocationName = expectedLocationName;
+    }
+
+    public String getActualLocationName()
+    {
+        return actualLocationName;
+    }
+
+    public void setActualLocationName(String actualLocationName)
+    {
+        this.actualLocationName = actualLocationName;
     }
 
     public String getExpectedStatus()
@@ -198,6 +243,16 @@ public class AssetInventoryTaskItem extends BaseEntity
         this.inventoryUserId = inventoryUserId;
     }
 
+    public String getInventoryUserName()
+    {
+        return inventoryUserName;
+    }
+
+    public void setInventoryUserName(String inventoryUserName)
+    {
+        this.inventoryUserName = inventoryUserName;
+    }
+
     public String getProcessStatus()
     {
         return processStatus;
@@ -229,14 +284,19 @@ public class AssetInventoryTaskItem extends BaseEntity
             .append("assetName", getAssetName())
             .append("expectedUserId", getExpectedUserId())
             .append("actualUserId", getActualUserId())
+            .append("expectedUserName", getExpectedUserName())
+            .append("actualUserName", getActualUserName())
             .append("expectedLocationId", getExpectedLocationId())
             .append("actualLocationId", getActualLocationId())
+            .append("expectedLocationName", getExpectedLocationName())
+            .append("actualLocationName", getActualLocationName())
             .append("expectedStatus", getExpectedStatus())
             .append("actualStatus", getActualStatus())
             .append("inventoryResult", getInventoryResult())
             .append("inventoryDesc", getInventoryDesc())
             .append("inventoryTime", getInventoryTime())
             .append("inventoryUserId", getInventoryUserId())
+            .append("inventoryUserName", getInventoryUserName())
             .append("processStatus", getProcessStatus())
             .append("processDesc", getProcessDesc())
             .build();
