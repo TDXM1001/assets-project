@@ -160,6 +160,7 @@ create table asset_operate_order_item (
   item_status varchar(20) default null comment '鏄庣粏澶勭悊鐘舵€?,
   item_result varchar(255) default null comment '澶勭悊璇存槑',
   primary key (item_id),
+  unique key uk_asset_operate_order_item_order_asset (order_id, asset_id),
   key idx_asset_operate_item_order (order_id),
   key idx_asset_operate_item_asset (asset_id)
 ) engine=innodb comment = '璧勪骇閫氱敤涓氬姟鍗曟嵁鏄庣粏琛?;
@@ -219,6 +220,7 @@ create table asset_inventory_task_item (
   process_status varchar(20) default null comment '澶勭悊鐘舵€?,
   process_desc varchar(500) default null comment '澶勭悊璇存槑',
   primary key (item_id),
+  unique key uk_asset_inventory_task_item_task_asset (task_id, asset_id),
   key idx_asset_inventory_item_task (task_id),
   key idx_asset_inventory_item_asset (asset_id),
   key idx_asset_inventory_item_result (inventory_result)
