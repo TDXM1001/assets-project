@@ -135,6 +135,7 @@
     delAssetInventory,
     exportAssetInventory,
     finishAssetInventory,
+    getAssetInventory,
     getAssetInventoryItems,
     listAssetInventory,
     startAssetInventory
@@ -317,6 +318,16 @@
 
   const normalizeListResponse = (response: any) =>
     Array.isArray(response) ? response : response?.rows || response?.data || []
+
+  /**
+   * 统一拉取任务详情，保证流程动作后的抽屉和差异弹窗看到的是最新状态。
+   */
+  const loadTaskDetail = async (taskId: number) => {
+    const response: any = await getAssetInventory(taskId)
+    const detail = response?.data || response || {}
+    currentTask.value = { ...detail }
+    return currentTask.value
+  }
 
   const loadBaseOptions = async () => {
     try {
@@ -647,10 +658,18 @@
     }
   }
 
-  const handleOpenDetail = (row: InventoryTaskRow) => {
+  const handleOpenDetail = async (row: InventoryTaskRow) => {
     currentTask.value = { ...row }
     drawerVisible.value = true
     drawerKey.value += 1
+    if (row.taskId) {
+      try {
+        await loadTaskDetail(row.taskId)
+        drawerKey.value += 1
+      } catch (error) {
+        console.error('加载盘点任务详情失败:', error)
+      }
+    }
   }
 
   const handleEditFromDrawer = () => {
@@ -677,6 +696,7 @@
     if (!currentTask.value?.taskId) return
 
     const taskId = currentTask.value.taskId
+    await loadTaskDetail(taskId)
     const response: any = await getAssetInventoryItems(taskId)
     const detailItems = normalizeListResponse(response)
     if (drawerVisible.value && currentTask.value.taskId === taskId) {
@@ -742,6 +762,7 @@
 
     currentTask.value = { ...row }
     try {
+      await loadTaskDetail(row.taskId)
       diffItems.value = await loadDiffItems(row.taskId)
     } catch (error) {
       console.error('加载差异项失败:', error)
@@ -754,6 +775,7 @@
   const handleDiffDialogSuccess = async () => {
     await refreshData()
     if (drawerVisible.value && currentTask.value?.taskId) {
+      await loadTaskDetail(currentTask.value.taskId)
       drawerKey.value += 1
     }
   }
@@ -761,7 +783,7 @@
   const refreshAfterWorkflow = async (taskId: number) => {
     await refreshData()
     if (currentTask.value?.taskId === taskId) {
-      currentTask.value = { ...currentTask.value }
+      await loadTaskDetail(taskId)
       drawerKey.value += 1
     }
   }
