@@ -29,4 +29,6 @@ public interface AssetOperateOrderMapper
     int deleteAssetOperateOrderItemsByOrderId(Long orderId);
 
     int batchInsertAssetOperateOrderItems(@Param("list") List<AssetOperateOrderItem> itemList);
+
+    int updateAttachmentCount(@Param("orderId") Long orderId, @Param("attachmentCount") Integer attachmentCount);
 }

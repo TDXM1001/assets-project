@@ -14,6 +14,8 @@ public interface IAssetInfoService
 
     boolean checkAssetCodeUnique(AssetInfo assetInfo);
 
+    String importAssetInfo(List<AssetInfo> assetList, Boolean updateSupport, String operName);
+
     int insertAssetInfo(AssetInfo assetInfo);
 
     int updateAssetInfo(AssetInfo assetInfo);

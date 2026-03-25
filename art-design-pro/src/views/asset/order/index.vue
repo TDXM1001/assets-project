@@ -85,6 +85,7 @@
       @reject="openApprovalDialog(currentOrder, 'reject')"
       @finish="handleFinishOrder(currentOrder)"
       @cancel="handleCancelOrder(currentOrder)"
+      @attachments="handleOpenAttachments(currentOrder)"
     />
 
     <OrderApproveDialog
@@ -92,6 +93,14 @@
       :action-type="approveActionType"
       :order-data="currentOrder"
       @confirm="handleApproveConfirm"
+    />
+
+    <AssetAttachmentDrawer
+      v-model="attachmentDrawerVisible"
+      biz-type="ASSET_ORDER"
+      :biz-id="currentOrder?.orderId"
+      :biz-title="currentOrder?.orderNo || '业务单据'"
+      permission-prefix="asset:order"
     />
   </div>
 </template>
@@ -117,6 +126,7 @@
   import DictTag from '@/components/DictTag/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
+  import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
   import OrderApproveDialog from './modules/order-approve-dialog.vue'
   import OrderDetailDrawer from './modules/order-detail-drawer.vue'
   import OrderDialog from './modules/order-dialog.vue'
@@ -134,6 +144,7 @@
   const approveActionType = ref<'approve' | 'reject'>('approve')
   const dialogType = ref<'add' | 'edit'>('add')
   const currentOrder = ref<any>()
+  const attachmentDrawerVisible = ref(false)
   const exportLoading = ref(false)
 
   const initialSearchState = {
@@ -388,6 +399,17 @@
           type: 'view',
           onClick: () => handleView(row)
         }),
+      hasPermission('asset:order:query') &&
+        h(
+          ElButton,
+          {
+            link: true,
+            type: 'primary',
+            size: 'small',
+            onClick: () => handleOpenAttachments(row)
+          },
+          () => '附件'
+        ),
       hasPermission('asset:order:edit') &&
         canEditOrder(row) &&
         h(ArtButtonTable, {
@@ -502,6 +524,12 @@
     if (!row?.orderId) return
     await loadOrderDetail(row)
     detailDrawerVisible.value = true
+  }
+
+  const handleOpenAttachments = async (row?: any) => {
+    if (!row?.orderId) return
+    await loadOrderDetail(row)
+    attachmentDrawerVisible.value = true
   }
 
   const handleDelete = async (row?: any) => {

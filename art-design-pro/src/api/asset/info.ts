@@ -46,3 +46,25 @@ export function exportAssetInfo(query?: any) {
     responseType: 'blob'
   })
 }
+
+/**
+ * 导入资产台账
+ */
+export function importAssetInfoFile(formData: FormData) {
+  return http.request({
+    url: '/asset/info/importData',
+    method: 'post',
+    data: formData
+  })
+}
+
+/**
+ * 下载资产台账导入模板
+ */
+export function downloadAssetInfoTemplate() {
+  return http.request({
+    url: '/asset/info/importTemplate',
+    method: 'post',
+    responseType: 'blob'
+  })
+}

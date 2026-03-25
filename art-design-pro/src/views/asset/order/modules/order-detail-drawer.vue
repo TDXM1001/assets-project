@@ -133,6 +133,14 @@
       <div class="order-detail-drawer__footer">
         <ElSpace wrap>
           <ElButton
+            v-if="hasPermission('asset:order:query')"
+            type="primary"
+            plain
+            @click="emit('attachments')"
+          >
+            附件
+          </ElButton>
+          <ElButton
             v-if="canEdit && hasPermission('asset:order:edit')"
             type="primary"
             plain
@@ -206,6 +214,7 @@
     (e: 'reject'): void
     (e: 'finish'): void
     (e: 'cancel'): void
+    (e: 'attachments'): void
   }>()
 
   const visible = ref(false)

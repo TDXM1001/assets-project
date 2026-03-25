@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
@@ -55,6 +57,32 @@ public class AssetInfoController extends BaseController
         List<AssetInfo> list = assetInfoService.selectAssetInfoList(assetInfo);
         ExcelUtil<AssetInfo> util = new ExcelUtil<>(AssetInfo.class);
         util.exportExcel(response, list, "资产台账数据");
+    }
+
+    /**
+     * 导入资产台账
+     */
+    @PreAuthorize("@ss.hasPermi('asset:info:import')")
+    @Log(title = "资产台账", businessType = BusinessType.IMPORT)
+    @PostMapping("/importData")
+    public AjaxResult importData(@RequestParam("file") MultipartFile file,
+        @RequestParam(value = "updateSupport", defaultValue = "false") boolean updateSupport) throws Exception
+    {
+        ExcelUtil<AssetInfo> util = new ExcelUtil<>(AssetInfo.class);
+        List<AssetInfo> assetList = util.importExcel(file.getInputStream());
+        String message = assetInfoService.importAssetInfo(assetList, updateSupport, getUsername());
+        return success(message);
+    }
+
+    /**
+     * 下载资产台账导入模板
+     */
+    @PreAuthorize("@ss.hasPermi('asset:info:import')")
+    @PostMapping("/importTemplate")
+    public void importTemplate(HttpServletResponse response)
+    {
+        ExcelUtil<AssetInfo> util = new ExcelUtil<>(AssetInfo.class);
+        util.importTemplateExcel(response, "资产台账数据");
     }
 
     /**

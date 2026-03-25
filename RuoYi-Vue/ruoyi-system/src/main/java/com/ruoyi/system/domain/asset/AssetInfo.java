@@ -38,38 +38,52 @@ public class AssetInfo extends BaseEntity
     @Excel(name = "序列号")
     private String serialNo;
 
-    @Excel(name = "资产状态")
+    @Excel(name = "资产状态", dictType = "asset_status", comboReadDict = true)
     private String assetStatus;
 
+    @Excel(name = "资产来源", dictType = "asset_source", comboReadDict = true)
     private String assetSource;
 
+    @Excel(name = "所属部门ID")
     private Long useOrgDeptId;
 
+    @Excel(name = "管理部门ID")
     private Long manageDeptId;
 
+    @Excel(name = "责任人ID")
     private Long currentUserId;
 
+    @Excel(name = "当前位置ID")
     private Long currentLocationId;
 
+    @Excel(name = "采购日期", width = 20, dateFormat = "yyyy-MM-dd")
     private Date purchaseDate;
 
+    @Excel(name = "入库日期", width = 20, dateFormat = "yyyy-MM-dd")
     private Date inboundDate;
 
+    @Excel(name = "启用日期", width = 20, dateFormat = "yyyy-MM-dd")
     private Date startUseDate;
 
     @Excel(name = "原值")
     private BigDecimal originalValue;
 
+    @Excel(name = "残值")
     private BigDecimal residualValue;
 
+    @Excel(name = "保修截止日期", width = 20, dateFormat = "yyyy-MM-dd")
     private Date warrantyExpireDate;
 
+    @Excel(name = "供应商")
     private String supplierName;
 
+    @Excel(name = "二维码")
     private String qrCode;
 
+    @Excel(name = "版本号")
     private Integer versionNo;
 
+    @Excel(name = "台账状态", dictType = "sys_normal_disable", comboReadDict = true)
     private String status;
 
     private String delFlag;

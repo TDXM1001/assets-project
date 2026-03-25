@@ -233,6 +233,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where order_id = #{orderId}
     </update>
 
+    <update id="updateAttachmentCount">
+        update asset_operate_order
+        set attachment_count = #{attachmentCount},
+            update_time = sysdate()
+        where order_id = #{orderId}
+    </update>
+
     <update id="deleteAssetOperateOrderByIds" parameterType="Long">
         update asset_operate_order
         set del_flag = '2', update_time = sysdate()

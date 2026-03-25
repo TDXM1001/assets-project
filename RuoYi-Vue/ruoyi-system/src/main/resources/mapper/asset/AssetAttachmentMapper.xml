@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.asset.AssetAttachmentMapper">
+
+    <resultMap id="AssetAttachmentResult" type="com.ruoyi.system.domain.asset.AssetAttachment">
+        <id property="attachmentId" column="attachment_id"/>
+        <result property="bizType" column="biz_type"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="fileUrl" column="file_url"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="fileType" column="file_type"/>
+        <result property="uploadUserId" column="upload_user_id"/>
+        <result property="uploadUserName" column="upload_user_name"/>
+        <result property="uploadTime" column="upload_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectAssetAttachmentVo">
+        select a.attachment_id, a.biz_type, a.biz_id, a.file_name, a.file_url, a.file_size, a.file_type,
+               a.upload_user_id, u.nick_name as upload_user_name, a.upload_time,
+               a.create_by, a.create_time, a.update_by, a.update_time, a.remark
+        from asset_attachment a
+        left join sys_user u on u.user_id = a.upload_user_id
+    </sql>
+
+    <select id="selectAssetAttachmentList" parameterType="com.ruoyi.system.domain.asset.AssetAttachment" resultMap="AssetAttachmentResult">
+        <include refid="selectAssetAttachmentVo"/>
+        <where>
+            1 = 1
+            <if test="attachmentId != null">and a.attachment_id = #{attachmentId}</if>
+            <if test="bizType != null and bizType != ''">and a.biz_type = #{bizType}</if>
+            <if test="bizId != null">and a.biz_id = #{bizId}</if>
+        </where>
+        order by a.attachment_id desc
+    </select>
+
+    <select id="selectAssetAttachmentById" parameterType="Long" resultMap="AssetAttachmentResult">
+        <include refid="selectAssetAttachmentVo"/>
+        where a.attachment_id = #{attachmentId}
+    </select>
+
+    <select id="selectAssetAttachmentByIds" resultMap="AssetAttachmentResult">
+        <include refid="selectAssetAttachmentVo"/>
+        where a.attachment_id in
+        <foreach collection="array" item="attachmentId" open="(" separator="," close=")">
+            #{attachmentId}
+        </foreach>
+    </select>
+
+    <select id="countAssetAttachmentByBiz" resultType="int">
+        select count(1)
+        from asset_attachment
+        where biz_type = #{bizType}
+          and biz_id = #{bizId}
+    </select>
+
+    <insert id="insertAssetAttachment" parameterType="com.ruoyi.system.domain.asset.AssetAttachment" useGeneratedKeys="true" keyProperty="attachmentId">
+        insert into asset_attachment (
+            biz_type, biz_id, file_name, file_url, file_size, file_type,
+            upload_user_id, upload_time, create_by, create_time, remark
+        ) values (
+            #{bizType}, #{bizId}, #{fileName}, #{fileUrl}, #{fileSize}, #{fileType},
+            #{uploadUserId}, #{uploadTime}, #{createBy}, sysdate(), #{remark}
+        )
+    </insert>
+
+    <delete id="deleteAssetAttachmentByIds" parameterType="Long">
+        delete from asset_attachment
+        where attachment_id in
+        <foreach collection="array" item="attachmentId" open="(" separator="," close=")">
+            #{attachmentId}
+        </foreach>
+    </delete>
+
+</mapper>

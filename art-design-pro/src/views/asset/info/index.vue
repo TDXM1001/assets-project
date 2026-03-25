@@ -125,8 +125,15 @@
       @success="refreshData"
     />
 
-    <InfoImportDialog v-model="importDialogVisible" />
+    <InfoImportDialog v-model="importDialogVisible" @success="refreshData" />
     <InfoEventDrawer v-model="eventDrawerVisible" :asset-data="currentAsset" />
+    <AssetAttachmentDrawer
+      v-model="attachmentDrawerVisible"
+      biz-type="ASSET_INFO"
+      :biz-id="currentAsset?.assetId"
+      :biz-title="currentAsset?.assetName || currentAsset?.assetCode || '资产台账'"
+      permission-prefix="asset:info"
+    />
 
     <ElDrawer
       v-model="filterDrawerVisible"
@@ -151,7 +158,7 @@
   import { computed, h, onMounted, reactive, ref } from 'vue'
   import { useWindowSize } from '@vueuse/core'
   import FileSaver from 'file-saver'
-  import { ElMessage, ElMessageBox, ElSpace } from 'element-plus'
+  import { ElButton, ElMessage, ElMessageBox, ElSpace } from 'element-plus'
   import { listUser, deptTreeSelect } from '@/api/system/user'
   import { treeCategorySelect } from '@/api/asset/category'
   import { treeLocationSelect } from '@/api/asset/location'
@@ -162,6 +169,7 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import DictTag from '@/components/DictTag/index.vue'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
+  import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
   import InfoDialog from './modules/info-dialog.vue'
   import InfoEventDrawer from './modules/info-event-drawer.vue'
   import InfoFilterTree from './modules/info-filter-tree.vue'
@@ -193,6 +201,7 @@
   const dialogVisible = ref(false)
   const importDialogVisible = ref(false)
   const eventDrawerVisible = ref(false)
+  const attachmentDrawerVisible = ref(false)
   const dialogType = ref<'add' | 'edit'>('add')
   const currentAsset = ref<any>()
   const selection = ref<any[]>([])
@@ -439,6 +448,19 @@
               })
             )
 
+            actionNodes.push(
+              h(
+                ElButton,
+                {
+                  link: true,
+                  type: 'primary',
+                  size: 'small',
+                  onClick: () => handleOpenAttachments(row)
+                },
+                () => '附件'
+              )
+            )
+
             if (hasPermission('asset:info:remove')) {
               actionNodes.push(
                 h(ArtButtonTable, {
@@ -610,6 +632,11 @@
   const handleOpenEventDrawer = (row: any) => {
     currentAsset.value = { ...row }
     eventDrawerVisible.value = true
+  }
+
+  const handleOpenAttachments = (row: any) => {
+    currentAsset.value = { ...row }
+    attachmentDrawerVisible.value = true
   }
 
   /**
