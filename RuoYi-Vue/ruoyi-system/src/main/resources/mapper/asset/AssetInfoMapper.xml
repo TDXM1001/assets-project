@@ -68,10 +68,36 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where asset_id = #{assetId} and del_flag = '0'
     </select>
 
+    <select id="selectAssetInfoByIds" resultMap="AssetInfoResult">
+        <include refid="selectAssetInfoVo"/>
+        where del_flag = '0'
+          and asset_id in
+        <foreach collection="collection" item="assetId" open="(" separator="," close=")">
+            #{assetId}
+        </foreach>
+    </select>
+
     <select id="checkAssetCodeUnique" parameterType="String" resultMap="AssetInfoResult">
         <include refid="selectAssetInfoVo"/>
         where asset_code = #{assetCode} and del_flag = '0' limit 1
     </select>
+
+    <update id="updateAssetSnapshot" parameterType="com.ruoyi.system.domain.asset.AssetInfo">
+        update asset_info
+        set asset_status = #{assetStatus},
+            use_org_dept_id = #{useOrgDeptId},
+            manage_dept_id = #{manageDeptId},
+            current_user_id = #{currentUserId},
+            current_location_id = #{currentLocationId},
+            <if test="inboundDate != null">inbound_date = #{inboundDate},</if>
+            <if test="startUseDate != null">start_use_date = #{startUseDate},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            version_no = ifnull(version_no, 0) + 1,
+            update_time = sysdate()
+        where asset_id = #{assetId}
+          and del_flag = '0'
+    </update>
 
     <insert id="insertAssetInfo" parameterType="com.ruoyi.system.domain.asset.AssetInfo" useGeneratedKeys="true" keyProperty="assetId">
         insert into asset_info (

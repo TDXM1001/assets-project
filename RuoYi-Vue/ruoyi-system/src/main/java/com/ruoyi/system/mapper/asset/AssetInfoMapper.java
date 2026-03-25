@@ -1,5 +1,6 @@
 package com.ruoyi.system.mapper.asset;
 
+import java.util.Collection;
 import java.util.List;
 import com.ruoyi.system.domain.asset.AssetInfo;
 
@@ -13,6 +14,10 @@ public interface AssetInfoMapper
     AssetInfo selectAssetInfoById(Long assetId);
 
     AssetInfo checkAssetCodeUnique(String assetCode);
+
+    List<AssetInfo> selectAssetInfoByIds(Collection<Long> assetIds);
+
+    int updateAssetSnapshot(AssetInfo assetInfo);
 
     int insertAssetInfo(AssetInfo assetInfo);
 

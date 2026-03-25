@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.asset.AssetEventLogMapper">
+
+    <insert id="insertAssetEventLog" parameterType="com.ruoyi.system.domain.asset.AssetEventLog" useGeneratedKeys="true" keyProperty="eventId">
+        insert into asset_event_log (
+            asset_id, event_type, source_order_id, source_order_type, before_snapshot, after_snapshot,
+            event_desc, operator_user_id, operate_time
+        ) values (
+            #{assetId}, #{eventType}, #{sourceOrderId}, #{sourceOrderType}, #{beforeSnapshot}, #{afterSnapshot},
+            #{eventDesc}, #{operatorUserId}, #{operateTime}
+        )
+    </insert>
+
+</mapper>
