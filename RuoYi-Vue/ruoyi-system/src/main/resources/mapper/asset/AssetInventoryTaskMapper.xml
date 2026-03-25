@@ -73,6 +73,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectAssetInventoryTaskVo"/>
         <where>
             t.del_flag = '0'
+            <if test="taskId != null">and t.task_id = #{taskId}</if>
             <if test="taskNo != null and taskNo != ''">and t.task_no like concat('%', #{taskNo}, '%')</if>
             <if test="taskName != null and taskName != ''">and t.task_name like concat('%', #{taskName}, '%')</if>
             <if test="taskScopeType != null and taskScopeType != ''">and t.task_scope_type = #{taskScopeType}</if>
