@@ -2,6 +2,7 @@ package com.ruoyi.system.service.asset.impl;
 
 import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,8 +18,29 @@ import com.ruoyi.system.service.asset.IAssetEventLogService;
 @Service
 public class AssetEventLogServiceImpl implements IAssetEventLogService
 {
+    private static final int DEFAULT_ASSET_EVENT_LIMIT = 20;
+
     @Autowired
     private AssetEventLogMapper assetEventLogMapper;
+
+    @Override
+    public List<AssetEventLog> selectAssetEventLogList(AssetEventLog assetEventLog)
+    {
+        return assetEventLogMapper.selectAssetEventLogList(assetEventLog);
+    }
+
+    @Override
+    public AssetEventLog selectAssetEventLogById(Long eventId)
+    {
+        return assetEventLogMapper.selectAssetEventLogById(eventId);
+    }
+
+    @Override
+    public List<AssetEventLog> selectRecentAssetEventLogListByAssetId(Long assetId, Integer limit)
+    {
+        int safeLimit = limit == null || limit <= 0 ? DEFAULT_ASSET_EVENT_LIMIT : Math.min(limit, 100);
+        return assetEventLogMapper.selectRecentAssetEventLogListByAssetId(assetId, safeLimit);
+    }
 
     @Override
     public void recordAssetEvent(Long assetId, String eventType, Long sourceOrderId, String sourceOrderType,

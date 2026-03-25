@@ -1,5 +1,7 @@
 package com.ruoyi.system.service.asset;
 
+import java.util.List;
+import com.ruoyi.system.domain.asset.AssetEventLog;
 import com.ruoyi.system.domain.asset.AssetInfo;
 
 /**
@@ -7,6 +9,21 @@ import com.ruoyi.system.domain.asset.AssetInfo;
  */
 public interface IAssetEventLogService
 {
+    /**
+     * 查询资产事件流水列表
+     */
+    List<AssetEventLog> selectAssetEventLogList(AssetEventLog assetEventLog);
+
+    /**
+     * 查询资产事件流水详情
+     */
+    AssetEventLog selectAssetEventLogById(Long eventId);
+
+    /**
+     * 查询某项资产最近的流水记录
+     */
+    List<AssetEventLog> selectRecentAssetEventLogListByAssetId(Long assetId, Integer limit);
+
     /**
      * 记录资产事件流水
      *

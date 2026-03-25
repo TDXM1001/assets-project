@@ -4,6 +4,97 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoyi.system.mapper.asset.AssetEventLogMapper">
 
+    <resultMap id="AssetEventLogResult" type="com.ruoyi.system.domain.asset.AssetEventLog">
+        <id property="eventId" column="event_id"/>
+        <result property="assetId" column="asset_id"/>
+        <result property="assetCode" column="asset_code"/>
+        <result property="assetName" column="asset_name"/>
+        <result property="assetStatus" column="asset_status"/>
+        <result property="eventType" column="event_type"/>
+        <result property="sourceOrderId" column="source_order_id"/>
+        <result property="sourceOrderType" column="source_order_type"/>
+        <result property="sourceOrderNo" column="source_order_no"/>
+        <result property="beforeSnapshot" column="before_snapshot"/>
+        <result property="afterSnapshot" column="after_snapshot"/>
+        <result property="eventDesc" column="event_desc"/>
+        <result property="operatorUserId" column="operator_user_id"/>
+        <result property="operatorUserName" column="operator_user_name"/>
+        <result property="operateTime" column="operate_time"/>
+    </resultMap>
+
+    <sql id="selectAssetEventLogVo">
+        select e.event_id,
+               e.asset_id,
+               a.asset_code,
+               a.asset_name,
+               a.asset_status,
+               e.event_type,
+               e.source_order_id,
+               e.source_order_type,
+               case
+                   when e.source_order_type = 'INVENTORY_TASK' then t.task_no
+                   else o.order_no
+               end as source_order_no,
+               e.before_snapshot,
+               e.after_snapshot,
+               e.event_desc,
+               e.operator_user_id,
+               coalesce(operator_user.nick_name, operator_user.user_name) as operator_user_name,
+               e.operate_time
+        from asset_event_log e
+        left join asset_info a on a.asset_id = e.asset_id
+        left join sys_user operator_user on operator_user.user_id = e.operator_user_id
+        left join asset_operate_order o on o.order_id = e.source_order_id
+            and (e.source_order_type is null or e.source_order_type &lt;&gt; 'INVENTORY_TASK')
+        left join asset_inventory_task t on t.task_id = e.source_order_id
+            and e.source_order_type = 'INVENTORY_TASK'
+    </sql>
+
+    <select id="selectAssetEventLogList" parameterType="com.ruoyi.system.domain.asset.AssetEventLog" resultMap="AssetEventLogResult">
+        <include refid="selectAssetEventLogVo"/>
+        <where>
+            1 = 1
+            <if test="eventId != null">and e.event_id = #{eventId}</if>
+            <if test="assetId != null">and e.asset_id = #{assetId}</if>
+            <if test="assetCode != null and assetCode != ''">and a.asset_code like concat('%', #{assetCode}, '%')</if>
+            <if test="assetName != null and assetName != ''">and a.asset_name like concat('%', #{assetName}, '%')</if>
+            <if test="eventType != null and eventType != ''">and e.event_type = #{eventType}</if>
+            <if test="sourceOrderType != null and sourceOrderType != ''">and e.source_order_type = #{sourceOrderType}</if>
+            <if test="sourceOrderNo != null and sourceOrderNo != ''">
+                and (
+                    o.order_no like concat('%', #{sourceOrderNo}, '%')
+                    or t.task_no like concat('%', #{sourceOrderNo}, '%')
+                )
+            </if>
+            <if test="operatorUserId != null">and e.operator_user_id = #{operatorUserId}</if>
+            <if test="operatorUserName != null and operatorUserName != ''">
+                and (
+                    operator_user.nick_name like concat('%', #{operatorUserName}, '%')
+                    or operator_user.user_name like concat('%', #{operatorUserName}, '%')
+                )
+            </if>
+            <if test="beginOperateTime != null and beginOperateTime != ''">
+                and date_format(e.operate_time, '%Y-%m-%d') &gt;= #{beginOperateTime}
+            </if>
+            <if test="endOperateTime != null and endOperateTime != ''">
+                and date_format(e.operate_time, '%Y-%m-%d') &lt;= #{endOperateTime}
+            </if>
+        </where>
+        order by e.operate_time desc, e.event_id desc
+    </select>
+
+    <select id="selectAssetEventLogById" parameterType="Long" resultMap="AssetEventLogResult">
+        <include refid="selectAssetEventLogVo"/>
+        where e.event_id = #{eventId}
+    </select>
+
+    <select id="selectRecentAssetEventLogListByAssetId" resultMap="AssetEventLogResult">
+        <include refid="selectAssetEventLogVo"/>
+        where e.asset_id = #{assetId}
+        order by e.operate_time desc, e.event_id desc
+        limit #{limit}
+    </select>
+
     <insert id="insertAssetEventLog" parameterType="com.ruoyi.system.domain.asset.AssetEventLog" useGeneratedKeys="true" keyProperty="eventId">
         insert into asset_event_log (
             asset_id, event_type, source_order_id, source_order_type, before_snapshot, after_snapshot,

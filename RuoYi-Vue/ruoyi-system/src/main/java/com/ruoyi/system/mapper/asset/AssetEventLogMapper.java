@@ -1,5 +1,7 @@
 package com.ruoyi.system.mapper.asset;
 
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.ruoyi.system.domain.asset.AssetEventLog;
 
 /**
@@ -7,5 +9,12 @@ import com.ruoyi.system.domain.asset.AssetEventLog;
  */
 public interface AssetEventLogMapper
 {
+    List<AssetEventLog> selectAssetEventLogList(AssetEventLog assetEventLog);
+
+    AssetEventLog selectAssetEventLogById(Long eventId);
+
+    List<AssetEventLog> selectRecentAssetEventLogListByAssetId(@Param("assetId") Long assetId,
+        @Param("limit") Integer limit);
+
     int insertAssetEventLog(AssetEventLog assetEventLog);
 }

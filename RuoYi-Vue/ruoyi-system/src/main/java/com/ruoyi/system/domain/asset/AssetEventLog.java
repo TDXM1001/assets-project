@@ -1,8 +1,10 @@
 package com.ruoyi.system.domain.asset;
 
 import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.ruoyi.common.annotation.Excel;
 
 /**
  * 资产事件流水对象 asset_event_log
@@ -13,21 +15,44 @@ public class AssetEventLog
 
     private Long assetId;
 
+    @Excel(name = "资产编码")
+    private String assetCode;
+
+    @Excel(name = "资产名称")
+    private String assetName;
+
+    private String assetStatus;
+
+    @Excel(name = "事件类型")
     private String eventType;
 
     private Long sourceOrderId;
 
+    @Excel(name = "来源业务类型")
     private String sourceOrderType;
+
+    @Excel(name = "来源单据编号")
+    private String sourceOrderNo;
 
     private String beforeSnapshot;
 
     private String afterSnapshot;
 
+    @Excel(name = "事件说明")
     private String eventDesc;
 
     private Long operatorUserId;
 
+    @Excel(name = "操作人")
+    private String operatorUserName;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "操作时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
     private Date operateTime;
+
+    private String beginOperateTime;
+
+    private String endOperateTime;
 
     public Long getEventId()
     {
@@ -47,6 +72,36 @@ public class AssetEventLog
     public void setAssetId(Long assetId)
     {
         this.assetId = assetId;
+    }
+
+    public String getAssetCode()
+    {
+        return assetCode;
+    }
+
+    public void setAssetCode(String assetCode)
+    {
+        this.assetCode = assetCode;
+    }
+
+    public String getAssetName()
+    {
+        return assetName;
+    }
+
+    public void setAssetName(String assetName)
+    {
+        this.assetName = assetName;
+    }
+
+    public String getAssetStatus()
+    {
+        return assetStatus;
+    }
+
+    public void setAssetStatus(String assetStatus)
+    {
+        this.assetStatus = assetStatus;
     }
 
     public String getEventType()
@@ -77,6 +132,16 @@ public class AssetEventLog
     public void setSourceOrderType(String sourceOrderType)
     {
         this.sourceOrderType = sourceOrderType;
+    }
+
+    public String getSourceOrderNo()
+    {
+        return sourceOrderNo;
+    }
+
+    public void setSourceOrderNo(String sourceOrderNo)
+    {
+        this.sourceOrderNo = sourceOrderNo;
     }
 
     public String getBeforeSnapshot()
@@ -119,6 +184,16 @@ public class AssetEventLog
         this.operatorUserId = operatorUserId;
     }
 
+    public String getOperatorUserName()
+    {
+        return operatorUserName;
+    }
+
+    public void setOperatorUserName(String operatorUserName)
+    {
+        this.operatorUserName = operatorUserName;
+    }
+
     public Date getOperateTime()
     {
         return operateTime;
@@ -129,17 +204,41 @@ public class AssetEventLog
         this.operateTime = operateTime;
     }
 
+    public String getBeginOperateTime()
+    {
+        return beginOperateTime;
+    }
+
+    public void setBeginOperateTime(String beginOperateTime)
+    {
+        this.beginOperateTime = beginOperateTime;
+    }
+
+    public String getEndOperateTime()
+    {
+        return endOperateTime;
+    }
+
+    public void setEndOperateTime(String endOperateTime)
+    {
+        this.endOperateTime = endOperateTime;
+    }
+
     @Override
     public String toString()
     {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
             .append("eventId", getEventId())
             .append("assetId", getAssetId())
+            .append("assetCode", getAssetCode())
+            .append("assetName", getAssetName())
             .append("eventType", getEventType())
             .append("sourceOrderId", getSourceOrderId())
             .append("sourceOrderType", getSourceOrderType())
+            .append("sourceOrderNo", getSourceOrderNo())
             .append("eventDesc", getEventDesc())
             .append("operatorUserId", getOperatorUserId())
+            .append("operatorUserName", getOperatorUserName())
             .append("operateTime", getOperateTime())
             .toString();
     }
