@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.asset.AssetInventoryTaskMapper">
+
+    <resultMap id="AssetInventoryTaskResult" type="com.ruoyi.system.domain.asset.AssetInventoryTask">
+        <id property="taskId" column="task_id"/>
+        <result property="taskNo" column="task_no"/>
+        <result property="taskName" column="task_name"/>
+        <result property="taskScopeType" column="task_scope_type"/>
+        <result property="taskStatus" column="task_status"/>
+        <result property="targetDeptId" column="target_dept_id"/>
+        <result property="targetLocationId" column="target_location_id"/>
+        <result property="targetCategoryId" column="target_category_id"/>
+        <result property="planStartTime" column="plan_start_time"/>
+        <result property="planEndTime" column="plan_end_time"/>
+        <result property="ownerUserId" column="owner_user_id"/>
+        <result property="executeUserId" column="execute_user_id"/>
+        <result property="summaryTotal" column="summary_total"/>
+        <result property="summaryOk" column="summary_ok"/>
+        <result property="summaryDiff" column="summary_diff"/>
+        <result property="status" column="status"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="AssetInventoryTaskItemResult" type="com.ruoyi.system.domain.asset.AssetInventoryTaskItem">
+        <id property="itemId" column="item_id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="assetId" column="asset_id"/>
+        <result property="assetCode" column="asset_code"/>
+        <result property="assetName" column="asset_name"/>
+        <result property="expectedUserId" column="expected_user_id"/>
+        <result property="actualUserId" column="actual_user_id"/>
+        <result property="expectedLocationId" column="expected_location_id"/>
+        <result property="actualLocationId" column="actual_location_id"/>
+        <result property="expectedStatus" column="expected_status"/>
+        <result property="actualStatus" column="actual_status"/>
+        <result property="inventoryResult" column="inventory_result"/>
+        <result property="inventoryDesc" column="inventory_desc"/>
+        <result property="inventoryTime" column="inventory_time"/>
+        <result property="inventoryUserId" column="inventory_user_id"/>
+        <result property="processStatus" column="process_status"/>
+        <result property="processDesc" column="process_desc"/>
+    </resultMap>
+
+    <sql id="selectAssetInventoryTaskVo">
+        select task_id, task_no, task_name, task_scope_type, task_status, target_dept_id,
+               target_location_id, target_category_id, plan_start_time, plan_end_time,
+               owner_user_id, execute_user_id, summary_total, summary_ok, summary_diff,
+               status, del_flag, create_by, create_time, update_by, update_time, remark
+        from asset_inventory_task
+    </sql>
+
+    <sql id="selectAssetInventoryTaskItemVo">
+        select i.item_id, i.task_id, i.asset_id, a.asset_code, a.asset_name,
+               i.expected_user_id, i.actual_user_id, i.expected_location_id, i.actual_location_id,
+               i.expected_status, i.actual_status, i.inventory_result, i.inventory_desc,
+               i.inventory_time, i.inventory_user_id, i.process_status, i.process_desc
+        from asset_inventory_task_item i
+        left join asset_info a on a.asset_id = i.asset_id
+    </sql>
+
+    <select id="selectAssetInventoryTaskList" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask" resultMap="AssetInventoryTaskResult">
+        <include refid="selectAssetInventoryTaskVo"/>
+        <where>
+            del_flag = '0'
+            <if test="taskNo != null and taskNo != ''">and task_no like concat('%', #{taskNo}, '%')</if>
+            <if test="taskName != null and taskName != ''">and task_name like concat('%', #{taskName}, '%')</if>
+            <if test="taskScopeType != null and taskScopeType != ''">and task_scope_type = #{taskScopeType}</if>
+            <if test="taskStatus != null and taskStatus != ''">and task_status = #{taskStatus}</if>
+            <if test="ownerUserId != null">and owner_user_id = #{ownerUserId}</if>
+            <if test="executeUserId != null">and execute_user_id = #{executeUserId}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+        order by task_id desc
+    </select>
+
+    <select id="selectAssetInventoryTaskById" parameterType="Long" resultMap="AssetInventoryTaskResult">
+        <include refid="selectAssetInventoryTaskVo"/>
+        where task_id = #{taskId} and del_flag = '0'
+    </select>
+
+    <select id="checkTaskNoUnique" parameterType="String" resultMap="AssetInventoryTaskResult">
+        <include refid="selectAssetInventoryTaskVo"/>
+        where task_no = #{taskNo} and del_flag = '0' limit 1
+    </select>
+
+    <select id="selectAssetInventoryTaskItemListByTaskId" parameterType="Long" resultMap="AssetInventoryTaskItemResult">
+        <include refid="selectAssetInventoryTaskItemVo"/>
+        where i.task_id = #{taskId}
+        order by i.item_id asc
+    </select>
+
+    <select id="selectSeedInventoryTaskItems" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask" resultMap="AssetInventoryTaskItemResult">
+        select null as item_id,
+               #{taskId} as task_id,
+               a.asset_id,
+               a.asset_code,
+               a.asset_name,
+               a.current_user_id as expected_user_id,
+               a.current_user_id as actual_user_id,
+               a.current_location_id as expected_location_id,
+               a.current_location_id as actual_location_id,
+               a.asset_status as expected_status,
+               a.asset_status as actual_status,
+               'NORMAL' as inventory_result,
+               null as inventory_desc,
+               null as inventory_time,
+               null as inventory_user_id,
+               null as process_status,
+               null as process_desc
+        from asset_info a
+        where a.del_flag = '0'
+          and a.status = '0'
+          <if test="taskScopeType == 'DEPT' and targetDeptId != null">
+              and a.use_org_dept_id = #{targetDeptId}
+          </if>
+          <if test="taskScopeType == 'LOCATION' and targetLocationId != null">
+              and a.current_location_id = #{targetLocationId}
+          </if>
+          <if test="taskScopeType == 'CATEGORY' and targetCategoryId != null">
+              and a.category_id = #{targetCategoryId}
+          </if>
+        order by a.asset_id asc
+    </select>
+
+    <select id="selectInventoryTaskItemByScanCode" resultMap="AssetInventoryTaskItemResult">
+        select i.item_id, i.task_id, i.asset_id, a.asset_code, a.asset_name,
+               i.expected_user_id, a.current_user_id as actual_user_id,
+               i.expected_location_id, a.current_location_id as actual_location_id,
+               i.expected_status, a.asset_status as actual_status,
+               i.inventory_result, i.inventory_desc, i.inventory_time, i.inventory_user_id,
+               i.process_status, i.process_desc
+        from asset_inventory_task_item i
+        left join asset_info a on a.asset_id = i.asset_id
+        where i.task_id = #{taskId}
+          and (a.asset_code = #{scanCode} or a.qr_code = #{scanCode})
+        limit 1
+    </select>
+
+    <insert id="insertAssetInventoryTask" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask" useGeneratedKeys="true" keyProperty="taskId">
+        insert into asset_inventory_task (
+            task_no, task_name, task_scope_type, task_status, target_dept_id, target_location_id,
+            target_category_id, plan_start_time, plan_end_time, owner_user_id, execute_user_id,
+            summary_total, summary_ok, summary_diff, status, del_flag, create_by, create_time, remark
+        ) values (
+            #{taskNo}, #{taskName}, #{taskScopeType}, #{taskStatus}, #{targetDeptId}, #{targetLocationId},
+            #{targetCategoryId}, #{planStartTime}, #{planEndTime}, #{ownerUserId}, #{executeUserId},
+            #{summaryTotal}, #{summaryOk}, #{summaryDiff}, #{status}, '0', #{createBy}, sysdate(), #{remark}
+        )
+    </insert>
+
+    <insert id="batchInsertAssetInventoryTaskItem">
+        insert into asset_inventory_task_item (
+            task_id, asset_id, expected_user_id, actual_user_id, expected_location_id, actual_location_id,
+            expected_status, actual_status, inventory_result, inventory_desc, inventory_time,
+            inventory_user_id, process_status, process_desc
+        ) values
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.taskId}, #{item.assetId}, #{item.expectedUserId}, #{item.actualUserId},
+                #{item.expectedLocationId}, #{item.actualLocationId}, #{item.expectedStatus},
+                #{item.actualStatus}, #{item.inventoryResult}, #{item.inventoryDesc}, #{item.inventoryTime},
+                #{item.inventoryUserId}, #{item.processStatus}, #{item.processDesc}
+            )
+        </foreach>
+    </insert>
+
+    <update id="updateAssetInventoryTask" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask">
+        update asset_inventory_task
+        <set>
+            <if test="taskNo != null and taskNo != ''">task_no = #{taskNo},</if>
+            <if test="taskName != null and taskName != ''">task_name = #{taskName},</if>
+            <if test="taskScopeType != null and taskScopeType != ''">task_scope_type = #{taskScopeType},</if>
+            <if test="taskStatus != null and taskStatus != ''">task_status = #{taskStatus},</if>
+            <if test="targetDeptId != null">target_dept_id = #{targetDeptId},</if>
+            <if test="targetDeptId == null">target_dept_id = null,</if>
+            <if test="targetLocationId != null">target_location_id = #{targetLocationId},</if>
+            <if test="targetLocationId == null">target_location_id = null,</if>
+            <if test="targetCategoryId != null">target_category_id = #{targetCategoryId},</if>
+            <if test="targetCategoryId == null">target_category_id = null,</if>
+            <if test="planStartTime != null">plan_start_time = #{planStartTime},</if>
+            <if test="planEndTime != null">plan_end_time = #{planEndTime},</if>
+            <if test="ownerUserId != null">owner_user_id = #{ownerUserId},</if>
+            <if test="executeUserId != null">execute_user_id = #{executeUserId},</if>
+            <if test="summaryTotal != null">summary_total = #{summaryTotal},</if>
+            <if test="summaryOk != null">summary_ok = #{summaryOk},</if>
+            <if test="summaryDiff != null">summary_diff = #{summaryDiff},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where task_id = #{taskId}
+    </update>
+
+    <update id="updateAssetInventoryTaskStatus" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTask">
+        update asset_inventory_task
+        set task_status = #{taskStatus},
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where task_id = #{taskId}
+    </update>
+
+    <update id="updateAssetInventoryTaskItem" parameterType="com.ruoyi.system.domain.asset.AssetInventoryTaskItem">
+        update asset_inventory_task_item
+        <set>
+            <if test="expectedUserId != null">expected_user_id = #{expectedUserId},</if>
+            <if test="actualUserId != null">actual_user_id = #{actualUserId},</if>
+            <if test="actualUserId == null">actual_user_id = null,</if>
+            <if test="expectedLocationId != null">expected_location_id = #{expectedLocationId},</if>
+            <if test="actualLocationId != null">actual_location_id = #{actualLocationId},</if>
+            <if test="actualLocationId == null">actual_location_id = null,</if>
+            <if test="expectedStatus != null">expected_status = #{expectedStatus},</if>
+            <if test="actualStatus != null">actual_status = #{actualStatus},</if>
+            <if test="actualStatus == null">actual_status = null,</if>
+            <if test="inventoryResult != null and inventoryResult != ''">inventory_result = #{inventoryResult},</if>
+            inventory_desc = #{inventoryDesc},
+            inventory_time = #{inventoryTime},
+            inventory_user_id = #{inventoryUserId},
+            process_status = #{processStatus},
+            process_desc = #{processDesc}
+        </set>
+        where item_id = #{itemId}
+    </update>
+
+    <update id="batchUpdateInventoryProcess">
+        update asset_inventory_task_item
+        set process_status = #{processStatus},
+            process_desc = #{processDesc}
+        where task_id = #{taskId}
+          and item_id in
+          <foreach collection="itemIds" item="itemId" open="(" separator="," close=")">
+              #{itemId}
+          </foreach>
+    </update>
+
+    <update id="deleteAssetInventoryTaskByIds" parameterType="Long">
+        update asset_inventory_task
+        set del_flag = '2', update_time = sysdate()
+        where task_id in
+        <foreach collection="array" item="taskId" open="(" separator="," close=")">
+            #{taskId}
+        </foreach>
+    </update>
+
+    <delete id="deleteAssetInventoryTaskItemByTaskId" parameterType="Long">
+        delete from asset_inventory_task_item where task_id = #{taskId}
+    </delete>
+
+    <delete id="deleteAssetInventoryTaskItemByTaskIds" parameterType="Long">
+        delete from asset_inventory_task_item
+        where task_id in
+        <foreach collection="array" item="taskId" open="(" separator="," close=")">
+            #{taskId}
+        </foreach>
+    </delete>
+
+</mapper>
