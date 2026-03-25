@@ -235,6 +235,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         set process_status = #{processStatus},
             process_desc = #{processDesc}
         where task_id = #{taskId}
+          and inventory_result is not null
+          and inventory_result &lt;&gt; 'NORMAL'
+          and (process_status is null or process_status = 'PENDING')
           and item_id in
           <foreach collection="itemIds" item="itemId" open="(" separator="," close=")">
               #{itemId}

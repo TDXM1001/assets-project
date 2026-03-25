@@ -218,15 +218,33 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
     @Transactional(rollbackFor = Exception.class)
     public int processAssetInventoryDiff(Long taskId, List<Long> itemIds, String processStatus, String processDesc, String operateBy)
     {
-        requireTask(taskId);
+        AssetInventoryTask task = requireTask(taskId);
+        if (!TASK_STATUS_FINISHED.equals(task.getTaskStatus()))
+        {
+            throw new ServiceException("只有已完成的盘点任务才能处理差异");
+        }
         if (itemIds == null || itemIds.isEmpty())
         {
             throw new ServiceException("请选择需要处理的差异明细");
         }
 
+        List<AssetInventoryTaskItem> processableItems = selectProcessableDiffItems(taskId, itemIds);
+        if (processableItems.isEmpty())
+        {
+            throw new ServiceException("所选差异明细已处理或当前不可处理，请刷新后重试");
+        }
+
+        List<Long> processableItemIds = processableItems.stream()
+            .map(AssetInventoryTaskItem::getItemId)
+            .filter(Objects::nonNull)
+            .toList();
         String targetProcessStatus = StringUtils.isEmpty(processStatus) ? PROCESS_STATUS_PENDING : processStatus;
-        int rows = inventoryTaskMapper.batchUpdateInventoryProcess(taskId, itemIds, targetProcessStatus, processDesc);
-        applyProcessedInventoryDiff(taskId, itemIds, targetProcessStatus, processDesc, operateBy);
+        int rows = inventoryTaskMapper.batchUpdateInventoryProcess(taskId, processableItemIds, targetProcessStatus, processDesc);
+        if (rows <= 0)
+        {
+            throw new ServiceException("所选差异明细未命中可处理数据，请刷新后重试");
+        }
+        applyProcessedInventoryDiff(taskId, processableItemIds, targetProcessStatus, processDesc, operateBy);
         return rows;
     }
 
@@ -399,6 +417,20 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
                 buildProcessEventDesc(item, processStatus, processDesc, snapshotChanged),
                 item.getInventoryUserId());
         }
+    }
+
+    /**
+     * 差异处理只命中“非正常且尚未处理”的明细，避免运行中提前处理或重复落账。
+     */
+    private List<AssetInventoryTaskItem> selectProcessableDiffItems(Long taskId, List<Long> itemIds)
+    {
+        return selectAssetInventoryTaskItemsByTaskId(taskId).stream()
+            .filter(item -> item.getItemId() != null && itemIds.contains(item.getItemId()))
+            .filter(item -> StringUtils.isNotEmpty(item.getInventoryResult()))
+            .filter(item -> !StringUtils.equals(item.getInventoryResult(), INVENTORY_RESULT_NORMAL))
+            .filter(item -> StringUtils.isEmpty(item.getProcessStatus())
+                || StringUtils.equals(item.getProcessStatus(), PROCESS_STATUS_PENDING))
+            .toList();
     }
 
     private boolean shouldRecordFinishEvent(AssetInventoryTaskItem item)
