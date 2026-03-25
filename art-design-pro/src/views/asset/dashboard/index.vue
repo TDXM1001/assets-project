@@ -2,11 +2,24 @@
   <div class="asset-dashboard-page art-full-height">
     <ElAlert
       class="mb-4"
-      type="info"
+      type="success"
       :closable="false"
       show-icon
-      title="当前是一版轻量资产看板，直接基于现有列表接口聚合，先保证资产模块入口稳定可用。"
+      title="当前看板已切到真实 dashboard 聚合接口，展示口径会跟随当前角色的数据范围。"
     />
+
+    <ElAlert
+      v-if="loadError"
+      class="mb-4"
+      type="warning"
+      :closable="false"
+      show-icon
+      :title="loadError"
+    >
+      <template #default>
+        <ElButton link type="primary" @click="loadDashboardData">重新加载</ElButton>
+      </template>
+    </ElAlert>
 
     <ElRow :gutter="16" class="mb-4">
       <ElCol v-for="card in summaryCards" :key="card.key" :xs="24" :sm="12" :lg="6">
@@ -19,66 +32,95 @@
     </ElRow>
 
     <ElRow :gutter="16" class="mb-4">
-      <ElCol :xs="24" :lg="16">
+      <ElCol :xs="24" :lg="14">
         <ElCard shadow="never" class="asset-dashboard-card">
           <template #header>
             <div class="card-header">
-              <span>最近资产流水</span>
-              <ElButton
-                v-if="canAccess('asset:event:list')"
-                link
-                type="primary"
-                @click="router.push('/asset/event')"
-              >
-                查看全部
-              </ElButton>
+              <span>资产状态分布</span>
+              <ElTag effect="light" type="info">{{ scopeSummaryText }}</ElTag>
             </div>
           </template>
 
           <ElEmpty
-            v-if="!canAccess('asset:event:list')"
-            description="当前角色没有资产流水查看权限"
+            v-if="!statusStats.length && !loading"
+            description="当前范围下还没有可统计的资产状态数据"
           />
-          <ElEmpty v-else-if="!recentEvents.length && !loading" description="最近还没有资产流水" />
-          <ElTable v-else v-loading="loading" :data="recentEvents" stripe>
-            <ElTableColumn prop="assetCode" label="资产编码" min-width="150" />
-            <ElTableColumn prop="assetName" label="资产名称" min-width="160" />
-            <ElTableColumn label="事件类型" min-width="120">
-              <template #default="{ row }">
-                <DictTag :options="asset_event_type" :value="row.eventType" />
-              </template>
-            </ElTableColumn>
-            <ElTableColumn
-              prop="eventDesc"
-              label="事件说明"
-              min-width="220"
-              show-overflow-tooltip
-            />
-            <ElTableColumn prop="operatorName" label="操作人" min-width="120" />
-            <ElTableColumn prop="eventTime" label="操作时间" min-width="180" />
-          </ElTable>
+
+          <div v-else v-loading="loading" class="status-list">
+            <div v-for="item in statusStats" :key="item.status" class="status-item">
+              <div class="status-item__top">
+                <div class="status-item__label">
+                  <DictTag :options="asset_status" :value="item.status" />
+                </div>
+                <div class="status-item__meta">
+                  <span>{{ item.value }}</span>
+                  <span>{{ item.percentText }}</span>
+                </div>
+              </div>
+              <ElProgress
+                :percentage="item.percent"
+                :stroke-width="10"
+                :show-text="false"
+                :color="item.color"
+              />
+            </div>
+          </div>
         </ElCard>
       </ElCol>
 
-      <ElCol :xs="24" :lg="8">
+      <ElCol :xs="24" :lg="10">
         <ElCard shadow="never" class="asset-dashboard-card">
           <template #header>
             <span>当前关注事项</span>
           </template>
 
-          <ElEmpty v-if="!todoItems.length" description="当前没有需要关注的事项" />
-          <div v-else class="todo-list">
-            <div v-for="item in todoItems" :key="item.label" class="todo-item">
+          <ElEmpty v-if="!todoItems.length && !loading" description="当前没有需要关注的事项" />
+
+          <div v-else class="todo-list" v-loading="loading">
+            <div v-for="item in todoItems" :key="item.key" class="todo-item">
               <div class="todo-item__content">
                 <div class="todo-item__label">{{ item.label }}</div>
                 <div class="todo-item__desc">{{ item.desc }}</div>
               </div>
-              <ElTag :type="item.type" effect="light">{{ item.value }}</ElTag>
+              <div class="todo-item__action">
+                <ElTag :type="item.type" effect="light">{{ item.value }}</ElTag>
+                <ElButton
+                  v-if="item.routePath"
+                  link
+                  type="primary"
+                  @click="router.push(item.routePath)"
+                >
+                  去处理
+                </ElButton>
+              </div>
             </div>
           </div>
         </ElCard>
       </ElCol>
     </ElRow>
+
+    <ElCard shadow="never" class="asset-dashboard-card mb-4">
+      <template #header>
+        <div class="card-header">
+          <span>近 7 日业务趋势</span>
+          <span class="card-tip">{{ trendDescription }}</span>
+        </div>
+      </template>
+
+      <ElEmpty
+        v-if="!trendRows.length && !loading"
+        description="当前范围下还没有可展示的趋势数据"
+      />
+
+      <ElTable v-else v-loading="loading" :data="trendRows" stripe>
+        <ElTableColumn prop="bizDate" label="日期" min-width="130" />
+        <ElTableColumn prop="eventCount" label="流水数量" min-width="120" />
+        <ElTableColumn prop="orderCount" label="单据数量" min-width="120" />
+        <ElTableColumn prop="inventoryCount" label="盘点任务数" min-width="120" />
+        <ElTableColumn prop="diffCount" label="差异处理数" min-width="120" />
+        <ElTableColumn prop="summary" label="趋势说明" min-width="240" show-overflow-tooltip />
+      </ElTable>
+    </ElCard>
 
     <ElCard shadow="never" class="asset-dashboard-card">
       <template #header>
@@ -100,10 +142,10 @@
 
       <ElDescriptions :column="2" border class="mt-4">
         <ElDescriptionsItem label="数据口径">
-          按当前登录角色的数据范围聚合，管理员看全量，其他角色只看自己可见数据。
+          {{ scopeSummaryText }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="实现方式">
-          当前阶段不依赖独立 dashboard API，直接复用资产台账、单据、盘点、流水接口。
+          当前页面直接消费 `summary / todo / trend` 三组聚合接口，不再由前端拼 4 个列表接口。
         </ElDescriptionsItem>
       </ElDescriptions>
     </ElCard>
@@ -113,49 +155,68 @@
 <script setup lang="ts">
   import { computed, onMounted, ref } from 'vue'
   import { useRouter } from 'vue-router'
-  import { ElMessage } from 'element-plus'
   import DictTag from '@/components/DictTag/index.vue'
-  import { listAssetInfo } from '@/api/asset/info'
-  import { listAssetOrder } from '@/api/asset/order'
-  import { listAssetInventory } from '@/api/asset/inventory'
-  import { listAssetEvent } from '@/api/asset/event'
-  import { useDict } from '@/utils/dict'
+  import {
+    getAssetDashboardSummary,
+    getAssetDashboardTodo,
+    getAssetDashboardTrend,
+    type AssetDashboardSummaryResponse,
+    type AssetDashboardTodoResponse,
+    type AssetDashboardTrendResponse
+  } from '@/api/asset/dashboard'
   import { useUserStore } from '@/store/modules/user'
+  import { useDict } from '@/utils/dict'
+  import { useAssetRoleScope } from '@/views/asset/shared/use-asset-role-scope'
 
   defineOptions({ name: 'AssetDashboard' })
 
-  interface SummaryState {
-    assetTotal: number
-    orderTotal: number
-    inventoryTotal: number | null
-    eventTotal: number | null
+  interface DashboardStatusStat {
+    status: string
+    value: number
   }
 
-  interface TodoItem {
-    label: string
-    value: string
-    desc: string
-    type?: 'success' | 'warning' | 'info' | 'danger'
+  interface DashboardSummary {
+    assetTotal: number
+    orderTotal: number
+    inventoryTotal: number
+    eventTotal: number
+    recentEventDays: number
+    statusStats: DashboardStatusStat[]
+    scopeDesc: string
   }
+
+  interface DashboardTodoItem {
+    key: string
+    label: string
+    value: number | string
+    desc: string
+    type: 'primary' | 'success' | 'warning' | 'info' | 'danger'
+    routePath: string
+  }
+
+  interface DashboardTrendRow {
+    bizDate: string
+    eventCount: number
+    orderCount: number
+    inventoryCount: number
+    diffCount: number
+    summary: string
+  }
+
+  const STATUS_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6']
 
   const router = useRouter()
   const userStore = useUserStore()
-  const { asset_event_type } = useDict('asset_event_type')
+  const { asset_status } = useDict('asset_status')
+  const { isAssetAdmin, isAssetAuditor, isAssetDeptManager, isSelfScopedAssetUser } =
+    useAssetRoleScope()
 
   const loading = ref(false)
-  const recentEvents = ref<any[]>([])
-  const orderRows = ref<any[]>([])
-  const inventoryRows = ref<any[]>([])
-  const summaryState = ref<SummaryState>({
-    assetTotal: 0,
-    orderTotal: 0,
-    inventoryTotal: null,
-    eventTotal: null
-  })
+  const loadError = ref('')
+  const summaryState = ref<DashboardSummary>(createEmptySummary())
+  const todoItems = ref<DashboardTodoItem[]>([])
+  const trendRows = ref<DashboardTrendRow[]>([])
 
-  /**
-   * 根据当前权限控制看板聚合范围，避免页面自身产生不必要的 403 请求。
-   */
   function canAccess(permission: string) {
     return userStore.permissions.includes('*:*:*') || userStore.permissions.includes(permission)
   }
@@ -165,113 +226,212 @@
       key: 'assetTotal',
       label: '可见资产总数',
       value: summaryState.value.assetTotal,
-      tip: '按当前角色的数据范围实时统计'
+      tip: '按当前角色的数据范围实时聚合'
     },
     {
       key: 'orderTotal',
       label: '可见业务单据',
       value: canAccess('asset:order:list') ? summaryState.value.orderTotal : '未授权',
-      tip: canAccess('asset:order:list') ? '便于快速回到流程工作台' : '当前角色未开放单据查看'
+      tip: !canAccess('asset:order:list')
+        ? '当前角色没有业务单据查看权限'
+        : '用于快速判断流程积压情况'
     },
     {
       key: 'inventoryTotal',
       label: '可见盘点任务',
-      value:
-        summaryState.value.inventoryTotal === null ? '未授权' : summaryState.value.inventoryTotal,
-      tip:
-        summaryState.value.inventoryTotal === null
-          ? '当前角色未开放盘点任务'
-          : '仅统计当前角色可见的盘点任务'
+      value: canAccess('asset:inventory:list') ? summaryState.value.inventoryTotal : '未授权',
+      tip: !canAccess('asset:inventory:list')
+        ? '当前角色没有盘点任务查看权限'
+        : '用于识别盘点执行压力'
     },
     {
       key: 'eventTotal',
-      label: '最近流水记录',
-      value: summaryState.value.eventTotal === null ? '未授权' : summaryState.value.eventTotal,
-      tip:
-        summaryState.value.eventTotal === null
-          ? '当前角色未开放流水查看'
-          : '帮助快速确认最近的资产变化'
+      label: `最近 ${summaryState.value.recentEventDays} 日流水记录`,
+      value: canAccess('asset:event:list') ? summaryState.value.eventTotal : '未授权',
+      tip: !canAccess('asset:event:list')
+        ? '当前角色没有资产流水查看权限'
+        : '帮助快速确认最近的资产变动'
     }
   ])
 
-  const todoItems = computed<TodoItem[]>(() => {
-    const items: TodoItem[] = []
-
-    if (canAccess('asset:order:list')) {
-      const activeOrderCount = orderRows.value.filter(
-        (item) => !['DONE', 'CANCELED', 'REJECTED'].includes(item.orderStatus)
-      ).length
-      items.push({
-        label: '待跟进业务单据',
-        value: String(activeOrderCount),
-        desc: '建议优先处理未完成的资产单据，避免资产状态滞后。',
-        type: activeOrderCount > 0 ? 'warning' : 'success'
-      })
+  const scopeSummaryText = computed(() => {
+    if (summaryState.value.scopeDesc) {
+      return summaryState.value.scopeDesc
     }
-
-    if (canAccess('asset:inventory:list')) {
-      const activeInventoryCount = inventoryRows.value.filter(
-        (item) => !['DONE', 'CANCELED'].includes(item.taskStatus)
-      ).length
-      items.push({
-        label: '未完成盘点任务',
-        value: String(activeInventoryCount),
-        desc: '盘点任务结束后要及时处理差异，避免主数据和实际状态偏离。',
-        type: activeInventoryCount > 0 ? 'danger' : 'success'
-      })
+    if (isSelfScopedAssetUser.value) {
+      return '当前为“我的数据”视角，聚合结果仅统计你本人可见范围。'
     }
-
-    if (canAccess('asset:event:list')) {
-      items.push({
-        label: '最近资产流水',
-        value: String(recentEvents.value.length),
-        desc: '可直接在本页查看最近的资产变更轨迹。',
-        type: recentEvents.value.length > 0 ? 'info' : undefined
-      })
+    if (isAssetDeptManager.value && !isAssetAdmin.value && !isAssetAuditor.value) {
+      return '当前为“部门数据”视角，聚合结果覆盖本部门及以下范围。'
     }
-
-    return items
+    if (isAssetAuditor.value && !isAssetAdmin.value) {
+      return '当前为“全量只读”视角，聚合结果覆盖全部审计范围。'
+    }
+    return '按当前角色的数据范围聚合'
   })
+
+  const trendDescription = computed(() => {
+    if (!trendRows.value.length) {
+      return '暂无趋势数据'
+    }
+    return '聚合了当前范围内近 7 天的流水、单据、盘点创建与异常差异数量'
+  })
+
+  const statusStats = computed(() => {
+    const total = summaryState.value.assetTotal || 0
+    return summaryState.value.statusStats.map((item, index) => {
+      const percent = total > 0 ? Math.round((item.value / total) * 100) : 0
+      return {
+        ...item,
+        percent,
+        percentText: `${percent}%`,
+        color: STATUS_COLORS[index % STATUS_COLORS.length]
+      }
+    })
+  })
+
+  function createEmptySummary(): DashboardSummary {
+    return {
+      assetTotal: 0,
+      orderTotal: 0,
+      inventoryTotal: 0,
+      eventTotal: 0,
+      recentEventDays: 7,
+      statusStats: [],
+      scopeDesc: ''
+    }
+  }
+
+  function normalizeSummary(data?: AssetDashboardSummaryResponse | null): DashboardSummary {
+    return {
+      assetTotal: toNumber(data?.assetTotal),
+      orderTotal: toNumber(data?.orderTotal),
+      inventoryTotal: toNumber(data?.inventoryTaskTotal),
+      eventTotal: toNumber(data?.recentEventTotal),
+      recentEventDays: toNumber(data?.recentEventDays) || 7,
+      statusStats: Array.isArray(data?.statusList)
+        ? data.statusList
+            .map((item) => ({
+              status: String(item?.status ?? ''),
+              value: toNumber(item?.totalCount)
+            }))
+            .filter((item) => item.status)
+        : [],
+      scopeDesc: ''
+    }
+  }
+
+  function normalizeTodo(data?: AssetDashboardTodoResponse | null) {
+    const rows = Array.isArray(data?.itemList) ? data.itemList : []
+    return rows
+      .filter((item) => item?.permitted && toNumber(item?.count) > 0)
+      .map((item, index): DashboardTodoItem => {
+        const todoCount = toNumber(item?.count)
+        const key = String(item?.key || `todo-${index}`)
+        const todoMeta = buildTodoMeta(key, todoCount)
+
+        return {
+          key,
+          label: item?.label || todoMeta.label,
+          value: todoCount,
+          desc: todoMeta.desc,
+          type: todoMeta.type,
+          routePath: item?.routePath || ''
+        }
+      })
+      .sort((left, right) => Number(right.value) - Number(left.value))
+  }
+
+  function buildTodoMeta(key: string, count: number) {
+    if (key === 'pendingDiff') {
+      return {
+        label: '待处理差异',
+        desc: `还有 ${count} 条异常差异未收口，建议优先处理。`,
+        type: 'danger' as const
+      }
+    }
+    if (key === 'unfinishedInventory') {
+      return {
+        label: '待完成盘点',
+        desc: `还有 ${count} 个盘点任务尚未完成，建议尽快推进。`,
+        type: 'warning' as const
+      }
+    }
+    return {
+      label: '待处理单据',
+      desc: `还有 ${count} 张业务单据仍在流转中。`,
+      type: 'primary' as const
+    }
+  }
+
+  function normalizeTrend(data?: AssetDashboardTrendResponse | null) {
+    const rows = Array.isArray(data?.pointList) ? data.pointList : []
+    return rows.map((item): DashboardTrendRow => {
+      const normalizedRow = {
+        bizDate: item?.statDate || '-',
+        eventCount: toNumber(item?.eventCount),
+        orderCount: toNumber(item?.orderCount),
+        inventoryCount: toNumber(item?.inventoryCount),
+        diffCount: toNumber(item?.diffCount),
+        summary: ''
+      }
+
+      return {
+        ...normalizedRow,
+        summary: buildTrendSummary(normalizedRow)
+      }
+    })
+  }
+
+  function toNumber(value: unknown) {
+    const nextValue = Number(value)
+    return Number.isFinite(nextValue) ? nextValue : 0
+  }
+
+  function isPermissionError(error: unknown) {
+    const code = (error as { code?: number })?.code
+    return code === 401 || code === 403
+  }
+
+  /**
+   * 趋势区优先讲清楚“当天发生了什么”，避免用户自己再做二次换算。
+   */
+  function buildTrendSummary(item: Omit<DashboardTrendRow, 'summary'>) {
+    return `流水 ${item.eventCount} 条 / 单据 ${item.orderCount} 条 / 盘点创建 ${item.inventoryCount} 项 / 异常差异 ${item.diffCount} 项`
+  }
 
   async function loadDashboardData() {
     loading.value = true
+    loadError.value = ''
 
-    try {
-      const assetResult = (await listAssetInfo({ pageNum: 1, pageSize: 1 })) as any
-      summaryState.value.assetTotal = assetResult?.total || 0
+    const [summaryResult, todoResult, trendResult] = await Promise.allSettled([
+      getAssetDashboardSummary(),
+      getAssetDashboardTodo(),
+      getAssetDashboardTrend()
+    ])
 
-      if (canAccess('asset:order:list')) {
-        const orderResult = (await listAssetOrder({ pageNum: 1, pageSize: 20 })) as any
-        summaryState.value.orderTotal = orderResult?.total || 0
-        orderRows.value = orderResult?.rows || []
-      } else {
-        summaryState.value.orderTotal = 0
-        orderRows.value = []
+    if (summaryResult.status === 'fulfilled') {
+      summaryState.value = normalizeSummary(summaryResult.value)
+    } else {
+      summaryState.value = createEmptySummary()
+      if (!isPermissionError(summaryResult.reason)) {
+        loadError.value = '资产看板加载失败，请确认 dashboard 聚合接口已经可用。'
       }
-
-      if (canAccess('asset:inventory:list')) {
-        const inventoryResult = (await listAssetInventory({ pageNum: 1, pageSize: 20 })) as any
-        summaryState.value.inventoryTotal = inventoryResult?.total || 0
-        inventoryRows.value = inventoryResult?.rows || []
-      } else {
-        summaryState.value.inventoryTotal = null
-        inventoryRows.value = []
-      }
-
-      if (canAccess('asset:event:list')) {
-        const eventResult = (await listAssetEvent({ pageNum: 1, pageSize: 6 })) as any
-        summaryState.value.eventTotal = eventResult?.total || 0
-        recentEvents.value = eventResult?.rows || []
-      } else {
-        summaryState.value.eventTotal = null
-        recentEvents.value = []
-      }
-    } catch (error) {
-      console.error('[AssetDashboard] 加载资产看板失败:', error)
-      ElMessage.error('资产看板加载失败，请稍后重试')
-    } finally {
-      loading.value = false
     }
+
+    if (todoResult.status === 'fulfilled') {
+      todoItems.value = normalizeTodo(todoResult.value)
+    } else {
+      todoItems.value = []
+    }
+
+    if (trendResult.status === 'fulfilled') {
+      trendRows.value = normalizeTrend(trendResult.value)
+    } else {
+      trendRows.value = []
+    }
+
+    loading.value = false
   }
 
   onMounted(() => {
@@ -316,6 +476,38 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-tip {
+    font-size: 13px;
+    color: var(--art-text-gray-500);
+  }
+
+  .status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    &__top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    &__meta {
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--art-text-gray-500);
+    }
   }
 
   .todo-list {
@@ -349,6 +541,13 @@
       line-height: 1.6;
       color: var(--art-text-gray-500);
     }
+
+    &__action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
   }
 
   .quick-actions {
@@ -356,7 +555,28 @@
     flex-wrap: wrap;
     gap: 12px;
   }
+
+  .mb-4 {
+    margin-bottom: 16px;
+  }
+
   .mt-4 {
     margin-top: 16px;
+  }
+  @media (max-width: 992px) {
+    .todo-item {
+      align-items: flex-start;
+      flex-direction: column;
+
+      &__action {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    .card-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
   }
 </style>
