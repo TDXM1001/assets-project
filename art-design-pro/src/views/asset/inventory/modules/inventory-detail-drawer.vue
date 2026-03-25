@@ -2,7 +2,13 @@
   <ElDrawer v-model="visible" :title="drawerTitle" size="760px" append-to-body destroy-on-close>
     <template v-if="taskData">
       <ElSpace wrap class="mb-4">
-        <ElButton v-auth="'asset:inventory:edit'" type="primary" plain @click="emitEdit">
+        <ElButton
+          v-auth="'asset:inventory:edit'"
+          type="primary"
+          plain
+          :disabled="taskData.taskStatus !== 'DRAFT'"
+          @click="emitEdit"
+        >
           编辑任务
         </ElButton>
         <ElButton

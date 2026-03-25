@@ -105,7 +105,10 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         {
             throw new ServiceException("已完成的盘点任务不允许修改");
         }
-
+        if (!TASK_STATUS_DRAFT.equals(dbTask.getTaskStatus()))
+        {
+            throw new ServiceException("只有草稿状态的盘点任务才能编辑");
+        }
         normalizeTask(task);
         task.setTaskStatus(StringUtils.isEmpty(dbTask.getTaskStatus()) ? TASK_STATUS_DRAFT : dbTask.getTaskStatus());
         int rows = inventoryTaskMapper.updateAssetInventoryTask(task);
@@ -130,8 +133,11 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         {
             throw new ServiceException("已完成的盘点任务不能重新开始");
         }
-
-        refreshTaskItems(task);
+        if (!TASK_STATUS_DRAFT.equals(task.getTaskStatus()))
+        {
+            throw new ServiceException("只有草稿状态的盘点任务才能开始");
+        }
+        // 开始盘点时只切换任务状态，不再重刷明细，避免把创建时锁定的账面快照洗掉。
         task.setTaskStatus(TASK_STATUS_RUNNING);
         task.setUpdateBy(operateBy);
         inventoryTaskMapper.updateAssetInventoryTaskStatus(task);
@@ -233,20 +239,19 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         for (AssetInventoryTaskItem item : seedItems)
         {
             item.setTaskId(task.getTaskId());
-            item.setInventoryResult(INVENTORY_RESULT_NORMAL);
+            // 明细初始态只锁账面快照，现场值和盘点结果要等真实扫码或结束盘点时再落。
+            item.setInventoryResult(null);
             item.setInventoryDesc(null);
             item.setInventoryTime(null);
             item.setInventoryUserId(null);
             item.setProcessStatus(null);
             item.setProcessDesc(null);
         }
-
         inventoryTaskMapper.deleteAssetInventoryTaskItemByTaskId(task.getTaskId());
         if (!seedItems.isEmpty())
         {
             inventoryTaskMapper.batchInsertAssetInventoryTaskItem(seedItems);
         }
-
         AssetInventoryTask summaryTask = new AssetInventoryTask();
         summaryTask.setTaskId(task.getTaskId());
         summaryTask.setTaskScopeType(task.getTaskScopeType());
