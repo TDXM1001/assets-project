@@ -33,7 +33,7 @@
           v-auth="'asset:inventory:processDiff'"
           type="danger"
           plain
-          :disabled="!hasDiffItems"
+          :disabled="!hasPendingDiffItems"
           @click="emitProcessDiff"
         >
           处理差异
@@ -269,8 +269,18 @@
     scanCode: ''
   })
 
-  const hasDiffItems = computed(() =>
-    itemRows.value.some((item) => item.inventoryResult && item.inventoryResult !== 'NORMAL')
+  /**
+   * 只有已完成任务里的待处理差异，才应该继续进入差异处理流程。
+   */
+  const hasPendingDiffItems = computed(
+    () =>
+      props.taskData?.taskStatus === 'FINISHED' &&
+      itemRows.value.some(
+        (item) =>
+          item.inventoryResult &&
+          item.inventoryResult !== 'NORMAL' &&
+          item.processStatus !== 'PROCESSED'
+      )
   )
 
   const drawerTitle = computed(() => {

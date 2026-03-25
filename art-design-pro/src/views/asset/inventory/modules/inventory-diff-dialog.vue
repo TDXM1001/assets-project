@@ -68,7 +68,7 @@
       height="380px"
       @selection-change="handleSelectionChange"
     >
-      <ElTableColumn type="selection" width="55" />
+      <ElTableColumn type="selection" width="55" :selectable="isSelectableDiffRow" />
       <ElTableColumn prop="assetCode" label="资产编码" min-width="130" />
       <ElTableColumn prop="assetName" label="资产名称" min-width="160" />
       <ElTableColumn label="账面位置" min-width="140">
@@ -111,7 +111,7 @@
         <ElButton
           type="primary"
           :loading="submitLoading"
-          :disabled="selectedRows.length === 0"
+          :disabled="!hasPendingSelection"
           @click="handleSubmit"
         >
           确认处理
@@ -206,6 +206,17 @@
     return `处理盘点差异 - ${props.taskData.taskName}`
   })
 
+  const isPendingDiffItem = (item?: InventoryItemRow) =>
+    Boolean(
+      item?.inventoryResult &&
+        item.inventoryResult !== 'NORMAL' &&
+        item.processStatus !== 'PROCESSED'
+    )
+
+  const hasPendingSelection = computed(() =>
+    selectedRows.value.some((item) => isPendingDiffItem(item))
+  )
+
   const resolveFromMap = (map: LabelMap, value?: number | string) => {
     if (value === null || value === undefined || value === '') {
       return '-'
@@ -219,12 +230,10 @@
   const resolveUserLabel = (value?: number | string) => resolveFromMap(props.userLabelMap, value)
 
   /**
-   * 默认勾选所有差异项，方便后续一键处理；没有差异时则保持空选择。
+   * 默认只勾选待处理差异，避免把已处理项再次带进提交流程。
    */
   const syncSelection = () => {
-    selectedRows.value = props.items.filter(
-      (item) => item.inventoryResult && item.inventoryResult !== 'NORMAL'
-    )
+    selectedRows.value = props.items.filter((item) => isPendingDiffItem(item))
   }
 
   watch(
@@ -238,18 +247,33 @@
   )
 
   const handleSelectionChange = (rows: InventoryItemRow[]) => {
-    selectedRows.value = rows
+    selectedRows.value = rows.filter((item) => isPendingDiffItem(item))
   }
 
+  const isSelectableDiffRow = (row: InventoryItemRow) => isPendingDiffItem(row)
+
   const handleSubmit = async () => {
-    if (!props.taskData?.taskId || selectedRows.value.length === 0) {
+    if (!props.taskData?.taskId) {
+      return
+    }
+    if (props.taskData.taskStatus !== 'FINISHED') {
+      ElMessage.warning('请先结束盘点任务，再处理差异')
+      return
+    }
+
+    const pendingItemIds = selectedRows.value
+      .filter((item) => isPendingDiffItem(item) && item.itemId)
+      .map((item) => item.itemId)
+
+    if (pendingItemIds.length === 0) {
+      ElMessage.warning('请选择待处理的差异项')
       return
     }
 
     submitLoading.value = true
     try {
       await processAssetInventoryDiff(props.taskData.taskId, {
-        itemIds: selectedRows.value.map((item) => item.itemId).filter(Boolean),
+        itemIds: pendingItemIds,
         processStatus: formData.processStatus,
         processDesc: formData.processDesc
       })

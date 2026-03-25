@@ -121,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, h, onMounted, reactive, ref } from 'vue'
+  import { computed, h, onMounted, reactive, ref, watch } from 'vue'
   import FileSaver from 'file-saver'
   import { ElButton, ElMessage, ElMessageBox, ElSpace } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
@@ -224,6 +224,7 @@
   const diffItems = ref<InventoryItemRow[]>([])
   const drawerKey = ref(0)
   const diffDialogKey = ref(0)
+  const pendingDiffTaskMap = ref<Record<string, boolean>>({})
 
   const categoryTreeOptions = ref<TreeOption[]>([])
   const locationTreeOptions = ref<TreeOption[]>([])
@@ -318,6 +319,54 @@
 
   const normalizeListResponse = (response: any) =>
     Array.isArray(response) ? response : response?.rows || response?.data || []
+
+  /**
+   * 前端统一识别“待处理差异”，保证列表、抽屉、弹窗的入口条件完全一致。
+   */
+  const isPendingDiffItem = (item?: InventoryItemRow) =>
+    Boolean(
+      item?.inventoryResult &&
+        item.inventoryResult !== 'NORMAL' &&
+        item.processStatus !== 'PROCESSED'
+    )
+
+  const setPendingDiffState = (taskId: number, items: InventoryItemRow[]) => {
+    pendingDiffTaskMap.value[String(taskId)] = items.some((item) => isPendingDiffItem(item))
+  }
+
+  const hasPendingDiffTask = (row?: InventoryTaskRow) => {
+    if (!row?.taskId || row.taskStatus !== 'FINISHED' || !row.summaryDiff) {
+      return false
+    }
+    return Boolean(pendingDiffTaskMap.value[String(row.taskId)])
+  }
+
+  /**
+   * 列表层补一层待处理差异缓存，避免已处理任务继续显示“处理差异”入口。
+   */
+  const syncPendingDiffTaskMap = async (rows: InventoryTaskRow[]) => {
+    const nextMap: Record<string, boolean> = {}
+    const candidateRows = rows.filter(
+      (row) => row.taskId && row.taskStatus === 'FINISHED' && (row.summaryDiff ?? 0) > 0
+    )
+
+    await Promise.all(
+      candidateRows.map(async (row) => {
+        try {
+          const response: any = await getAssetInventoryItems(row.taskId!)
+          const items = normalizeListResponse(response)
+          nextMap[String(row.taskId)] = items.some((item: InventoryItemRow) =>
+            isPendingDiffItem(item)
+          )
+        } catch (error) {
+          console.error('加载待处理差异状态失败:', error)
+          nextMap[String(row.taskId)] = false
+        }
+      })
+    )
+
+    pendingDiffTaskMap.value = nextMap
+  }
 
   /**
    * 统一拉取任务详情，保证流程动作后的抽屉和差异弹窗看到的是最新状态。
@@ -593,7 +642,7 @@
       )
     }
 
-    if (hasPermission('asset:inventory:processDiff') && row.summaryDiff && row.summaryDiff > 0) {
+    if (hasPermission('asset:inventory:processDiff') && hasPendingDiffTask(row)) {
       actionNodes.push(
         h(
           ElButton,
@@ -699,12 +748,11 @@
     await loadTaskDetail(taskId)
     const response: any = await getAssetInventoryItems(taskId)
     const detailItems = normalizeListResponse(response)
+    setPendingDiffState(taskId, detailItems)
     if (drawerVisible.value && currentTask.value.taskId === taskId) {
       drawerKey.value += 1
     }
-    diffItems.value = detailItems.filter(
-      (item: InventoryItemRow) => item.inventoryResult && item.inventoryResult !== 'NORMAL'
-    )
+    diffItems.value = detailItems.filter((item: InventoryItemRow) => isPendingDiffItem(item))
   }
 
   const handleStart = async (row: InventoryTaskRow) => {
@@ -752,9 +800,8 @@
   const loadDiffItems = async (taskId: number) => {
     const response: any = await getAssetInventoryItems(taskId)
     const rows = normalizeListResponse(response)
-    return rows.filter(
-      (item: InventoryItemRow) => item.inventoryResult && item.inventoryResult !== 'NORMAL'
-    )
+    setPendingDiffState(taskId, rows)
+    return rows.filter((item: InventoryItemRow) => isPendingDiffItem(item))
   }
 
   const handleProcessDiff = async (row: InventoryTaskRow) => {
@@ -767,6 +814,14 @@
     } catch (error) {
       console.error('加载差异项失败:', error)
       diffItems.value = []
+    }
+    if (currentTask.value?.taskStatus !== 'FINISHED') {
+      ElMessage.warning('请先结束盘点任务，再处理差异')
+      return
+    }
+    if (diffItems.value.length === 0) {
+      ElMessage.warning('当前没有待处理的差异项')
+      return
     }
     diffDialogVisible.value = true
     diffDialogKey.value += 1
@@ -840,4 +895,12 @@
     syncSearchParams()
     await getData()
   })
+
+  watch(
+    data,
+    (rows) => {
+      void syncPendingDiffTaskMap(rows as InventoryTaskRow[])
+    },
+    { immediate: true }
+  )
 </script>
