@@ -1,7 +1,7 @@
 <template>
   <div class="asset-category-page art-full-height">
     <ArtSearchBar
-      :key="sys_normal_disable.value.length"
+      :key="searchBarKey"
       v-model="formFilters"
       :items="formItems"
       :showExpand="false"
@@ -108,6 +108,15 @@
 
   const formFilters = reactive({ ...initialSearchState })
 
+  /**
+   * 给字典值统一做空数组兜底，避免首屏渲染时字典尚未回填导致页面报错。
+   */
+  const statusOptions = computed(() => {
+    return Array.isArray(sys_normal_disable.value) ? sys_normal_disable.value : []
+  })
+
+  const searchBarKey = computed(() => `${statusOptions.value.length}`)
+
   const flagTagTypeMap: Record<string, '' | 'success' | 'info' | 'warning' | 'danger'> = {
     '1': 'success',
     '0': 'info'
@@ -153,7 +162,7 @@
       props: {
         placeholder: '请选择分类状态',
         clearable: true,
-        options: sys_normal_disable.value
+        options: statusOptions.value
       }
     }
   ])
@@ -225,7 +234,7 @@
       width: 100,
       align: 'center',
       formatter: (row: any) => {
-        return h(DictTag, { options: sys_normal_disable.value, value: row.status })
+        return h(DictTag, { options: statusOptions.value, value: row.status })
       }
     },
     {
