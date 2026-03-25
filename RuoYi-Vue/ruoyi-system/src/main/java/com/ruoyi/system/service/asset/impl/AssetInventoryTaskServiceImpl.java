@@ -1,17 +1,24 @@
 package com.ruoyi.system.service.asset.impl;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.system.domain.asset.AssetInfo;
 import com.ruoyi.system.domain.asset.AssetInventoryTask;
 import com.ruoyi.system.domain.asset.AssetInventoryTaskItem;
+import com.ruoyi.system.mapper.asset.AssetInfoMapper;
 import com.ruoyi.system.mapper.asset.AssetInventoryTaskMapper;
+import com.ruoyi.system.service.asset.IAssetEventLogService;
 import com.ruoyi.system.service.asset.IAssetInventoryTaskService;
 
 /**
@@ -31,9 +38,18 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
     private static final String INVENTORY_RESULT_STATUS_DIFF = "STATUS_DIFF";
 
     private static final String PROCESS_STATUS_PENDING = "PENDING";
+    private static final String PROCESS_STATUS_PROCESSED = "PROCESSED";
+    private static final String EVENT_TYPE_INVENTORY = "INVENTORY";
+    private static final String SOURCE_ORDER_TYPE_INVENTORY_TASK = "INVENTORY_TASK";
 
     @Autowired
     private AssetInventoryTaskMapper inventoryTaskMapper;
+
+    @Autowired
+    private AssetInfoMapper assetInfoMapper;
+
+    @Autowired
+    private IAssetEventLogService assetEventLogService;
 
     @Override
     public List<AssetInventoryTask> selectAssetInventoryTaskList(AssetInventoryTask task)
@@ -184,6 +200,7 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
             }
         }
 
+        writeFinishEventLogs(taskId, items, operateUserId);
         recalculateTaskSummary(taskId, operateBy);
         task.setTaskStatus(TASK_STATUS_FINISHED);
         task.setUpdateBy(operateBy);
@@ -200,9 +217,11 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         {
             throw new ServiceException("请选择需要处理的差异明细");
         }
-        return inventoryTaskMapper.batchUpdateInventoryProcess(taskId, itemIds,
-            StringUtils.isEmpty(processStatus) ? PROCESS_STATUS_PENDING : processStatus,
-            processDesc);
+
+        String targetProcessStatus = StringUtils.isEmpty(processStatus) ? PROCESS_STATUS_PENDING : processStatus;
+        int rows = inventoryTaskMapper.batchUpdateInventoryProcess(taskId, itemIds, targetProcessStatus, processDesc);
+        applyProcessedInventoryDiff(taskId, itemIds, targetProcessStatus, processDesc, operateBy);
+        return rows;
     }
 
     /**
@@ -306,6 +325,210 @@ public class AssetInventoryTaskServiceImpl implements IAssetInventoryTaskService
         currentTask.setSummaryDiff(diffCount);
         currentTask.setUpdateBy(operateBy);
         inventoryTaskMapper.updateAssetInventoryTask(currentTask);
+    }
+
+    /**
+     * 盘点结束只记“发现了什么差异”，不在这里直接改主档，避免盘点执行人与资产管理员职责混在一起。
+     */
+    private void writeFinishEventLogs(Long taskId, List<AssetInventoryTaskItem> items, Long operatorUserId)
+    {
+        List<AssetInventoryTaskItem> diffItems = items.stream()
+            .filter(this::shouldRecordFinishEvent)
+            .toList();
+        if (diffItems.isEmpty())
+        {
+            return;
+        }
+
+        Map<Long, AssetInfo> assetSnapshotMap = loadAssetSnapshotMap(extractAssetIds(diffItems));
+        for (AssetInventoryTaskItem item : diffItems)
+        {
+            AssetInfo currentAsset = requireAsset(assetSnapshotMap, item.getAssetId());
+            assetEventLogService.recordAssetEvent(
+                item.getAssetId(),
+                EVENT_TYPE_INVENTORY,
+                taskId,
+                SOURCE_ORDER_TYPE_INVENTORY_TASK,
+                currentAsset,
+                currentAsset,
+                buildFinishEventDesc(item),
+                operatorUserId);
+        }
+    }
+
+    /**
+     * 差异处理才是真正落账点：已处理的差异回写主档，仍待处理或无法自动修正的差异只留痕不盲改。
+     */
+    private void applyProcessedInventoryDiff(Long taskId, List<Long> itemIds, String processStatus, String processDesc, String operateBy)
+    {
+        List<AssetInventoryTaskItem> items = selectAssetInventoryTaskItemsByTaskId(taskId).stream()
+            .filter(item -> item.getItemId() != null && itemIds.contains(item.getItemId()))
+            .toList();
+        if (items.isEmpty())
+        {
+            throw new ServiceException("未找到需要处理的盘点明细");
+        }
+
+        Map<Long, AssetInfo> assetSnapshotMap = loadAssetSnapshotMap(extractAssetIds(items));
+        boolean shouldPostAssetSnapshot = StringUtils.equals(processStatus, PROCESS_STATUS_PROCESSED);
+        for (AssetInventoryTaskItem item : items)
+        {
+            AssetInfo beforeAsset = requireAsset(assetSnapshotMap, item.getAssetId());
+            AssetInfo afterAsset = buildProcessedAfterAsset(beforeAsset, item, shouldPostAssetSnapshot);
+            boolean snapshotChanged = hasSnapshotChanged(beforeAsset, afterAsset);
+
+            if (shouldPostAssetSnapshot && snapshotChanged)
+            {
+                afterAsset.setUpdateBy(operateBy);
+                assetInfoMapper.updateAssetSnapshot(afterAsset);
+                assetSnapshotMap.put(afterAsset.getAssetId(), copyAssetSnapshot(afterAsset));
+            }
+
+            assetEventLogService.recordAssetEvent(
+                item.getAssetId(),
+                EVENT_TYPE_INVENTORY,
+                taskId,
+                SOURCE_ORDER_TYPE_INVENTORY_TASK,
+                beforeAsset,
+                afterAsset,
+                buildProcessEventDesc(item, processStatus, processDesc, snapshotChanged),
+                item.getInventoryUserId());
+        }
+    }
+
+    private boolean shouldRecordFinishEvent(AssetInventoryTaskItem item)
+    {
+        return item.getInventoryTime() != null && !StringUtils.equals(item.getInventoryResult(), INVENTORY_RESULT_NORMAL);
+    }
+
+    private String buildFinishEventDesc(AssetInventoryTaskItem item)
+    {
+        if (StringUtils.equals(item.getInventoryResult(), INVENTORY_RESULT_LOSS))
+        {
+            return "盘点结束，未扫描到该资产，主档暂未自动修正";
+        }
+        return "盘点结束，发现差异：" + StringUtils.defaultString(item.getInventoryDesc(), "待确认的盘点差异")
+            + "，主档暂未自动修正";
+    }
+
+    private String buildProcessEventDesc(AssetInventoryTaskItem item, String processStatus, String processDesc,
+        boolean snapshotChanged)
+    {
+        String desc = StringUtils.defaultIfBlank(processDesc, item.getInventoryDesc());
+        if (!StringUtils.equals(processStatus, PROCESS_STATUS_PROCESSED))
+        {
+            return "盘点差异已标记为待处理：" + StringUtils.defaultString(desc, "待后续跟进");
+        }
+        if (StringUtils.equals(item.getInventoryResult(), INVENTORY_RESULT_LOSS))
+        {
+            return "盘点差异已确认，资产未找回，主档未自动修正"
+                + (StringUtils.isBlank(desc) ? "" : "；" + desc);
+        }
+        if (snapshotChanged)
+        {
+            return "盘点差异已处理，已按现场结果回写主档"
+                + (StringUtils.isBlank(desc) ? "" : "；" + desc);
+        }
+        return "盘点差异已确认，但主档字段无需自动修正"
+            + (StringUtils.isBlank(desc) ? "" : "；" + desc);
+    }
+
+    /**
+     * 处理差异时只改被证实的当前快照字段，其余字段沿用主档现状，避免把账面之外的信息误清空。
+     */
+    private AssetInfo buildProcessedAfterAsset(AssetInfo beforeAsset, AssetInventoryTaskItem item, boolean shouldPostAssetSnapshot)
+    {
+        AssetInfo afterAsset = copyAssetSnapshot(beforeAsset);
+        if (!shouldPostAssetSnapshot)
+        {
+            return afterAsset;
+        }
+        if (StringUtils.equals(item.getInventoryResult(), INVENTORY_RESULT_LOSS))
+        {
+            return afterAsset;
+        }
+
+        if (!Objects.equals(item.getExpectedLocationId(), item.getActualLocationId()))
+        {
+            afterAsset.setCurrentLocationId(item.getActualLocationId());
+        }
+        if (!Objects.equals(item.getExpectedUserId(), item.getActualUserId()))
+        {
+            afterAsset.setCurrentUserId(item.getActualUserId());
+        }
+        if (!StringUtils.equals(item.getExpectedStatus(), item.getActualStatus()) && StringUtils.isNotBlank(item.getActualStatus()))
+        {
+            afterAsset.setAssetStatus(item.getActualStatus());
+        }
+
+        Integer beforeVersion = beforeAsset.getVersionNo() == null ? 0 : beforeAsset.getVersionNo();
+        afterAsset.setVersionNo(beforeVersion + 1);
+        return afterAsset;
+    }
+
+    private Map<Long, AssetInfo> loadAssetSnapshotMap(Collection<Long> assetIds)
+    {
+        if (assetIds == null || assetIds.isEmpty())
+        {
+            return Map.of();
+        }
+        return assetInfoMapper.selectAssetInfoByIds(assetIds).stream()
+            .collect(Collectors.toMap(
+                AssetInfo::getAssetId,
+                this::copyAssetSnapshot,
+                (left, right) -> left,
+                LinkedHashMap::new));
+    }
+
+    private List<Long> extractAssetIds(List<AssetInventoryTaskItem> items)
+    {
+        return items.stream()
+            .map(AssetInventoryTaskItem::getAssetId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    private AssetInfo requireAsset(Map<Long, AssetInfo> assetSnapshotMap, Long assetId)
+    {
+        AssetInfo assetInfo = assetSnapshotMap.get(assetId);
+        if (assetInfo == null)
+        {
+            throw new ServiceException("资产主档不存在，无法完成盘点落账");
+        }
+        return copyAssetSnapshot(assetInfo);
+    }
+
+    private AssetInfo copyAssetSnapshot(AssetInfo source)
+    {
+        AssetInfo target = new AssetInfo();
+        target.setAssetId(source.getAssetId());
+        target.setAssetCode(source.getAssetCode());
+        target.setAssetName(source.getAssetName());
+        target.setCategoryId(source.getCategoryId());
+        target.setAssetStatus(source.getAssetStatus());
+        target.setAssetSource(source.getAssetSource());
+        target.setUseOrgDeptId(source.getUseOrgDeptId());
+        target.setManageDeptId(source.getManageDeptId());
+        target.setCurrentUserId(source.getCurrentUserId());
+        target.setCurrentLocationId(source.getCurrentLocationId());
+        target.setPurchaseDate(source.getPurchaseDate());
+        target.setInboundDate(source.getInboundDate());
+        target.setStartUseDate(source.getStartUseDate());
+        target.setVersionNo(source.getVersionNo());
+        target.setStatus(source.getStatus());
+        target.setDelFlag(source.getDelFlag());
+        target.setRemark(source.getRemark());
+        return target;
+    }
+
+    private boolean hasSnapshotChanged(AssetInfo beforeAsset, AssetInfo afterAsset)
+    {
+        return !Objects.equals(beforeAsset.getAssetStatus(), afterAsset.getAssetStatus())
+            || !Objects.equals(beforeAsset.getUseOrgDeptId(), afterAsset.getUseOrgDeptId())
+            || !Objects.equals(beforeAsset.getManageDeptId(), afterAsset.getManageDeptId())
+            || !Objects.equals(beforeAsset.getCurrentUserId(), afterAsset.getCurrentUserId())
+            || !Objects.equals(beforeAsset.getCurrentLocationId(), afterAsset.getCurrentLocationId());
     }
 
     private AssetInventoryTask requireTask(Long taskId)
