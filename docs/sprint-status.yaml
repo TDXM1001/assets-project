@@ -1,5 +1,5 @@
 # Sprint Status - 资产管理系统
-# Generated: 2026-03-26T13:43:08.4774454Z
+# Generated: 2026-03-26T13:49:09.8846172Z
 
 project_name: "资产管理系统"
 project_type: "web-app"
@@ -32,7 +32,7 @@ sprints:
         title: "资产台账管理"
         file: "docs/stories/story-E001-S003.md"
         points: 5
-        status: "todo"
+        status: "done"
       - id: "STORY-E002-S001"
         title: "入库与领用单据闭环"
         file: "docs/stories/story-E002-S001.md"
