@@ -32,7 +32,7 @@ public class AssetAttachmentController extends BaseController
     /**
      * 查询附件列表
      */
-    @PreAuthorize("@ss.hasAnyPermi('asset:info:query,asset:order:query,asset:inventory:query')")
+    @PreAuthorize("@ss.hasAnyPermi('asset:info:query,asset:order:query,asset:inventory:query,asset:repair:query')")
     @GetMapping("/list")
     public TableDataInfo list(AssetAttachment attachment)
     {
@@ -44,7 +44,7 @@ public class AssetAttachmentController extends BaseController
     /**
      * 上传附件
      */
-    @PreAuthorize("@ss.hasAnyPermi('asset:info:edit,asset:order:edit,asset:inventory:edit')")
+    @PreAuthorize("@ss.hasAnyPermi('asset:info:edit,asset:order:edit,asset:inventory:edit,asset:repair:edit')")
     @Log(title = "资产附件", businessType = BusinessType.INSERT)
     @PostMapping("/upload/{bizType}/{bizId}")
     public AjaxResult upload(@PathVariable String bizType, @PathVariable Long bizId,
@@ -58,7 +58,7 @@ public class AssetAttachmentController extends BaseController
     /**
      * 删除附件
      */
-    @PreAuthorize("@ss.hasAnyPermi('asset:info:edit,asset:order:edit,asset:inventory:edit')")
+    @PreAuthorize("@ss.hasAnyPermi('asset:info:edit,asset:order:edit,asset:inventory:edit,asset:repair:edit')")
     @Log(title = "资产附件", businessType = BusinessType.DELETE)
     @DeleteMapping("/{attachmentIds}")
     public AjaxResult remove(@PathVariable Long[] attachmentIds)

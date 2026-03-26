@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.asset.AssetRepairOrderMapper">
+
+    <resultMap id="AssetRepairOrderResult" type="com.ruoyi.system.domain.asset.AssetRepairOrder">
+        <id property="repairId" column="repair_id"/>
+        <result property="repairNo" column="repair_no"/>
+        <result property="assetId" column="asset_id"/>
+        <result property="assetCode" column="asset_code"/>
+        <result property="assetName" column="asset_name"/>
+        <result property="repairStatus" column="repair_status"/>
+        <result property="reportTime" column="report_time"/>
+        <result property="applyUserId" column="apply_user_id"/>
+        <result property="applyUserName" column="apply_user_name"/>
+        <result property="applyDeptId" column="apply_dept_id"/>
+        <result property="applyDeptName" column="apply_dept_name"/>
+        <result property="approveUserId" column="approve_user_id"/>
+        <result property="approveUserName" column="approve_user_name"/>
+        <result property="approveTime" column="approve_time"/>
+        <result property="approveResult" column="approve_result"/>
+        <result property="faultDesc" column="fault_desc"/>
+        <result property="repairMode" column="repair_mode"/>
+        <result property="vendorName" column="vendor_name"/>
+        <result property="repairCost" column="repair_cost"/>
+        <result property="downtimeHours" column="downtime_hours"/>
+        <result property="reworkFlag" column="rework_flag"/>
+        <result property="sendRepairTime" column="send_repair_time"/>
+        <result property="finishTime" column="finish_time"/>
+        <result property="resultType" column="result_type"/>
+        <result property="beforeStatus" column="before_status"/>
+        <result property="afterStatus" column="after_status"/>
+        <result property="attachmentCount" column="attachment_count"/>
+        <result property="status" column="status"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectAssetRepairOrderVo">
+        select distinct r.repair_id,
+               r.repair_no,
+               r.asset_id,
+               r.asset_code,
+               r.asset_name,
+               r.repair_status,
+               r.report_time,
+               r.apply_user_id,
+               apply_user.nick_name as apply_user_name,
+               r.apply_dept_id,
+               apply_dept.dept_name as apply_dept_name,
+               r.approve_user_id,
+               approve_user.nick_name as approve_user_name,
+               r.approve_time,
+               r.approve_result,
+               r.fault_desc,
+               r.repair_mode,
+               r.vendor_name,
+               r.repair_cost,
+               r.downtime_hours,
+               r.rework_flag,
+               r.send_repair_time,
+               r.finish_time,
+               r.result_type,
+               r.before_status,
+               r.after_status,
+               r.attachment_count,
+               r.status,
+               r.del_flag,
+               r.create_by,
+               r.create_time,
+               r.update_by,
+               r.update_time,
+               r.remark
+        from asset_repair_order r
+        left join sys_user apply_user on apply_user.user_id = r.apply_user_id
+        left join sys_user approve_user on approve_user.user_id = r.approve_user_id
+        left join sys_dept apply_dept on apply_dept.dept_id = r.apply_dept_id
+        left join (
+            select distinct repair_id, dept_id
+            from (
+                select repair_id, apply_dept_id as dept_id
+                from asset_repair_order
+                where del_flag = '0' and apply_dept_id is not null
+                union all
+                select r.repair_id, a.use_org_dept_id as dept_id
+                from asset_repair_order r
+                inner join asset_info a on a.asset_id = r.asset_id and a.del_flag = '0'
+                where r.del_flag = '0' and a.use_org_dept_id is not null
+            ) repair_scope_union
+        ) scope_dept on scope_dept.repair_id = r.repair_id
+        left join sys_user scope_user on scope_user.user_id = r.apply_user_id
+    </sql>
+
+    <select id="selectAssetRepairOrderList" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrder" resultMap="AssetRepairOrderResult">
+        <include refid="selectAssetRepairOrderVo"/>
+        <where>
+            r.del_flag = '0'
+            <if test="repairId != null">and r.repair_id = #{repairId}</if>
+            <if test="repairNo != null and repairNo != ''">and r.repair_no like concat('%', #{repairNo}, '%')</if>
+            <if test="assetId != null">and r.asset_id = #{assetId}</if>
+            <if test="assetCode != null and assetCode != ''">and r.asset_code like concat('%', #{assetCode}, '%')</if>
+            <if test="assetName != null and assetName != ''">and r.asset_name like concat('%', #{assetName}, '%')</if>
+            <if test="repairStatus != null and repairStatus != ''">and r.repair_status = #{repairStatus}</if>
+            <if test="applyUserId != null">and r.apply_user_id = #{applyUserId}</if>
+            <if test="applyDeptId != null">and r.apply_dept_id = #{applyDeptId}</if>
+            <if test="repairMode != null and repairMode != ''">and r.repair_mode = #{repairMode}</if>
+            <if test="resultType != null and resultType != ''">and r.result_type = #{resultType}</if>
+            <if test="reportTimeStart != null and reportTimeStart != ''">and date_format(r.report_time, '%Y-%m-%d') &gt;= #{reportTimeStart}</if>
+            <if test="reportTimeEnd != null and reportTimeEnd != ''">and date_format(r.report_time, '%Y-%m-%d') &lt;= #{reportTimeEnd}</if>
+            ${params.dataScope}
+        </where>
+        order by r.repair_id desc
+    </select>
+
+    <select id="selectAssetRepairOrderById" parameterType="Long" resultMap="AssetRepairOrderResult">
+        <include refid="selectAssetRepairOrderVo"/>
+        where r.repair_id = #{repairId}
+          and r.del_flag = '0'
+    </select>
+
+    <select id="selectActiveAssetRepairOrder" resultMap="AssetRepairOrderResult">
+        <include refid="selectAssetRepairOrderVo"/>
+        where r.asset_id = #{assetId}
+          and r.del_flag = '0'
+          and r.repair_status in ('DRAFT', 'SUBMITTED', 'APPROVED')
+          <if test="excludeRepairId != null">
+            and r.repair_id != #{excludeRepairId}
+          </if>
+        limit 1
+    </select>
+
+    <insert id="insertAssetRepairOrder" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrder" useGeneratedKeys="true" keyProperty="repairId">
+        insert into asset_repair_order (
+            repair_no, asset_id, asset_code, asset_name, repair_status, report_time,
+            apply_user_id, apply_dept_id, approve_user_id, approve_time, approve_result,
+            fault_desc, repair_mode, vendor_name, repair_cost, downtime_hours, rework_flag,
+            send_repair_time, finish_time, result_type, before_status, after_status, attachment_count,
+            status, del_flag, create_by, create_time, remark
+        ) values (
+            #{repairNo}, #{assetId}, #{assetCode}, #{assetName}, #{repairStatus}, #{reportTime},
+            #{applyUserId}, #{applyDeptId}, #{approveUserId}, #{approveTime}, #{approveResult},
+            #{faultDesc}, #{repairMode}, #{vendorName}, #{repairCost}, #{downtimeHours}, #{reworkFlag},
+            #{sendRepairTime}, #{finishTime}, #{resultType}, #{beforeStatus}, #{afterStatus}, #{attachmentCount},
+            #{status}, '0', #{createBy}, sysdate(), #{remark}
+        )
+    </insert>
+
+    <update id="updateAssetRepairOrder" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrder">
+        update asset_repair_order
+        <set>
+            <if test="repairNo != null and repairNo != ''">repair_no = #{repairNo},</if>
+            <if test="assetId != null">asset_id = #{assetId},</if>
+            <if test="assetCode != null">asset_code = #{assetCode},</if>
+            <if test="assetName != null">asset_name = #{assetName},</if>
+            <if test="repairStatus != null and repairStatus != ''">repair_status = #{repairStatus},</if>
+            <if test="reportTime != null">report_time = #{reportTime},</if>
+            <if test="applyUserId != null">apply_user_id = #{applyUserId},</if>
+            <if test="applyDeptId != null">apply_dept_id = #{applyDeptId},</if>
+            <if test="approveUserId != null">approve_user_id = #{approveUserId},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveResult != null">approve_result = #{approveResult},</if>
+            <if test="faultDesc != null">fault_desc = #{faultDesc},</if>
+            <if test="repairMode != null">repair_mode = #{repairMode},</if>
+            <if test="vendorName != null">vendor_name = #{vendorName},</if>
+            <if test="repairCost != null">repair_cost = #{repairCost},</if>
+            <if test="downtimeHours != null">downtime_hours = #{downtimeHours},</if>
+            <if test="reworkFlag != null and reworkFlag != ''">rework_flag = #{reworkFlag},</if>
+            <if test="sendRepairTime != null">send_repair_time = #{sendRepairTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="resultType != null">result_type = #{resultType},</if>
+            <if test="beforeStatus != null">before_status = #{beforeStatus},</if>
+            <if test="afterStatus != null">after_status = #{afterStatus},</if>
+            <if test="attachmentCount != null">attachment_count = #{attachmentCount},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where repair_id = #{repairId}
+    </update>
+
+    <update id="updateAssetRepairOrderStatus" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrder">
+        update asset_repair_order
+        <set>
+            <if test="repairStatus != null and repairStatus != ''">repair_status = #{repairStatus},</if>
+            <if test="approveUserId != null">approve_user_id = #{approveUserId},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="approveResult != null">approve_result = #{approveResult},</if>
+            <if test="sendRepairTime != null">send_repair_time = #{sendRepairTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="resultType != null">result_type = #{resultType},</if>
+            <if test="beforeStatus != null">before_status = #{beforeStatus},</if>
+            <if test="afterStatus != null">after_status = #{afterStatus},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where repair_id = #{repairId}
+    </update>
+
+    <update id="updateAttachmentCount">
+        update asset_repair_order
+        set attachment_count = #{attachmentCount},
+            update_time = sysdate()
+        where repair_id = #{repairId}
+    </update>
+
+    <update id="deleteAssetRepairOrderByIds" parameterType="Long">
+        update asset_repair_order
+        set del_flag = '2', update_time = sysdate()
+        where repair_id in
+        <foreach collection="array" item="repairId" open="(" separator="," close=")">
+            #{repairId}
+        </foreach>
+    </update>
+
+</mapper>

@@ -18,10 +18,12 @@ import com.ruoyi.common.utils.file.FileUtils;
 import com.ruoyi.system.domain.asset.AssetAttachment;
 import com.ruoyi.system.mapper.asset.AssetAttachmentMapper;
 import com.ruoyi.system.mapper.asset.AssetOperateOrderMapper;
+import com.ruoyi.system.mapper.asset.AssetRepairOrderMapper;
 import com.ruoyi.system.service.asset.IAssetAttachmentService;
 import com.ruoyi.system.service.asset.IAssetInfoService;
 import com.ruoyi.system.service.asset.IAssetInventoryTaskService;
 import com.ruoyi.system.service.asset.IAssetOperateOrderService;
+import com.ruoyi.system.service.asset.IAssetRepairOrderService;
 
 /**
  * 资产附件服务实现
@@ -32,12 +34,16 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
     private static final String BIZ_ASSET_INFO = "ASSET_INFO";
     private static final String BIZ_ASSET_ORDER = "ASSET_ORDER";
     private static final String BIZ_ASSET_INVENTORY = "ASSET_INVENTORY";
+    private static final String BIZ_ASSET_REPAIR = "ASSET_REPAIR";
 
     @Autowired
     private AssetAttachmentMapper assetAttachmentMapper;
 
     @Autowired
     private AssetOperateOrderMapper assetOperateOrderMapper;
+
+    @Autowired
+    private AssetRepairOrderMapper assetRepairOrderMapper;
 
     @Autowired
     private IAssetInfoService assetInfoService;
@@ -47,6 +53,9 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
 
     @Autowired
     private IAssetInventoryTaskService assetInventoryTaskService;
+
+    @Autowired
+    private IAssetRepairOrderService assetRepairOrderService;
 
     @Override
     public List<AssetAttachment> selectAssetAttachmentList(AssetAttachment attachment)
@@ -87,7 +96,7 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
                 throw new ServiceException("附件信息落库失败");
             }
 
-            syncOrderAttachmentCount(bizType, bizId);
+            syncAttachmentCount(bizType, bizId);
             return attachment;
         }
         catch (Exception e)
@@ -124,7 +133,7 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
         if (rows > 0)
         {
             deletePhysicalFiles(attachments);
-            refreshOrderAttachmentCount(attachments);
+            refreshAttachmentCount(attachments);
         }
         return rows;
     }
@@ -172,22 +181,34 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
                     throw new ServiceException("盘点任务不存在或无权限访问");
                 }
                 return;
+            case BIZ_ASSET_REPAIR:
+                if (StringUtils.isNull(assetRepairOrderService.selectAssetRepairOrderById(bizId)))
+                {
+                    throw new ServiceException("维修单不存在或无权限访问");
+                }
+                return;
             default:
                 throw new ServiceException("不支持的业务类型：" + bizType);
         }
     }
 
-    private void syncOrderAttachmentCount(String bizType, Long bizId)
+    private void syncAttachmentCount(String bizType, Long bizId)
     {
-        if (!StringUtils.equals(StringUtils.upperCase(bizType), BIZ_ASSET_ORDER))
+        String normalizedBizType = StringUtils.upperCase(bizType);
+        if (StringUtils.equals(normalizedBizType, BIZ_ASSET_ORDER))
         {
+            int count = assetAttachmentMapper.countAssetAttachmentByBiz(BIZ_ASSET_ORDER, bizId);
+            assetOperateOrderMapper.updateAttachmentCount(bizId, count);
             return;
         }
-        int count = assetAttachmentMapper.countAssetAttachmentByBiz(BIZ_ASSET_ORDER, bizId);
-        assetOperateOrderMapper.updateAttachmentCount(bizId, count);
+        if (StringUtils.equals(normalizedBizType, BIZ_ASSET_REPAIR))
+        {
+            int count = assetAttachmentMapper.countAssetAttachmentByBiz(BIZ_ASSET_REPAIR, bizId);
+            assetRepairOrderMapper.updateAttachmentCount(bizId, count);
+        }
     }
 
-    private void refreshOrderAttachmentCount(List<AssetAttachment> attachments)
+    private void refreshAttachmentCount(List<AssetAttachment> attachments)
     {
         Map<Long, Long> orderBizMap = attachments.stream()
             .filter(item -> StringUtils.equals(StringUtils.upperCase(item.getBizType()), BIZ_ASSET_ORDER))
@@ -201,6 +222,20 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
         {
             int count = assetAttachmentMapper.countAssetAttachmentByBiz(BIZ_ASSET_ORDER, orderId);
             assetOperateOrderMapper.updateAttachmentCount(orderId, count);
+        }
+
+        Map<Long, Long> repairBizMap = attachments.stream()
+            .filter(item -> StringUtils.equals(StringUtils.upperCase(item.getBizType()), BIZ_ASSET_REPAIR))
+            .filter(item -> item.getBizId() != null)
+            .collect(Collectors.toMap(
+                AssetAttachment::getBizId,
+                AssetAttachment::getBizId,
+                (left, right) -> left));
+
+        for (Long repairId : repairBizMap.keySet())
+        {
+            int count = assetAttachmentMapper.countAssetAttachmentByBiz(BIZ_ASSET_REPAIR, repairId);
+            assetRepairOrderMapper.updateAttachmentCount(repairId, count);
         }
     }
 
@@ -224,7 +259,7 @@ public class AssetAttachmentServiceImpl implements IAssetAttachmentService
         }
         catch (Exception e)
         {
-            // 文件清理失败不应阻断业务提交，保留数据库记录优先保证一致性。
+            // 文件清理失败不应阻断业务提交，数据库记录一致性优先。
         }
     }
 
