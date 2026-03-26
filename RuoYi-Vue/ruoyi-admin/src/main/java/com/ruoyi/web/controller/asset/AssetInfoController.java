@@ -108,7 +108,9 @@ public class AssetInfoController extends BaseController
             return error("新增资产失败，资产编码已存在");
         }
         assetInfo.setCreateBy(getUsername());
-        return toAjax(assetInfoService.insertAssetInfo(assetInfo));
+        assetInfoService.insertAssetInfo(assetInfo);
+        // 新增页后续还要继续编辑或补录附件，因此把数据库回填的 assetId 一并返回给前端。
+        return success(assetInfo);
     }
 
     /**

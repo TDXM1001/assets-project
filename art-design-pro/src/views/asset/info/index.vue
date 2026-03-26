@@ -174,6 +174,7 @@
   import { useWindowSize } from '@vueuse/core'
   import FileSaver from 'file-saver'
   import { ElButton, ElMessage, ElMessageBox, ElSpace } from 'element-plus'
+  import { useRouter } from 'vue-router'
   import { listUser, deptTreeSelect } from '@/api/system/user'
   import { treeCategorySelect } from '@/api/asset/category'
   import { treeLocationSelect } from '@/api/asset/location'
@@ -205,6 +206,7 @@
 
   const { width } = useWindowSize()
   const isMobile = computed(() => width.value < 768)
+  const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
   const { asset_status, asset_source } = useDict('asset_status', 'asset_source')
@@ -633,9 +635,8 @@
   }
 
   const handleAdd = () => {
-    dialogType.value = 'add'
-    currentAsset.value = undefined
-    dialogVisible.value = true
+    // 新增台账改成独立页面，避免复杂表单继续塞在弹窗里，后续草稿和附件补录也更好扩展。
+    router.push('/asset/info/create')
   }
 
   const handleEdit = (row: any) => {
