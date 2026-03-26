@@ -27,6 +27,8 @@ public interface AssetCategoryMapper
 
     int updateCategory(AssetCategory category);
 
+    int updateCategoryFieldTemplate(AssetCategory category);
+
     int updateCategoryChildren(@Param("categories") List<AssetCategory> categories);
 
     int deleteCategoryByIds(Long[] categoryIds);

@@ -4,7 +4,7 @@
 project_name: "资产管理系统"
 project_type: "web-app"
 project_level: 2
-current_sprint: "sprint-2"
+current_sprint: "sprint-3"
 
 # 说明：
 # - 本文件用于跟踪实施阶段的冲刺与故事状态
@@ -74,5 +74,28 @@ sprints:
       - id: "STORY-E005-S002"
         title: "导入导出与权限收口"
         file: "docs/stories/story-E005-S002.md"
+        points: 5
+        status: "done"
+
+  - id: "sprint-3"
+    name: "页面化与模板化"
+    goal: "把复杂新增流从弹窗升级为独立页面，并建立分类字段模板底座，为后续扩展打基础"
+    status: "in_progress"
+    capacity_points: 21
+    committed_points: 21
+    stories:
+      - id: "STORY-E006-S001"
+        title: "资产新增页面化"
+        file: "docs/stories/story-E006-S001.md"
+        points: 8
+        status: "todo"
+      - id: "STORY-E006-S002"
+        title: "单据新增页面化"
+        file: "docs/stories/story-E006-S002.md"
+        points: 8
+        status: "todo"
+      - id: "STORY-E006-S003"
+        title: "分类字段模板落地"
+        file: "docs/stories/story-E006-S003.md"
         points: 5
         status: "done"

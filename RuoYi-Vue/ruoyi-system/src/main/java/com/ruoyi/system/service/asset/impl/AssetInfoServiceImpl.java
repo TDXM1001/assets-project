@@ -1,17 +1,25 @@
 package com.ruoyi.system.service.asset.impl;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.ruoyi.common.annotation.DataScope;
+import com.ruoyi.common.constant.UserConstants;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.bean.BeanValidators;
 import com.ruoyi.system.domain.asset.AssetInfo;
+import com.ruoyi.system.domain.asset.vo.AssetCategoryFieldTemplateFieldVo;
+import com.ruoyi.system.domain.asset.vo.AssetCategoryFieldTemplateVo;
 import com.ruoyi.system.mapper.asset.AssetInfoMapper;
+import com.ruoyi.system.service.asset.IAssetCategoryService;
 import com.ruoyi.system.service.asset.IAssetInfoService;
 
 /**
@@ -22,6 +30,9 @@ public class AssetInfoServiceImpl implements IAssetInfoService
 {
     @Autowired
     private AssetInfoMapper assetInfoMapper;
+
+    @Autowired
+    private IAssetCategoryService assetCategoryService;
 
     @Autowired
     protected Validator validator;
@@ -43,7 +54,13 @@ public class AssetInfoServiceImpl implements IAssetInfoService
         AssetInfo query = new AssetInfo();
         query.setAssetId(assetId);
         List<AssetInfo> list = assetInfoServiceProxy.selectAssetInfoList(query);
-        return list.isEmpty() ? null : list.get(0);
+        if (list.isEmpty())
+        {
+            return null;
+        }
+        AssetInfo assetInfo = list.get(0);
+        hydrateExtraFieldValues(assetInfo);
+        return assetInfo;
     }
 
     @Override
@@ -128,8 +145,10 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertAssetInfo(AssetInfo assetInfo)
     {
+        normalizeDynamicFields(assetInfo);
         return assetInfoMapper.insertAssetInfo(assetInfo);
     }
 
@@ -137,6 +156,7 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     @Transactional(rollbackFor = Exception.class)
     public int updateAssetInfo(AssetInfo assetInfo)
     {
+        normalizeDynamicFields(assetInfo);
         return assetInfoMapper.updateAssetInfo(assetInfo);
     }
 
@@ -148,7 +168,7 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     }
 
     /**
-     * 导入时补齐默认字段，避免模板中未填写时落库出错。
+     * 导入只走核心字段，模板化字段后续由页面化新增入口承接。
      */
     private void normalizeImportAsset(AssetInfo asset)
     {
@@ -164,5 +184,113 @@ public class AssetInfoServiceImpl implements IAssetInfoService
         {
             asset.setVersionNo(1);
         }
+    }
+
+    /**
+     * 统一整理扩展字段，避免模板调整后直接把历史 JSON 覆盖掉。
+     */
+    private void normalizeDynamicFields(AssetInfo assetInfo)
+    {
+        Map<String, Object> mergedValues = new LinkedHashMap<>();
+        if (assetInfo.getAssetId() != null)
+        {
+            AssetInfo dbAsset = assetInfoMapper.selectAssetInfoById(assetInfo.getAssetId());
+            if (dbAsset != null)
+            {
+                mergedValues.putAll(parseExtraFieldValues(dbAsset.getExtraFieldsJson()));
+            }
+        }
+        mergedValues.putAll(parseExtraFieldValues(assetInfo.getExtraFieldsJson()));
+        if (assetInfo.getExtraFieldValues() != null)
+        {
+            mergedValues.putAll(assetInfo.getExtraFieldValues());
+        }
+
+        applyTemplateRules(assetInfo, mergedValues);
+        assetInfo.setExtraFieldValues(mergedValues);
+        assetInfo.setExtraFieldsJson(mergedValues.isEmpty() ? "{}" : JSON.toJSONString(mergedValues));
+    }
+
+    /**
+     * 把模板的默认值和必填约束前置到服务层，避免前后端口径漂移。
+     */
+    private void applyTemplateRules(AssetInfo assetInfo, Map<String, Object> mergedValues)
+    {
+        if (assetInfo.getCategoryId() == null)
+        {
+            return;
+        }
+
+        AssetCategoryFieldTemplateVo fieldTemplate = assetCategoryService.selectCategoryFieldTemplate(assetInfo.getCategoryId());
+        if (fieldTemplate == null)
+        {
+            return;
+        }
+
+        assetInfo.setTemplateVersion(fieldTemplate.getTemplateVersion());
+        if (!UserConstants.NORMAL.equals(fieldTemplate.getStatus()) || fieldTemplate.getFields() == null)
+        {
+            return;
+        }
+
+        for (AssetCategoryFieldTemplateFieldVo field : fieldTemplate.getFields())
+        {
+            if (field == null)
+            {
+                continue;
+            }
+
+            Object rawValue = mergedValues.get(field.getFieldCode());
+            if (rawValue == null && StringUtils.isNotBlank(field.getDefaultValue()))
+            {
+                mergedValues.put(field.getFieldCode(), field.getDefaultValue());
+                rawValue = field.getDefaultValue();
+            }
+
+            if (UserConstants.EXCEPTION.equals(field.getRequiredFlag()) && isBlankDynamicValue(rawValue))
+            {
+                throw new ServiceException("扩展字段[" + field.getFieldName() + "]不能为空");
+            }
+        }
+    }
+
+    private void hydrateExtraFieldValues(AssetInfo assetInfo)
+    {
+        if (assetInfo == null)
+        {
+            return;
+        }
+        assetInfo.setExtraFieldValues(parseExtraFieldValues(assetInfo.getExtraFieldsJson()));
+    }
+
+    private Map<String, Object> parseExtraFieldValues(String extraFieldsJson)
+    {
+        if (StringUtils.isBlank(extraFieldsJson))
+        {
+            return new LinkedHashMap<>();
+        }
+        try
+        {
+            Map<String, Object> fieldValues = JSON.parseObject(extraFieldsJson,
+                new TypeReference<LinkedHashMap<String, Object>>() { });
+            return fieldValues == null ? new LinkedHashMap<>() : fieldValues;
+        }
+        catch (Exception ex)
+        {
+            throw new ServiceException("扩展字段数据格式不正确");
+        }
+    }
+
+    private boolean isBlankDynamicValue(Object rawValue)
+    {
+        if (rawValue == null)
+        {
+            return true;
+        }
+        if (rawValue instanceof String)
+        {
+            return StringUtils.isBlank((String) rawValue);
+        }
+        return false;
     }
 }

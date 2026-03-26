@@ -1,8 +1,8 @@
 package com.ruoyi.system.service.asset;
 
 import java.util.List;
-import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.system.domain.asset.AssetCategory;
+import com.ruoyi.system.domain.asset.vo.AssetCategoryFieldTemplateVo;
 import com.ruoyi.system.domain.asset.vo.AssetTreeSelect;
 
 /**
@@ -16,6 +16,8 @@ public interface IAssetCategoryService
 
     AssetCategory selectCategoryById(Long categoryId);
 
+    AssetCategoryFieldTemplateVo selectCategoryFieldTemplate(Long categoryId);
+
     boolean checkCategoryCodeUnique(AssetCategory category);
 
     boolean checkCategoryNameUnique(AssetCategory category);
@@ -23,6 +25,8 @@ public interface IAssetCategoryService
     int insertCategory(AssetCategory category);
 
     int updateCategory(AssetCategory category);
+
+    int updateCategoryFieldTemplate(Long categoryId, AssetCategoryFieldTemplateVo fieldTemplate, String operator);
 
     int deleteCategoryByIds(Long[] categoryIds);
 }

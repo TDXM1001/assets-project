@@ -2,6 +2,8 @@ package com.ruoyi.system.domain.asset;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.Map;
+import java.util.Map;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -82,6 +84,21 @@ public class AssetInfo extends BaseEntity
 
     @Excel(name = "版本号")
     private Integer versionNo;
+
+    /**
+     * 分类模板版本号
+     */
+    private Integer templateVersion;
+
+    /**
+     * 扩展字段值 JSON
+     */
+    private String extraFieldsJson;
+
+    /**
+     * 扩展字段值映射，便于前端直接回填动态表单
+     */
+    private Map<String, Object> extraFieldValues;
 
     @Excel(name = "台账状态", dictType = "sys_normal_disable", comboReadDict = true)
     private String status;
@@ -323,6 +340,36 @@ public class AssetInfo extends BaseEntity
         this.versionNo = versionNo;
     }
 
+    public Integer getTemplateVersion()
+    {
+        return templateVersion;
+    }
+
+    public void setTemplateVersion(Integer templateVersion)
+    {
+        this.templateVersion = templateVersion;
+    }
+
+    public String getExtraFieldsJson()
+    {
+        return extraFieldsJson;
+    }
+
+    public void setExtraFieldsJson(String extraFieldsJson)
+    {
+        this.extraFieldsJson = extraFieldsJson;
+    }
+
+    public Map<String, Object> getExtraFieldValues()
+    {
+        return extraFieldValues;
+    }
+
+    public void setExtraFieldValues(Map<String, Object> extraFieldValues)
+    {
+        this.extraFieldValues = extraFieldValues;
+    }
+
     public String getStatus()
     {
         return status;
@@ -357,6 +404,7 @@ public class AssetInfo extends BaseEntity
             .append("currentUserId", getCurrentUserId())
             .append("currentLocationId", getCurrentLocationId())
             .append("originalValue", getOriginalValue())
+            .append("templateVersion", getTemplateVersion())
             .append("status", getStatus())
             .append("delFlag", getDelFlag())
             .append("createBy", getCreateBy())

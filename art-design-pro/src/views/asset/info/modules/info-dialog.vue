@@ -268,6 +268,12 @@
           </ElFormItem>
         </ElCol>
       </ElRow>
+
+      <InfoDynamicFields
+        ref="dynamicFieldsRef"
+        v-model="formData.extraFieldValues"
+        :template="fieldTemplate"
+      />
     </ElForm>
 
     <template #footer>
@@ -284,7 +290,11 @@
   import type { FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
   import { useDict } from '@/utils/dict'
+  import { getCategoryFieldTemplate } from '@/api/asset/category'
   import { addAssetInfo, getAssetInfo, updateAssetInfo } from '@/api/asset/info'
+  import type { AssetCategoryFieldTemplate, AssetInfoDynamicFieldValue } from '@/api/asset/types'
+  import type { AssetInfoPayload } from '@/api/asset/info'
+  import InfoDynamicFields from './info-dynamic-fields.vue'
 
   interface TreeOption {
     id: number
@@ -322,6 +332,9 @@
   const loading = ref(false)
   const submitLoading = ref(false)
   const formRef = ref()
+  const dynamicFieldsRef = ref<any>()
+  const fieldTemplate = ref<AssetCategoryFieldTemplate | null>(null)
+  const categoryWatchEnabled = ref(false)
 
   const initialFormData = {
     assetId: undefined as number | undefined,
@@ -347,6 +360,9 @@
     supplierName: '',
     qrCode: '',
     versionNo: 1,
+    templateVersion: undefined as number | undefined,
+    extraFieldsJson: null as string | null,
+    extraFieldValues: {} as AssetInfoDynamicFieldValue,
     status: '0',
     remark: ''
   }
@@ -360,27 +376,79 @@
     assetStatus: [{ required: true, message: '资产状态不能为空', trigger: 'change' }]
   }
 
+  const normalizeTemplate = (payload?: any): AssetCategoryFieldTemplate | null => {
+    if (!payload) {
+      return null
+    }
+    return {
+      categoryId: payload.categoryId,
+      templateVersion: payload.templateVersion,
+      status: payload.status || '1',
+      fields: Array.isArray(payload.fields) ? payload.fields : []
+    }
+  }
+
   /**
-   * 进入编辑态时补拉详情，新增态只保留默认值。
+   * 分类模板跟着资产表单走详情查询，避免台账弹窗自己维护另一套字段配置。
    */
+  const loadFieldTemplate = async (categoryId?: number) => {
+    if (!categoryId) {
+      fieldTemplate.value = null
+      formData.templateVersion = undefined
+      return
+    }
+
+    try {
+      const response: any = await getCategoryFieldTemplate(categoryId)
+      fieldTemplate.value = normalizeTemplate(response?.data || response)
+      formData.templateVersion = fieldTemplate.value?.templateVersion
+    } catch (error) {
+      fieldTemplate.value = null
+      formData.templateVersion = undefined
+      console.error('获取分类字段模板失败:', error)
+    }
+  }
+
   watch(
     () => props.modelValue,
     async (value) => {
       visible.value = value
       if (!value) return
 
+      categoryWatchEnabled.value = false
+
       if (props.dialogType === 'edit' && props.assetData?.assetId) {
         loading.value = true
         try {
           const detail: any = await getAssetInfo(props.assetData.assetId)
           Object.assign(formData, initialFormData, detail || {})
+          formData.extraFieldValues = { ...(detail?.extraFieldValues || {}) }
+          await loadFieldTemplate(formData.categoryId)
         } finally {
           loading.value = false
         }
+        categoryWatchEnabled.value = true
         return
       }
 
       Object.assign(formData, initialFormData)
+      formData.extraFieldValues = {}
+      await loadFieldTemplate(formData.categoryId)
+      categoryWatchEnabled.value = true
+    }
+  )
+
+  watch(
+    () => formData.categoryId,
+    async (value, oldValue) => {
+      if (!visible.value || !categoryWatchEnabled.value || value === oldValue) {
+        return
+      }
+
+      // 用户切换分类后，扩展字段重新按新模板初始化，避免旧分类字段串到新分类里。
+      formData.extraFieldValues = {}
+      formData.extraFieldsJson = null
+      await loadFieldTemplate(value)
     }
   )
 
@@ -391,22 +459,40 @@
     }
   )
 
-  /**
-   * 提交资产表单，当前仅对接已落地的 CRUD 接口。
-   */
+  const buildSubmitPayload = (): AssetInfoPayload => {
+    const extraFieldValues = { ...(formData.extraFieldValues || {}) }
+    const extraFieldsJson = Object.keys(extraFieldValues).length
+      ? JSON.stringify(extraFieldValues)
+      : null
+
+    return {
+      ...formData,
+      extraFieldValues,
+      extraFieldsJson,
+      templateVersion: fieldTemplate.value?.templateVersion
+    }
+  }
+
   const handleSubmit = async () => {
     if (!formRef.value) return
+
+    const dynamicError = dynamicFieldsRef.value?.validate?.()
+    if (dynamicError) {
+      ElMessage.error(dynamicError)
+      return
+    }
 
     await formRef.value.validate(async (valid: boolean) => {
       if (!valid) return
 
       submitLoading.value = true
       try {
+        const payload = buildSubmitPayload()
         if (props.dialogType === 'edit') {
-          await updateAssetInfo(formData)
+          await updateAssetInfo(payload)
           ElMessage.success('修改成功')
         } else {
-          await addAssetInfo(formData)
+          await addAssetInfo(payload)
           ElMessage.success('新增成功')
         }
         visible.value = false
@@ -417,12 +503,12 @@
     })
   }
 
-  /**
-   * 弹窗关闭后把表单恢复干净，避免下一次打开残留旧值。
-   */
   const handleClosed = () => {
+    categoryWatchEnabled.value = false
+    fieldTemplate.value = null
     formRef.value?.resetFields()
     Object.assign(formData, initialFormData)
+    formData.extraFieldValues = {}
   }
 </script>
 

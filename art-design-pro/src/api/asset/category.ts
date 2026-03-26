@@ -1,4 +1,5 @@
 import http from '@/utils/http'
+import type { AssetCategoryFieldTemplate } from './types'
 
 /**
  * 查询资产分类列表
@@ -40,4 +41,28 @@ export function updateCategory(data: any) {
  */
 export function delCategory(categoryId: number | string) {
   return http.request({ url: '/asset/category/' + categoryId, method: 'delete' })
+}
+
+/**
+ * 查询分类字段模板
+ */
+export function getCategoryFieldTemplate(categoryId: number | string) {
+  return http.request<AssetCategoryFieldTemplate>({
+    url: '/asset/category/' + categoryId + '/fieldTemplate',
+    method: 'get'
+  })
+}
+
+/**
+ * 修改分类字段模板
+ */
+export function updateCategoryFieldTemplate(
+  categoryId: number | string,
+  data: AssetCategoryFieldTemplate
+) {
+  return http.request({
+    url: '/asset/category/' + categoryId + '/fieldTemplate',
+    method: 'put',
+    data
+  })
 }

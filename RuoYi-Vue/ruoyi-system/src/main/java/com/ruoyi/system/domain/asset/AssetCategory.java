@@ -42,6 +42,12 @@ public class AssetCategory extends BaseEntity
 
     private Integer usefulLifeMonths;
 
+    private Integer fieldTemplateVersion;
+
+    private String fieldTemplateStatus;
+
+    private String fieldTemplateJson;
+
     @Excel(name = "状态", readConverterExp = "0=正常,1=停用")
     private String status;
 
@@ -167,6 +173,36 @@ public class AssetCategory extends BaseEntity
         this.usefulLifeMonths = usefulLifeMonths;
     }
 
+    public Integer getFieldTemplateVersion()
+    {
+        return fieldTemplateVersion;
+    }
+
+    public void setFieldTemplateVersion(Integer fieldTemplateVersion)
+    {
+        this.fieldTemplateVersion = fieldTemplateVersion;
+    }
+
+    public String getFieldTemplateStatus()
+    {
+        return fieldTemplateStatus;
+    }
+
+    public void setFieldTemplateStatus(String fieldTemplateStatus)
+    {
+        this.fieldTemplateStatus = fieldTemplateStatus;
+    }
+
+    public String getFieldTemplateJson()
+    {
+        return fieldTemplateJson;
+    }
+
+    public void setFieldTemplateJson(String fieldTemplateJson)
+    {
+        this.fieldTemplateJson = fieldTemplateJson;
+    }
+
     public String getStatus()
     {
         return status;
@@ -217,6 +253,8 @@ public class AssetCategory extends BaseEntity
             .append("categoryCode", getCategoryCode())
             .append("categoryName", getCategoryName())
             .append("orderNum", getOrderNum())
+            .append("fieldTemplateVersion", getFieldTemplateVersion())
+            .append("fieldTemplateStatus", getFieldTemplateStatus())
             .append("status", getStatus())
             .append("delFlag", getDelFlag())
             .append("createBy", getCreateBy())

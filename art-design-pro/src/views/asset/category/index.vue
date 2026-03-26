@@ -72,12 +72,18 @@
       :category-data="currentData"
       @success="getList"
     />
+    <CategoryTemplateDialog
+      v-model="templateDialogVisible"
+      :category-id="templateTargetCategory?.categoryId"
+      :category-name="templateTargetCategory?.categoryName"
+      @success="getList"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
   import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
-  import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { ElButton, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { listCategory, delCategory } from '@/api/asset/category'
   import { handleTree } from '@/utils/ruoyi'
   import { useDict } from '@/utils/dict'
@@ -86,6 +92,7 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import DictTag from '@/components/DictTag/index.vue'
   import CategoryDialog from './modules/category-dialog.vue'
+  import CategoryTemplateDialog from './modules/category-template-dialog.vue'
 
   defineOptions({ name: 'AssetCategory' })
 
@@ -98,8 +105,10 @@
   const categoryList = ref<any[]>([])
   const errorMessage = ref('')
   const dialogVisible = ref(false)
+  const templateDialogVisible = ref(false)
   const dialogType = ref<'add' | 'edit'>('add')
   const currentData = ref<any>()
+  const templateTargetCategory = ref<any>()
 
   const initialSearchState = {
     categoryName: '',
@@ -247,7 +256,7 @@
     {
       prop: 'operation',
       label: '操作',
-      width: 210,
+      width: 300,
       align: 'right',
       formatter: (row: any) => {
         const actionNodes = []
@@ -262,6 +271,18 @@
         }
 
         if (hasPermission('asset:category:edit')) {
+          actionNodes.push(
+            h(
+              ElButton,
+              {
+                link: true,
+                type: 'primary',
+                size: 'small',
+                onClick: () => handleEditTemplate(row)
+              },
+              () => '字段模板'
+            )
+          )
           actionNodes.push(
             h(ArtButtonTable, {
               type: 'edit',
@@ -356,6 +377,14 @@
     dialogType.value = 'edit'
     currentData.value = { ...row }
     dialogVisible.value = true
+  }
+
+  /**
+   * 字段模板依附分类配置，单独开弹窗避免和分类基础信息表单互相污染。
+   */
+  const handleEditTemplate = (row: any) => {
+    templateTargetCategory.value = { ...row }
+    templateDialogVisible.value = true
   }
 
   /**

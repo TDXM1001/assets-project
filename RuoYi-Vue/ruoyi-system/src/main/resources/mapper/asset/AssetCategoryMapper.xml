@@ -16,6 +16,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="borrowableFlag" column="borrowable_flag"/>
         <result property="inventoryRequiredFlag" column="inventory_required_flag"/>
         <result property="usefulLifeMonths" column="useful_life_months"/>
+        <result property="fieldTemplateVersion" column="field_template_version"/>
+        <result property="fieldTemplateStatus" column="field_template_status"/>
+        <result property="fieldTemplateJson" column="field_template_json"/>
         <result property="status" column="status"/>
         <result property="delFlag" column="del_flag"/>
         <result property="parentName" column="parent_name"/>
@@ -29,7 +32,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectAssetCategoryVo">
         select c.category_id, c.parent_id, c.ancestors, c.category_code, c.category_name, c.order_num,
                c.depreciable_flag, c.serial_required_flag, c.borrowable_flag, c.inventory_required_flag,
-               c.useful_life_months, c.status, c.del_flag, c.create_by, c.create_time, c.update_by, c.update_time, c.remark,
+               c.useful_life_months, c.field_template_version, c.field_template_status, c.field_template_json,
+               c.status, c.del_flag, c.create_by, c.create_time, c.update_by, c.update_time, c.remark,
                p.category_name as parent_name
         from asset_category c
         left join asset_category p on p.category_id = c.parent_id
@@ -116,6 +120,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             set ancestors = #{item.ancestors}
             where category_id = #{item.categoryId}
         </foreach>
+    </update>
+
+    <update id="updateCategoryFieldTemplate" parameterType="com.ruoyi.system.domain.asset.AssetCategory">
+        update asset_category
+        set field_template_version = #{fieldTemplateVersion},
+            field_template_status = #{fieldTemplateStatus},
+            field_template_json = #{fieldTemplateJson},
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where category_id = #{categoryId}
+          and del_flag = '0'
     </update>
 
     <update id="deleteCategoryByIds" parameterType="Long">

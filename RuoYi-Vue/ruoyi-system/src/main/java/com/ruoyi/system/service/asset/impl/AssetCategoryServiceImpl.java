@@ -1,16 +1,22 @@
 package com.ruoyi.system.service.asset.impl;
 
+import java.util.Comparator;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.alibaba.fastjson2.JSON;
 import com.ruoyi.common.constant.UserConstants;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.system.domain.asset.AssetCategory;
+import com.ruoyi.system.domain.asset.vo.AssetCategoryFieldTemplateFieldVo;
+import com.ruoyi.system.domain.asset.vo.AssetCategoryFieldTemplateVo;
 import com.ruoyi.system.domain.asset.vo.AssetTreeSelect;
 import com.ruoyi.system.mapper.asset.AssetCategoryMapper;
 import com.ruoyi.system.service.asset.IAssetCategoryService;
@@ -21,6 +27,15 @@ import com.ruoyi.system.service.asset.IAssetCategoryService;
 @Service
 public class AssetCategoryServiceImpl implements IAssetCategoryService
 {
+    private static final String FLAG_YES = "1";
+
+    private static final String FLAG_NO = "0";
+
+    private static final Set<String> SUPPORTED_DATA_TYPES = Set.of("string", "number", "date", "boolean");
+
+    private static final Set<String> SUPPORTED_COMPONENT_TYPES = Set.of(
+        "input", "textarea", "number", "select", "radio", "date");
+
     @Autowired
     private AssetCategoryMapper categoryMapper;
 
@@ -41,6 +56,17 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
     public AssetCategory selectCategoryById(Long categoryId)
     {
         return categoryMapper.selectCategoryById(categoryId);
+    }
+
+    @Override
+    public AssetCategoryFieldTemplateVo selectCategoryFieldTemplate(Long categoryId)
+    {
+        AssetCategory category = categoryMapper.selectCategoryById(categoryId);
+        if (StringUtils.isNull(category))
+        {
+            throw new ServiceException("分类不存在");
+        }
+        return buildFieldTemplate(category);
     }
 
     @Override
@@ -115,6 +141,28 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
         category.setAncestors(newAncestors);
         updateCategoryChildren(category.getCategoryId(), newAncestors, oldCategory.getAncestors());
         return categoryMapper.updateCategory(category);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int updateCategoryFieldTemplate(Long categoryId, AssetCategoryFieldTemplateVo fieldTemplate, String operator)
+    {
+        AssetCategory category = categoryMapper.selectCategoryById(categoryId);
+        if (StringUtils.isNull(category))
+        {
+            throw new ServiceException("分类不存在");
+        }
+
+        AssetCategoryFieldTemplateVo normalizedTemplate = normalizeFieldTemplate(categoryId, fieldTemplate);
+        normalizedTemplate.setTemplateVersion(resolveNextTemplateVersion(category, normalizedTemplate));
+
+        AssetCategory updateTarget = new AssetCategory();
+        updateTarget.setCategoryId(categoryId);
+        updateTarget.setFieldTemplateStatus(normalizedTemplate.getStatus());
+        updateTarget.setFieldTemplateVersion(normalizedTemplate.getTemplateVersion());
+        updateTarget.setFieldTemplateJson(JSON.toJSONString(normalizedTemplate));
+        updateTarget.setUpdateBy(operator);
+        return categoryMapper.updateCategoryFieldTemplate(updateTarget);
     }
 
     @Override
@@ -211,5 +259,104 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
             }
         }
         return false;
+    }
+
+    /**
+     * 统一把模板整理成稳定结构，避免同一模板在前后端来回传递时字段顺序漂移。
+     */
+    private AssetCategoryFieldTemplateVo normalizeFieldTemplate(Long categoryId, AssetCategoryFieldTemplateVo fieldTemplate)
+    {
+        AssetCategoryFieldTemplateVo target = fieldTemplate == null ? new AssetCategoryFieldTemplateVo() : fieldTemplate;
+        target.setCategoryId(categoryId);
+        target.setStatus(StringUtils.defaultIfBlank(target.getStatus(), UserConstants.NORMAL));
+
+        List<AssetCategoryFieldTemplateFieldVo> sourceFields = target.getFields() == null
+            ? new ArrayList<>()
+            : target.getFields();
+        List<AssetCategoryFieldTemplateFieldVo> normalizedFields = new ArrayList<>();
+        Set<String> fieldCodes = new HashSet<>();
+
+        for (int index = 0; index < sourceFields.size(); index++)
+        {
+            AssetCategoryFieldTemplateFieldVo item = sourceFields.get(index);
+            if (item == null)
+            {
+                continue;
+            }
+
+            String fieldCode = StringUtils.trim(item.getFieldCode());
+            String fieldName = StringUtils.trim(item.getFieldName());
+            if (StringUtils.isBlank(fieldCode))
+            {
+                throw new ServiceException("字段编码不能为空");
+            }
+            if (StringUtils.isBlank(fieldName))
+            {
+                throw new ServiceException("字段名称不能为空");
+            }
+            if (!fieldCodes.add(fieldCode))
+            {
+                throw new ServiceException("字段编码[" + fieldCode + "]重复");
+            }
+
+            String dataType = StringUtils.defaultIfBlank(item.getDataType(), "string");
+            if (!SUPPORTED_DATA_TYPES.contains(dataType))
+            {
+                throw new ServiceException("字段[" + fieldName + "]的数据类型不支持");
+            }
+
+            String componentType = StringUtils.defaultIfBlank(item.getComponentType(), "input");
+            if (!SUPPORTED_COMPONENT_TYPES.contains(componentType))
+            {
+                throw new ServiceException("字段[" + fieldName + "]的组件类型不支持");
+            }
+
+            item.setFieldCode(fieldCode);
+            item.setFieldName(fieldName);
+            item.setDataType(dataType);
+            item.setComponentType(componentType);
+            item.setRequiredFlag(StringUtils.defaultIfBlank(item.getRequiredFlag(), FLAG_NO));
+            item.setReadonlyFlag(StringUtils.defaultIfBlank(item.getReadonlyFlag(), FLAG_NO));
+            item.setDictType(StringUtils.trimToNull(item.getDictType()));
+            item.setDefaultValue(StringUtils.trimToEmpty(item.getDefaultValue()));
+            item.setGroupName(StringUtils.defaultIfBlank(StringUtils.trimToNull(item.getGroupName()), "默认分组"));
+            item.setOrderNum(item.getOrderNum() == null ? index + 1 : item.getOrderNum());
+            item.setStatus(StringUtils.defaultIfBlank(item.getStatus(), UserConstants.NORMAL));
+            normalizedFields.add(item);
+        }
+
+        normalizedFields.sort(Comparator.comparing(AssetCategoryFieldTemplateFieldVo::getOrderNum));
+        target.setFields(normalizedFields);
+        return target;
+    }
+
+    private AssetCategoryFieldTemplateVo buildFieldTemplate(AssetCategory category)
+    {
+        AssetCategoryFieldTemplateVo template = new AssetCategoryFieldTemplateVo();
+        if (StringUtils.isNotBlank(category.getFieldTemplateJson()))
+        {
+            template = JSON.parseObject(category.getFieldTemplateJson(), AssetCategoryFieldTemplateVo.class);
+        }
+        if (template == null)
+        {
+            template = new AssetCategoryFieldTemplateVo();
+        }
+        template.setCategoryId(category.getCategoryId());
+        template.setTemplateVersion(category.getFieldTemplateVersion() == null ? 1 : category.getFieldTemplateVersion());
+        template.setStatus(StringUtils.defaultIfBlank(category.getFieldTemplateStatus(), UserConstants.EXCEPTION));
+        template.setFields(template.getFields() == null ? new ArrayList<>() : template.getFields());
+        template.getFields().sort(Comparator.comparing(AssetCategoryFieldTemplateFieldVo::getOrderNum,
+            Comparator.nullsLast(Integer::compareTo)));
+        return template;
+    }
+
+    private int resolveNextTemplateVersion(AssetCategory category, AssetCategoryFieldTemplateVo fieldTemplate)
+    {
+        int currentVersion = category.getFieldTemplateVersion() == null ? 0 : category.getFieldTemplateVersion();
+        if (currentVersion <= 0)
+        {
+            return 1;
+        }
+        return currentVersion + 1;
     }
 }

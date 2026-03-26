@@ -16,6 +16,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.system.domain.asset.AssetCategory;
+import com.ruoyi.system.domain.asset.vo.AssetCategoryFieldTemplateVo;
 import com.ruoyi.system.service.asset.IAssetCategoryService;
 
 /**
@@ -59,6 +60,16 @@ public class AssetCategoryController extends BaseController
     }
 
     /**
+     * 查询分类字段模板
+     */
+    @PreAuthorize("@ss.hasPermi('asset:category:query')")
+    @GetMapping("/{categoryId}/fieldTemplate")
+    public AjaxResult getFieldTemplate(@PathVariable Long categoryId)
+    {
+        return success(categoryService.selectCategoryFieldTemplate(categoryId));
+    }
+
+    /**
      * 新增资产分类
      */
     @PreAuthorize("@ss.hasPermi('asset:category:add')")
@@ -96,6 +107,18 @@ public class AssetCategoryController extends BaseController
         }
         category.setUpdateBy(getUsername());
         return toAjax(categoryService.updateCategory(category));
+    }
+
+    /**
+     * 修改分类字段模板
+     */
+    @PreAuthorize("@ss.hasPermi('asset:category:edit')")
+    @Log(title = "资产分类字段模板", businessType = BusinessType.UPDATE)
+    @PutMapping("/{categoryId}/fieldTemplate")
+    public AjaxResult editFieldTemplate(@PathVariable Long categoryId,
+        @RequestBody AssetCategoryFieldTemplateVo fieldTemplate)
+    {
+        return toAjax(categoryService.updateCategoryFieldTemplate(categoryId, fieldTemplate, getUsername()));
     }
 
     /**
