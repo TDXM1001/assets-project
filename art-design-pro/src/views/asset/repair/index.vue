@@ -1,0 +1,634 @@
+<template>
+  <div class="asset-repair-page art-full-height">
+    <ArtSearchBar
+      :key="searchBarKey"
+      v-model="formFilters"
+      :items="searchItems"
+      :showExpand="false"
+      @search="handleSearch"
+      @reset="handleReset"
+    />
+
+    <ElCard class="art-table-card" shadow="never">
+      <div class="asset-repair-toolbar">
+        <div class="asset-repair-toolbar__left">
+          <div class="asset-repair-toolbar__label">维修状态</div>
+          <ElRadioGroup v-model="activeStatus" size="small" @change="handleStatusChange">
+            <ElRadioButton label="ALL">全部</ElRadioButton>
+            <ElRadioButton v-for="item in statusOptions" :key="item.value" :label="item.value">
+              {{ item.label }}
+            </ElRadioButton>
+          </ElRadioGroup>
+        </div>
+        <div class="asset-repair-toolbar__tip">{{ scopeTip }}</div>
+      </div>
+
+      <ArtTableHeader
+        :showZebra="false"
+        :loading="loading"
+        v-model:columns="columnChecks"
+        @refresh="refreshData"
+      >
+        <template #left>
+          <ElSpace wrap>
+            <ElButton v-auth="'asset:repair:add'" type="primary" @click="handleAdd" v-ripple>
+              新增维修单
+            </ElButton>
+            <ElButton
+              v-auth="'asset:repair:export'"
+              type="warning"
+              plain
+              :loading="exportLoading"
+              @click="handleExport"
+              v-ripple
+            >
+              导出
+            </ElButton>
+          </ElSpace>
+        </template>
+      </ArtTableHeader>
+
+      <div v-if="showEmptyState" class="asset-repair-empty">
+        <ElEmpty :description="emptyDescription">
+          <ElButton v-if="!hasAnyFilter" type="primary" @click="handleAdd">新增维修单</ElButton>
+          <ElButton v-else @click="handleReset">重置筛选</ElButton>
+        </ElEmpty>
+      </div>
+
+      <ArtTable
+        v-else
+        rowKey="repairId"
+        :loading="loading"
+        :columns="columns"
+        :data="data"
+        :pagination="pagination"
+        @pagination:size-change="handleSizeChange"
+        @pagination:current-change="handleCurrentChange"
+      />
+    </ElCard>
+
+    <RepairDialog
+      v-model="dialogVisible"
+      :dialog-type="dialogType"
+      :repair-data="currentRepair"
+      @success="refreshData"
+    />
+
+    <RepairDetailDrawer
+      v-model="detailDrawerVisible"
+      :repair-data="currentRepair"
+      @edit="handleEdit(currentRepair)"
+      @submit="handleSubmitRepair(currentRepair)"
+      @approve="openApproveDialog(currentRepair, 'approve')"
+      @reject="openApproveDialog(currentRepair, 'reject')"
+      @finish="openFinishDialog(currentRepair)"
+      @cancel="handleCancelRepairAndRefresh(currentRepair)"
+      @attachments="handleOpenAttachments(currentRepair)"
+    />
+
+    <RepairApproveDialog
+      v-model="approveDialogVisible"
+      :action-type="approveActionType"
+      :repair-data="currentRepair"
+      @confirm="handleApproveConfirm"
+    />
+
+    <RepairFinishDialog
+      v-model="finishDialogVisible"
+      :repair-data="currentRepair"
+      @confirm="handleFinishConfirm"
+    />
+
+    <AssetAttachmentDrawer
+      v-model="attachmentDrawerVisible"
+      biz-type="ASSET_REPAIR"
+      :biz-id="currentRepair?.repairId"
+      :biz-title="currentRepair?.repairNo || '维修单'"
+      permission-prefix="asset:repair"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { computed, h, onMounted, reactive, ref } from 'vue'
+  import FileSaver from 'file-saver'
+  import { ElButton, ElMessage, ElMessageBox, ElSpace, ElTag } from 'element-plus'
+  import { useTable } from '@/hooks/core/useTable'
+  import { useUserStore } from '@/store/modules/user'
+  import { useAssetRoleScope } from '../shared/use-asset-role-scope'
+  import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
+  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
+  import {
+    approveAssetRepair,
+    cancelAssetRepair,
+    delAssetRepair,
+    exportAssetRepair,
+    finishAssetRepair,
+    getAssetRepair,
+    listAssetRepair,
+    rejectAssetRepair,
+    submitAssetRepair
+  } from '@/api/asset/repair'
+  import RepairApproveDialog from './modules/repair-approve-dialog.vue'
+  import RepairDetailDrawer from './modules/repair-detail-drawer.vue'
+  import RepairDialog from './modules/repair-dialog.vue'
+  import RepairFinishDialog from './modules/repair-finish-dialog.vue'
+
+  defineOptions({ name: 'AssetRepair' })
+
+  const statusOptions = [
+    { label: '草稿', value: 'DRAFT' },
+    { label: '待审批', value: 'SUBMITTED' },
+    { label: '维修中', value: 'APPROVED' },
+    { label: '已驳回', value: 'REJECTED' },
+    { label: '已完成', value: 'FINISHED' },
+    { label: '已取消', value: 'CANCELED' }
+  ]
+
+  const statusMap = statusOptions.reduce<Record<string, { label: string; type: string }>>(
+    (acc, item) => {
+      const typeMap: Record<string, string> = {
+        DRAFT: 'info',
+        SUBMITTED: 'warning',
+        APPROVED: 'warning',
+        REJECTED: 'danger',
+        FINISHED: 'success',
+        CANCELED: 'info'
+      }
+      acc[item.value] = { label: item.label, type: typeMap[item.value] || 'info' }
+      return acc
+    },
+    {}
+  )
+
+  const resultTypeMap: Record<string, string> = {
+    RESUME_USE: '恢复在用',
+    TO_IDLE: '转闲置',
+    SUGGEST_DISPOSAL: '建议报废'
+  }
+
+  const userStore = useUserStore()
+  const { isSelfScopedAssetUser } = useAssetRoleScope()
+
+  const activeStatus = ref<'ALL' | string>('ALL')
+  const dialogVisible = ref(false)
+  const detailDrawerVisible = ref(false)
+  const approveDialogVisible = ref(false)
+  const finishDialogVisible = ref(false)
+  const attachmentDrawerVisible = ref(false)
+  const approveActionType = ref<'approve' | 'reject'>('approve')
+  const dialogType = ref<'add' | 'edit'>('add')
+  const currentRepair = ref<any>()
+  const exportLoading = ref(false)
+
+  const initialSearchState = {
+    repairNo: '',
+    assetCode: '',
+    vendorName: ''
+  }
+
+  const formFilters = reactive({ ...initialSearchState })
+
+  const searchBarKey = computed(() => `${activeStatus.value}-${isSelfScopedAssetUser.value}`)
+  const scopeTip = computed(() =>
+    isSelfScopedAssetUser.value
+      ? '当前是“我的维修单”视角，只展示由你本人发起的维修申请。'
+      : '维修页聚焦故障报修、审批、维修完成和资产状态联动。'
+  )
+
+  const hasPermission = (permission: string) => {
+    const permissions = userStore.permissions || []
+    return permissions.includes('*:*:*') || permissions.includes(permission)
+  }
+
+  const hasAnyFilter = computed(
+    () =>
+      Boolean(formFilters.repairNo?.trim()) ||
+      Boolean(formFilters.assetCode?.trim()) ||
+      Boolean(formFilters.vendorName?.trim()) ||
+      activeStatus.value !== 'ALL'
+  )
+
+  const showEmptyState = computed(() => !loading.value && data.value.length === 0)
+  const emptyDescription = computed(() =>
+    hasAnyFilter.value
+      ? '没有匹配的维修单，请调整筛选条件后再看看。'
+      : '还没有维修单，先创建一张维修单把流程跑起来。'
+  )
+
+  const buildQuery = () => ({
+    repairNo: formFilters.repairNo || undefined,
+    assetCode: formFilters.assetCode || undefined,
+    vendorName: formFilters.vendorName || undefined,
+    repairStatus: activeStatus.value === 'ALL' ? undefined : activeStatus.value
+  })
+
+  const syncSearchParams = () => {
+    Object.assign(searchParams, buildQuery())
+  }
+
+  const canEditRepair = (row: any) => ['DRAFT', 'REJECTED'].includes(row?.repairStatus)
+  const canSubmitRepair = (row: any) => ['DRAFT', 'REJECTED'].includes(row?.repairStatus)
+  const canApproveRepair = (row: any) => ['SUBMITTED'].includes(row?.repairStatus)
+  const canRejectRepair = (row: any) => ['SUBMITTED'].includes(row?.repairStatus)
+  const canFinishRepair = (row: any) => ['APPROVED'].includes(row?.repairStatus)
+  const canCancelRepair = (row: any) =>
+    ['DRAFT', 'SUBMITTED', 'REJECTED', 'APPROVED'].includes(row?.repairStatus)
+  const canDeleteRepair = (row: any) =>
+    ['DRAFT', 'REJECTED', 'CANCELED'].includes(row?.repairStatus)
+
+  const displayText = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return '-'
+    return String(value)
+  }
+
+  const renderStatus = (status?: string) =>
+    h(
+      ElTag,
+      { type: statusMap[status || '']?.type || 'info', effect: 'light' },
+      () => statusMap[status || '']?.label || status || '-'
+    )
+
+  const formatResultType = (value?: string) => resultTypeMap[value || ''] || value || '-'
+
+  const {
+    columns,
+    columnChecks,
+    data,
+    loading,
+    pagination,
+    searchParams,
+    resetSearchParams,
+    handleSizeChange,
+    handleCurrentChange,
+    refreshData,
+    getData
+  } = useTable({
+    core: {
+      apiFn: listAssetRepair,
+      apiParams: { pageNum: 1, pageSize: 10 },
+      columnsFactory: () => [
+        { prop: 'repairNo', label: '维修单号', minWidth: 150 },
+        { prop: 'assetCode', label: '资产编码', minWidth: 140 },
+        { prop: 'assetName', label: '资产名称', minWidth: 180 },
+        {
+          prop: 'repairStatus',
+          label: '维修状态',
+          width: 110,
+          align: 'center',
+          formatter: (row: any) => renderStatus(row.repairStatus)
+        },
+        { prop: 'applyDeptName', label: '发起部门', minWidth: 140 },
+        { prop: 'applyUserName', label: '发起人', minWidth: 120 },
+        { prop: 'reportTime', label: '报修时间', minWidth: 170, align: 'center' },
+        { prop: 'vendorName', label: '供应商', minWidth: 140 },
+        {
+          prop: 'repairCost',
+          label: '维修费用',
+          width: 110,
+          align: 'right',
+          formatter: (row: any) => displayText(row.repairCost ?? '-')
+        },
+        {
+          prop: 'resultType',
+          label: '完成结果',
+          minWidth: 120,
+          formatter: (row: any) => formatResultType(row.resultType)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: 360,
+          align: 'right',
+          formatter: (row: any) => renderOperation(row)
+        }
+      ]
+    }
+  })
+
+  const searchItems = computed(() => [
+    {
+      label: '维修单号',
+      key: 'repairNo',
+      type: 'input',
+      props: { placeholder: '请输入维修单号', clearable: true }
+    },
+    {
+      label: '资产编码',
+      key: 'assetCode',
+      type: 'input',
+      props: { placeholder: '请输入资产编码', clearable: true }
+    },
+    {
+      label: '供应商',
+      key: 'vendorName',
+      type: 'input',
+      props: { placeholder: '请输入供应商', clearable: true }
+    }
+  ])
+
+  const renderOperation = (row: any) => {
+    const actionNodes = [
+      hasPermission('asset:repair:query') &&
+        h(ArtButtonTable, { type: 'view', onClick: () => handleView(row) }),
+      hasPermission('asset:repair:query') &&
+        h(
+          ElButton,
+          { link: true, type: 'primary', size: 'small', onClick: () => handleOpenAttachments(row) },
+          () => '附件'
+        ),
+      hasPermission('asset:repair:edit') &&
+        canEditRepair(row) &&
+        h(ArtButtonTable, { type: 'edit', onClick: () => handleEdit(row) }),
+      hasPermission('asset:repair:remove') &&
+        canDeleteRepair(row) &&
+        h(ArtButtonTable, { type: 'delete', onClick: () => handleDelete(row) }),
+      hasPermission('asset:repair:submit') &&
+        canSubmitRepair(row) &&
+        h(
+          ElButton,
+          { link: true, type: 'primary', size: 'small', onClick: () => handleSubmitRepair(row) },
+          () => '提交'
+        ),
+      hasPermission('asset:repair:approve') &&
+        canApproveRepair(row) &&
+        h(
+          ElButton,
+          {
+            link: true,
+            type: 'success',
+            size: 'small',
+            onClick: () => openApproveDialog(row, 'approve')
+          },
+          () => '通过'
+        ),
+      hasPermission('asset:repair:reject') &&
+        canRejectRepair(row) &&
+        h(
+          ElButton,
+          {
+            link: true,
+            type: 'danger',
+            size: 'small',
+            onClick: () => openApproveDialog(row, 'reject')
+          },
+          () => '驳回'
+        ),
+      hasPermission('asset:repair:finish') &&
+        canFinishRepair(row) &&
+        h(
+          ElButton,
+          { link: true, type: 'warning', size: 'small', onClick: () => openFinishDialog(row) },
+          () => '完成'
+        ),
+      hasPermission('asset:repair:cancel') &&
+        canCancelRepair(row) &&
+        h(
+          ElButton,
+          {
+            link: true,
+            type: 'info',
+            size: 'small',
+            onClick: () => handleCancelRepairAndRefresh(row)
+          },
+          () => '取消'
+        )
+    ].filter(Boolean)
+
+    return h('div', { class: 'asset-repair-operation' }, [
+      h(ElSpace, { wrap: true, size: 8 }, () => actionNodes as any)
+    ])
+  }
+
+  const handleAdd = () => {
+    dialogType.value = 'add'
+    currentRepair.value = undefined
+    dialogVisible.value = true
+  }
+
+  const handleEdit = (row?: any) => {
+    if (!row?.repairId) return
+    dialogType.value = 'edit'
+    currentRepair.value = { ...row }
+    dialogVisible.value = true
+  }
+
+  const loadRepairDetail = async (row?: any) => {
+    if (!row?.repairId) {
+      currentRepair.value = row ? { ...row } : undefined
+      return
+    }
+    currentRepair.value = { ...row }
+    try {
+      const response: any = await getAssetRepair(row.repairId)
+      currentRepair.value = { ...row, ...(response?.data || response || {}) }
+    } catch (error) {
+      console.error('加载维修单详情失败，继续使用列表行数据:', error)
+    }
+  }
+
+  const handleView = async (row?: any) => {
+    if (!row?.repairId) return
+    await loadRepairDetail(row)
+    detailDrawerVisible.value = true
+  }
+
+  const handleOpenAttachments = async (row?: any) => {
+    if (!row?.repairId) return
+    await loadRepairDetail(row)
+    attachmentDrawerVisible.value = true
+  }
+
+  const handleDelete = async (row?: any) => {
+    if (!row?.repairId) return
+    try {
+      await ElMessageBox.confirm(`确认删除维修单“${row.repairNo || row.repairId}”吗？`, '提示', {
+        type: 'warning'
+      })
+      await delAssetRepair(row.repairId)
+      ElMessage.success('删除成功')
+      refreshData()
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('删除维修单失败:', error)
+      }
+    }
+  }
+
+  const handleSubmitRepair = async (row?: any) => {
+    if (!row?.repairId) return
+    try {
+      await ElMessageBox.confirm(`确认提交维修单“${row.repairNo || row.repairId}”吗？`, '提示', {
+        type: 'warning'
+      })
+      await submitAssetRepair(row.repairId)
+      ElMessage.success('提交成功')
+      refreshData()
+      if (detailDrawerVisible.value) {
+        await loadRepairDetail(row)
+      }
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('提交维修单失败:', error)
+      }
+    }
+  }
+
+  const openApproveDialog = (row?: any, actionType: 'approve' | 'reject' = 'approve') => {
+    if (!row?.repairId) return
+    currentRepair.value = { ...row }
+    approveActionType.value = actionType
+    approveDialogVisible.value = true
+  }
+
+  const handleApproveConfirm = async (payload: {
+    remark: string
+    actionType: 'approve' | 'reject'
+  }) => {
+    if (!currentRepair.value?.repairId) return
+    try {
+      if (payload.actionType === 'approve') {
+        await approveAssetRepair(currentRepair.value.repairId, { remark: payload.remark })
+        ElMessage.success('审批通过')
+      } else {
+        await rejectAssetRepair(currentRepair.value.repairId, { remark: payload.remark })
+        ElMessage.success('审批驳回')
+      }
+      approveDialogVisible.value = false
+      refreshData()
+      if (detailDrawerVisible.value) {
+        await loadRepairDetail(currentRepair.value)
+      }
+    } catch (error) {
+      console.error('审批维修单失败:', error)
+    }
+  }
+
+  const openFinishDialog = async (row?: any) => {
+    if (!row?.repairId) return
+    await loadRepairDetail(row)
+    finishDialogVisible.value = true
+  }
+
+  const handleFinishConfirm = async (payload: any) => {
+    if (!currentRepair.value?.repairId) return
+    try {
+      await finishAssetRepair(currentRepair.value.repairId, payload)
+      ElMessage.success('维修完成成功')
+      finishDialogVisible.value = false
+      refreshData()
+      if (detailDrawerVisible.value) {
+        await loadRepairDetail(currentRepair.value)
+      }
+    } catch (error) {
+      console.error('完成维修单失败:', error)
+    }
+  }
+
+  const handleCancelRepair = async (row?: any) => {
+    if (!row?.repairId) return
+    try {
+      await ElMessageBox.confirm(`确认取消维修单“${row.repairNo || row.repairId}”吗？`, '提示', {
+        type: 'warning'
+      })
+      await cancelAssetRepair(row.repairId)
+      ElMessage.success('取消成功')
+      refreshData()
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('取消维修单失败:', error)
+      }
+    }
+  }
+
+  const handleCancelRepairAndRefresh = async (row?: any) => {
+    await handleCancelRepair(row)
+    if (detailDrawerVisible.value && row?.repairId) {
+      await loadRepairDetail(row)
+    }
+  }
+
+  const handleStatusChange = () => {
+    syncSearchParams()
+    searchParams.pageNum = 1
+    getData()
+  }
+
+  const handleSearch = () => {
+    syncSearchParams()
+    searchParams.pageNum = 1
+    getData()
+  }
+
+  const handleReset = () => {
+    Object.assign(formFilters, initialSearchState)
+    activeStatus.value = 'ALL'
+    resetSearchParams()
+    syncSearchParams()
+    searchParams.pageNum = 1
+    getData()
+  }
+
+  const handleExport = async () => {
+    exportLoading.value = true
+    try {
+      const blob = await exportAssetRepair(buildQuery())
+      FileSaver.saveAs(blob as Blob, '资产维修单.xlsx')
+      ElMessage.success('导出成功')
+    } catch (error) {
+      console.error('导出维修单失败:', error)
+    } finally {
+      exportLoading.value = false
+    }
+  }
+
+  onMounted(() => {
+    syncSearchParams()
+  })
+</script>
+
+<style scoped lang="scss">
+  .asset-repair-page {
+    padding: 12px;
+  }
+
+  .asset-repair-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background:
+      linear-gradient(135deg, rgba(217, 119, 6, 0.08), rgba(249, 115, 22, 0.04)),
+      var(--el-fill-color-lighter);
+  }
+
+  .asset-repair-toolbar__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .asset-repair-toolbar__label {
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .asset-repair-toolbar__tip {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .asset-repair-empty {
+    padding: 32px 12px 12px;
+  }
+
+  .asset-repair-operation {
+    display: flex;
+    justify-content: flex-end;
+  }
+</style>

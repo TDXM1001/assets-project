@@ -152,13 +152,12 @@ public class AssetRepairController extends BaseController
     @PreAuthorize("@ss.hasPermi('asset:repair:finish')")
     @Log(title = "资产维修单", businessType = BusinessType.UPDATE)
     @PostMapping("/finish/{repairId}")
-    public AjaxResult finish(@PathVariable Long repairId, @RequestBody(required = false) Map<String, Object> body)
+    public AjaxResult finish(@PathVariable Long repairId, @RequestBody(required = false) AssetRepairOrder assetRepairOrder)
     {
-        return toAjax(assetRepairOrderService.finishAssetRepairOrder(
-            repairId,
-            Convert.toStr(body == null ? null : body.get("resultType")),
-            Convert.toStr(body == null ? null : body.get("remark")),
-            getUsername()));
+        AssetRepairOrder finishPayload = assetRepairOrder == null ? new AssetRepairOrder() : assetRepairOrder;
+        finishPayload.setRepairId(repairId);
+        finishPayload.setUpdateBy(getUsername());
+        return toAjax(assetRepairOrderService.finishAssetRepairOrder(repairId, finishPayload, getUsername()));
     }
 
     /**

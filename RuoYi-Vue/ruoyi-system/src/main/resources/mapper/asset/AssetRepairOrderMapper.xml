@@ -194,6 +194,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="sendRepairTime != null">send_repair_time = #{sendRepairTime},</if>
             <if test="finishTime != null">finish_time = #{finishTime},</if>
             <if test="resultType != null">result_type = #{resultType},</if>
+            <if test="vendorName != null">vendor_name = #{vendorName},</if>
+            <if test="repairCost != null">repair_cost = #{repairCost},</if>
+            <if test="downtimeHours != null">downtime_hours = #{downtimeHours},</if>
+            <if test="reworkFlag != null and reworkFlag != ''">rework_flag = #{reworkFlag},</if>
             <if test="beforeStatus != null">before_status = #{beforeStatus},</if>
             <if test="afterStatus != null">after_status = #{afterStatus},</if>
             <if test="remark != null">remark = #{remark},</if>

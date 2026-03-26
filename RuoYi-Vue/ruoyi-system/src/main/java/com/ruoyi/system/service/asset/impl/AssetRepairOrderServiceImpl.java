@@ -180,11 +180,12 @@ public class AssetRepairOrderServiceImpl implements IAssetRepairOrderService
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int finishAssetRepairOrder(Long repairId, String resultType, String remark, String updateBy)
+    public int finishAssetRepairOrder(Long repairId, AssetRepairOrder assetRepairOrder, String updateBy)
     {
         AssetRepairOrder dbOrder = requireRepair(repairId);
         ensureStatus(dbOrder.getRepairStatus(), STATUS_APPROVED);
-        String normalizedResultType = normalizeResultType(resultType);
+        AssetRepairOrder finishPayload = assetRepairOrder == null ? new AssetRepairOrder() : assetRepairOrder;
+        String normalizedResultType = normalizeResultType(finishPayload.getResultType());
 
         AssetInfo beforeAsset = requireVisibleAsset(dbOrder.getAssetId());
         if (!StringUtils.equals(beforeAsset.getAssetStatus(), ASSET_STATUS_REPAIRING))
@@ -198,13 +199,14 @@ public class AssetRepairOrderServiceImpl implements IAssetRepairOrderService
         assetInfoMapper.updateAssetSnapshot(afterAsset);
 
         AssetRepairOrder update = buildStatusUpdate(repairId, STATUS_FINISHED, updateBy);
-        update.setFinishTime(new Date());
+        update.setFinishTime(finishPayload.getFinishTime() == null ? new Date() : finishPayload.getFinishTime());
         update.setResultType(normalizedResultType);
+        update.setVendorName(StringUtils.defaultIfBlank(finishPayload.getVendorName(), dbOrder.getVendorName()));
+        update.setRepairCost(finishPayload.getRepairCost());
+        update.setDowntimeHours(finishPayload.getDowntimeHours());
+        update.setReworkFlag(normalizeReworkFlag(finishPayload.getReworkFlag(), dbOrder.getReworkFlag()));
         update.setAfterStatus(afterAsset.getAssetStatus());
-        if (StringUtils.isNotBlank(remark))
-        {
-            update.setRemark(remark);
-        }
+        update.setRemark(StringUtils.defaultIfBlank(finishPayload.getRemark(), dbOrder.getRemark()));
         int rows = assetRepairOrderMapper.updateAssetRepairOrderStatus(update);
 
         assetEventLogService.recordAssetEvent(
@@ -395,6 +397,16 @@ public class AssetRepairOrderServiceImpl implements IAssetRepairOrderService
             return normalized;
         }
         throw new ServiceException("维修完成结果仅支持 RESUME_USE、TO_IDLE、SUGGEST_DISPOSAL");
+    }
+
+    private String normalizeReworkFlag(String reworkFlag, String fallback)
+    {
+        String normalized = StringUtils.defaultIfBlank(StringUtils.trim(reworkFlag), StringUtils.defaultIfBlank(fallback, "0"));
+        if (StringUtils.equalsAny(normalized, "0", "1"))
+        {
+            return normalized;
+        }
+        throw new ServiceException("返修标记仅支持 0 或 1");
     }
 
     private String resolveAfterStatus(String resultType)

@@ -18,7 +18,7 @@ create table if not exists asset_repair_order (
   approve_time datetime default null comment '审批时间',
   approve_result varchar(20) default null comment '审批结果',
   fault_desc varchar(500) not null comment '故障描述',
-  repair_mode varchar(20) default null comment '送修方式',
+  repair_mode varchar(20) default null comment '维修方式',
   vendor_name varchar(200) default null comment '维修供应商',
   repair_cost decimal(12,2) default null comment '维修费用',
   downtime_hours decimal(10,2) default null comment '停用时长(小时)',
@@ -115,15 +115,12 @@ select @asset_auditor_role_id := role_id from sys_role where role_key = 'asset_a
 insert into sys_role_menu (role_id, menu_id)
 select @asset_admin_role_id, m.menu_id
 from sys_menu m
-where (
-  m.path = 'repair'
-  or m.perms like 'asset:repair:%'
-)
-and not exists (
-  select 1 from sys_role_menu rm
-  where rm.role_id = @asset_admin_role_id
-    and rm.menu_id = m.menu_id
-);
+where (m.path = 'repair' or m.perms like 'asset:repair:%')
+  and not exists (
+    select 1 from sys_role_menu rm
+    where rm.role_id = @asset_admin_role_id
+      and rm.menu_id = m.menu_id
+  );
 
 insert into sys_role_menu (role_id, menu_id)
 select @asset_dept_manager_role_id, m.menu_id
@@ -153,7 +150,10 @@ where (
     'asset:repair:list',
     'asset:repair:query',
     'asset:repair:add',
-    'asset:repair:submit'
+    'asset:repair:edit',
+    'asset:repair:remove',
+    'asset:repair:submit',
+    'asset:repair:cancel'
   )
 )
 and not exists (

@@ -24,7 +24,7 @@ public interface IAssetRepairOrderService
 
     int rejectAssetRepairOrder(Long repairId, String remark, Long approveUserId, String updateBy);
 
-    int finishAssetRepairOrder(Long repairId, String resultType, String remark, String updateBy);
+    int finishAssetRepairOrder(Long repairId, AssetRepairOrder assetRepairOrder, String updateBy);
 
     int cancelAssetRepairOrder(Long repairId, String updateBy);
 }
