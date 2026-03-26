@@ -83,8 +83,8 @@
       @submit="handleSubmitOrder(currentOrder)"
       @approve="openApprovalDialog(currentOrder, 'approve')"
       @reject="openApprovalDialog(currentOrder, 'reject')"
-      @finish="handleFinishOrder(currentOrder)"
-      @cancel="handleCancelOrder(currentOrder)"
+      @finish="handleFinishOrderAndRefresh(currentOrder)"
+      @cancel="handleCancelOrderAndRefresh(currentOrder)"
       @attachments="handleOpenAttachments(currentOrder)"
     />
 
@@ -466,7 +466,7 @@
             link: true,
             type: 'warning',
             size: 'small',
-            onClick: () => handleFinishOrder(row)
+            onClick: () => handleFinishOrderAndRefresh(row)
           },
           () => '完成'
         ),
@@ -478,7 +478,7 @@
             link: true,
             type: 'info',
             size: 'small',
-            onClick: () => handleCancelOrder(row)
+            onClick: () => handleCancelOrderAndRefresh(row)
           },
           () => '取消'
         )
@@ -631,6 +631,20 @@
       if (error !== 'cancel') {
         console.error('取消业务单据失败:', error)
       }
+    }
+  }
+
+  const handleFinishOrderAndRefresh = async (row?: any) => {
+    await handleFinishOrder(row)
+    if (detailDrawerVisible.value && row?.orderId) {
+      await loadOrderDetail(row)
+    }
+  }
+
+  const handleCancelOrderAndRefresh = async (row?: any) => {
+    await handleCancelOrder(row)
+    if (detailDrawerVisible.value && row?.orderId) {
+      await loadOrderDetail(row)
     }
   }
 
