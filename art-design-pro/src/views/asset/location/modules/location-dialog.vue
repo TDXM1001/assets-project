@@ -29,6 +29,9 @@
               class="w-full"
               placeholder="请选择上级位置"
             />
+            <div v-if="dialogType === 'edit'" class="mt-1 text-xs text-gray-500">
+              上级位置不能选择当前节点及其下级。
+            </div>
           </ElFormItem>
         </ElCol>
 
@@ -199,21 +202,99 @@
 
   const formData = reactive({ ...initialFormData })
 
+  const invalidParentIds = ref<Set<number>>(new Set())
+
+  const validateParentId = (_rule: any, value: any, callback: (error?: Error) => void) => {
+    if (value === undefined || value === null) {
+      callback()
+      return
+    }
+    const numericValue = Number(value)
+    if (invalidParentIds.value.has(numericValue)) {
+      callback(new Error('上级位置不能选择当前节点及其下级'))
+      return
+    }
+    callback()
+  }
+
   const formRules: FormRules = {
-    parentId: [{ required: true, message: '上级位置不能为空', trigger: 'change' }],
+    parentId: [
+      { required: true, message: '上级位置不能为空', trigger: 'change' },
+      { validator: validateParentId, trigger: 'change' }
+    ],
     locationCode: [{ required: true, message: '位置编码不能为空', trigger: 'blur' }],
     locationName: [{ required: true, message: '位置名称不能为空', trigger: 'blur' }],
     orderNum: [{ required: true, message: '显示排序不能为空', trigger: 'blur' }],
     status: [{ required: true, message: '位置状态不能为空', trigger: 'change' }]
   }
 
-  const buildRootOption = (label: string, list: TreeOption[]) => [
+  const buildRootOption = (label: string, list: TreeOption[]): TreeOption[] => [
     {
       id: 0,
       label,
       children: list || []
     }
   ]
+
+  const findNodeById = (nodes: TreeOption[], targetId: number): TreeOption | undefined => {
+    for (const node of nodes) {
+      if (Number(node.id) === targetId) return node
+      if (node.children?.length) {
+        const found = findNodeById(node.children, targetId)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+
+  const collectDescendantIds = (node: TreeOption, container: Set<number>): void => {
+    if (!node.children?.length) return
+    node.children.forEach((child) => {
+      container.add(Number(child.id))
+      collectDescendantIds(child, container)
+    })
+  }
+
+  /**
+   * 编辑时禁用自己与子孙节点，避免树结构被错误改坏。
+   */
+  const buildInvalidParentIdSet = (nodes: TreeOption[], currentId?: number): Set<number> => {
+    const result = new Set<number>()
+    if (!currentId) return result
+    result.add(currentId)
+    const target = findNodeById(nodes, currentId)
+    if (target) {
+      collectDescendantIds(target, result)
+    }
+    return result
+  }
+
+  const applyDisabledFlags = (nodes: TreeOption[], invalidIds: Set<number>): TreeOption[] => {
+    return nodes.map((node) => {
+      const children: TreeOption[] | undefined = node.children
+        ? applyDisabledFlags(node.children, invalidIds)
+        : undefined
+      return {
+        ...node,
+        disabled: Boolean(node.disabled) || invalidIds.has(Number(node.id)),
+        children
+      }
+    })
+  }
+
+  const refreshLocationOptions = (locationData: TreeOption[]): void => {
+    if (props.dialogType === 'edit' && props.locationData?.locationId) {
+      const currentId = Number(props.locationData.locationId)
+      invalidParentIds.value = buildInvalidParentIdSet(locationData, currentId)
+      locationOptions.value = buildRootOption(
+        '顶级位置',
+        applyDisabledFlags(locationData, invalidParentIds.value)
+      )
+      return
+    }
+    invalidParentIds.value = new Set()
+    locationOptions.value = buildRootOption('顶级位置', locationData)
+  }
 
   /**
    * 预加载弹窗依赖数据，避免用户打开弹窗后还要等待多次请求。
@@ -237,7 +318,7 @@
         ? userResponse
         : userResponse?.rows || userResponse?.data || []
 
-      locationOptions.value = buildRootOption('顶级位置', locationData)
+      refreshLocationOptions(locationData)
       deptOptions.value = buildRootOption('全部部门', deptData)
       userOptions.value = userData.map((item: any) => ({
         userId: item.userId,
@@ -245,7 +326,7 @@
       }))
     } catch (error) {
       console.error('加载位置弹窗基础数据失败:', error)
-      locationOptions.value = buildRootOption('顶级位置', [])
+      refreshLocationOptions([])
       deptOptions.value = buildRootOption('全部部门', [])
       userOptions.value = []
     }

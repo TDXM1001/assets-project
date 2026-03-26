@@ -97,6 +97,11 @@ public class AssetLocationServiceImpl implements IAssetLocationService
         {
             throw new ServiceException("上级位置不能是自己");
         }
+        // 防止把上级位置设置为当前节点的子节点，避免树结构被破坏
+        if (isParentInLocationSubtree(location.getLocationId(), location.getParentId()))
+        {
+            throw new ServiceException("上级位置不能选择当前位置的下级节点");
+        }
 
         String newAncestors = "0";
         if (location.getParentId() != null && location.getParentId().longValue() != 0L)
@@ -190,5 +195,23 @@ public class AssetLocationServiceImpl implements IAssetLocationService
         {
             locationMapper.updateLocationChildren(children);
         }
+    }
+
+    private boolean isParentInLocationSubtree(Long locationId, Long parentId)
+    {
+        if (parentId == null || parentId.longValue() == 0L)
+        {
+            return false;
+        }
+        // 仅判断当前节点的后代范围，避免产生循环引用
+        List<AssetLocation> descendants = locationMapper.selectChildrenLocationById(locationId);
+        for (AssetLocation descendant : descendants)
+        {
+            if (descendant.getLocationId() != null && descendant.getLocationId().longValue() == parentId.longValue())
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
