@@ -75,10 +75,37 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
     }
 
     @Override
+    public AssetOperateOrder selectLinkedAssetOperateOrder(String orderType, String sourceBizType, Long sourceBizId)
+    {
+        if (StringUtils.isBlank(orderType) || StringUtils.isBlank(sourceBizType) || sourceBizId == null || sourceBizId <= 0)
+        {
+            return null;
+        }
+
+        AssetOperateOrder query = new AssetOperateOrder();
+        query.setOrderType(normalizeText(orderType));
+        query.setSourceBizType(normalizeText(sourceBizType));
+        query.setSourceBizId(sourceBizId);
+        List<AssetOperateOrder> scopedOrders = assetOperateOrderServiceProxy.selectAssetOperateOrderList(query);
+        if (scopedOrders.size() > 1)
+        {
+            throw new ServiceException("当前来源业务已关联多张单据，请先清理异常数据");
+        }
+
+        AssetOperateOrder order = scopedOrders.isEmpty() ? null : scopedOrders.get(0);
+        if (StringUtils.isNotNull(order))
+        {
+            order.setItemList(assetOperateOrderMapper.selectAssetOperateOrderItemsByOrderId(order.getOrderId()));
+        }
+        return order;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public int insertAssetOperateOrder(AssetOperateOrder assetOperateOrder)
     {
         buildInsertDefaults(assetOperateOrder);
+        validateUniqueSourceLink(assetOperateOrder);
         int rows = assetOperateOrderMapper.insertAssetOperateOrder(assetOperateOrder);
         syncOrderItems(assetOperateOrder);
         return rows;
@@ -91,6 +118,8 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
         AssetOperateOrder dbOrder = requireOrder(assetOperateOrder.getOrderId());
         ensureStatus(dbOrder.getOrderStatus(), STATUS_DRAFT, STATUS_REJECTED);
         fillUpdateDefaults(assetOperateOrder, dbOrder);
+        assetOperateOrder.setExcludeOrderId(dbOrder.getOrderId());
+        validateUniqueSourceLink(assetOperateOrder);
         int rows = assetOperateOrderMapper.updateAssetOperateOrder(assetOperateOrder);
         syncOrderItems(assetOperateOrder);
         return rows;
@@ -222,6 +251,7 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
      */
     private void buildInsertDefaults(AssetOperateOrder assetOperateOrder)
     {
+        normalizeSourceLink(assetOperateOrder);
         if (StringUtils.isBlank(assetOperateOrder.getOrderNo()))
         {
             assetOperateOrder.setOrderNo(generateOrderNo(assetOperateOrder.getOrderType()));
@@ -247,9 +277,22 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
 
     private void fillUpdateDefaults(AssetOperateOrder assetOperateOrder, AssetOperateOrder dbOrder)
     {
+        normalizeSourceLink(assetOperateOrder);
         if (StringUtils.isBlank(assetOperateOrder.getOrderNo()))
         {
             assetOperateOrder.setOrderNo(dbOrder.getOrderNo());
+        }
+        if (StringUtils.isBlank(assetOperateOrder.getSourceBizType()))
+        {
+            assetOperateOrder.setSourceBizType(dbOrder.getSourceBizType());
+        }
+        if (assetOperateOrder.getSourceBizId() == null)
+        {
+            assetOperateOrder.setSourceBizId(dbOrder.getSourceBizId());
+        }
+        if (StringUtils.isBlank(assetOperateOrder.getSourceBizNo()))
+        {
+            assetOperateOrder.setSourceBizNo(dbOrder.getSourceBizNo());
         }
         if (assetOperateOrder.getBizDate() == null)
         {
@@ -536,6 +579,50 @@ public class AssetOperateOrderServiceImpl implements IAssetOperateOrderService
         update.setOrderStatus(orderStatus);
         update.setUpdateBy(updateBy);
         return update;
+    }
+
+    private void validateUniqueSourceLink(AssetOperateOrder assetOperateOrder)
+    {
+        if (!StringUtils.equals(assetOperateOrder.getOrderType(), "DISPOSAL"))
+        {
+            return;
+        }
+        if (!StringUtils.equals(assetOperateOrder.getSourceBizType(), "ASSET_REPAIR") || assetOperateOrder.getSourceBizId() == null)
+        {
+            return;
+        }
+
+        AssetOperateOrder query = new AssetOperateOrder();
+        query.setOrderType(assetOperateOrder.getOrderType());
+        query.setSourceBizType(assetOperateOrder.getSourceBizType());
+        query.setSourceBizId(assetOperateOrder.getSourceBizId());
+        query.setExcludeOrderId(assetOperateOrder.getExcludeOrderId());
+
+        List<AssetOperateOrder> existingOrders = assetOperateOrderMapper.selectAssetOperateOrderList(query);
+        if (!existingOrders.isEmpty())
+        {
+            throw new ServiceException("该维修单已有关联报废单，不允许重复创建");
+        }
+    }
+
+    private void normalizeSourceLink(AssetOperateOrder assetOperateOrder)
+    {
+        assetOperateOrder.setSourceBizType(normalizeText(assetOperateOrder.getSourceBizType()));
+        assetOperateOrder.setSourceBizNo(normalizeText(assetOperateOrder.getSourceBizNo()));
+        if (assetOperateOrder.getSourceBizId() != null && assetOperateOrder.getSourceBizId() <= 0)
+        {
+            assetOperateOrder.setSourceBizId(null);
+        }
+    }
+
+    private String normalizeText(String value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private AssetOperateOrder requireOrder(Long orderId)

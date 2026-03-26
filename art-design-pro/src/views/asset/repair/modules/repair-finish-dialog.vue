@@ -14,6 +14,15 @@
       show-icon
       title="维修完成后，需要明确资产去向、维修费用和停用时长，这些信息会直接影响资产状态联动和维修流水。"
     />
+    <ElAlert
+      v-if="isSuggestDisposal"
+      class="mb-4"
+      type="warning"
+      :closable="false"
+      show-icon
+      title="当前选择了“建议报废”"
+      description="提交后会引导进入 DISPOSAL 草稿创建。请在处理说明里写清楚建议报废的原因、现状和后续处理建议。"
+    />
 
     <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="110px">
       <ElRow :gutter="16">
@@ -82,7 +91,11 @@
               :rows="4"
               maxlength="500"
               show-word-limit
-              placeholder="请输入维修处理说明，例如更换部件、测试结果和后续建议"
+              :placeholder="
+                isSuggestDisposal
+                  ? '请补充建议报废原因、资产现状、已做处理和后续建议'
+                  : '请输入维修处理说明，例如更换部件、测试结果和后续建议'
+              "
             />
           </ElFormItem>
         </ElCol>
@@ -133,6 +146,7 @@
   })
 
   const formData = reactive(createInitialFormData())
+  const isSuggestDisposal = computed(() => formData.resultType === 'SUGGEST_DISPOSAL')
 
   const reworkSwitch = computed({
     get: () => formData.reworkFlag === '1',
@@ -143,7 +157,19 @@
 
   const formRules: FormRules = {
     resultType: [{ required: true, message: '请选择维修结果', trigger: 'change' }],
-    finishTime: [{ required: true, message: '请选择完成时间', trigger: 'change' }]
+    finishTime: [{ required: true, message: '请选择完成时间', trigger: 'change' }],
+    remark: [
+      {
+        validator: (_rule, value, callback) => {
+          if (isSuggestDisposal.value && !String(value || '').trim()) {
+            callback(new Error('建议报废时请填写处理说明，明确报废原因和现状'))
+            return
+          }
+          callback()
+        },
+        trigger: 'blur'
+      }
+    ]
   }
 
   watch(

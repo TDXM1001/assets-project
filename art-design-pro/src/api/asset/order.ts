@@ -14,6 +14,14 @@ export function getAssetOrder(orderId: number | string) {
   return http.request({ url: '/asset/order/' + orderId, method: 'get' })
 }
 
+export function getLinkedAssetOrder(query: {
+  orderType: string
+  sourceBizType: string
+  sourceBizId: number | string
+}) {
+  return http.request({ url: '/asset/order/linked', method: 'get', params: query })
+}
+
 /**
  * 新增业务单据
  */

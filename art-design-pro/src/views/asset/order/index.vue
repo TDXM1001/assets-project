@@ -73,6 +73,7 @@
       v-model="orderDialogVisible"
       :dialog-type="dialogType"
       :order-data="currentOrder"
+      :dialog-context="dialogContext"
       @success="refreshData"
     />
 
@@ -109,6 +110,7 @@
   import { computed, h, onMounted, reactive, ref } from 'vue'
   import FileSaver from 'file-saver'
   import { ElButton, ElMessage, ElMessageBox, ElSpace } from 'element-plus'
+  import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
@@ -134,6 +136,8 @@
   defineOptions({ name: 'AssetOrder' })
 
   const { asset_order_type, asset_order_status } = useDict('asset_order_type', 'asset_order_status')
+  const route = useRoute()
+  const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
 
@@ -144,6 +148,7 @@
   const approveActionType = ref<'approve' | 'reject'>('approve')
   const dialogType = ref<'add' | 'edit'>('add')
   const currentOrder = ref<any>()
+  const dialogContext = ref<Record<string, any>>({})
   const attachmentDrawerVisible = ref(false)
   const exportLoading = ref(false)
 
@@ -166,7 +171,9 @@
   const orderScopeTip = computed(() =>
     isSelfScopedAssetUser.value
       ? '当前为“我的单据”视角，只展示由你本人发起的资产单据。'
-      : '这里不是普通表格页，而是单据流转工作台，先用类型切换把流程边界收住。'
+      : activeOrderType.value === 'DISPOSAL'
+        ? '当前聚焦报废单，完成后会把资产落到已报废。'
+        : '这里不是普通表格页，而是单据流转工作台，先用类型切换把流程边界收住。'
   )
 
   const hasPermission = (permission: string) => {
@@ -189,6 +196,9 @@
   const emptyDescription = computed(() => {
     if (hasAnyFilter.value) {
       return '没有匹配的业务单据，先调整筛选条件再看看。'
+    }
+    if (activeOrderType.value === 'DISPOSAL') {
+      return '还没有报废单，先创建一张报废单，把处置流程跑起来。'
     }
     return '还没有业务单据，先新增一张单据，把流程跑起来。'
   })
@@ -250,7 +260,9 @@
       case 'TRANSFER':
         return `${fromDept} / ${fromLocation} 调拨到 ${toDept} / ${toLocation}`
       case 'DISPOSAL':
-        return `报废原因：${row?.disposalReason || '待补充'}`
+        return `报废原因：${row?.disposalReason || '待补充'} / 处置金额：${displayText(
+          row?.disposalAmount ?? '待补充'
+        )}`
       default:
         return `${fromDept} -> ${toDept}`
     }
@@ -492,13 +504,148 @@
   const handleAdd = () => {
     dialogType.value = 'add'
     currentOrder.value = undefined
+    dialogContext.value = {
+      orderType: activeOrderType.value === 'ALL' ? 'INBOUND' : activeOrderType.value
+    }
     orderDialogVisible.value = true
+  }
+
+  const safeParseBridgeContext = (value: string | null) => {
+    if (!value) return undefined
+    try {
+      const parsed = JSON.parse(value)
+      return parsed && typeof parsed === 'object' ? parsed : undefined
+    } catch (error) {
+      console.error('解析报废桥接上下文失败:', error)
+      return undefined
+    }
+  }
+
+  const readBridgeContextFromStorage = (bridgeKey?: string) => {
+    const storageKeys = bridgeKey
+      ? [
+          `asset-order-disposal-bridge:${bridgeKey}`,
+          `asset.order.disposal.bridge:${bridgeKey}`,
+          'asset-order-disposal-bridge',
+          'asset.order.disposal.bridge',
+          'asset.order.bridge.payload'
+        ]
+      : ['asset-order-disposal-bridge', 'asset.order.disposal.bridge', 'asset.order.bridge.payload']
+
+    for (const storageKey of storageKeys) {
+      const storedValue = sessionStorage.getItem(storageKey)
+      if (!storedValue) continue
+      sessionStorage.removeItem(storageKey)
+      const parsed = safeParseBridgeContext(storedValue)
+      if (parsed) return parsed
+    }
+
+    return undefined
+  }
+
+  const normalizeBridgeContext = (context: Record<string, any> = {}) => {
+    const orderType = String(context.orderType || '').toUpperCase()
+    return {
+      ...context,
+      orderType: orderType === 'DISPOSAL' ? 'DISPOSAL' : context.orderType || 'DISPOSAL'
+    }
+  }
+
+  const stripBridgeQuery = () => {
+    const nextQuery = { ...route.query }
+    delete nextQuery.bridgeSource
+    delete nextQuery.bridgeKey
+    delete nextQuery.bridgeData
+    delete nextQuery.repairId
+    delete nextQuery.autoOpen
+    router.replace({ query: nextQuery }).catch(() => undefined)
+  }
+
+  const stripDetailQuery = () => {
+    const nextQuery = { ...route.query }
+    delete nextQuery.orderId
+    delete nextQuery.openDetail
+    router.replace({ query: nextQuery }).catch(() => undefined)
+  }
+
+  const hydrateBridgeContext = () => {
+    const queryBridgeSource =
+      typeof route.query.bridgeSource === 'string' ? route.query.bridgeSource : ''
+    const queryBridgeKey = typeof route.query.bridgeKey === 'string' ? route.query.bridgeKey : ''
+    const queryBridgeData = typeof route.query.bridgeData === 'string' ? route.query.bridgeData : ''
+    const queryOrderType = typeof route.query.orderType === 'string' ? route.query.orderType : ''
+    const queryAutoOpen = typeof route.query.autoOpen === 'string' ? route.query.autoOpen : ''
+    const isRepairBridgeEntry =
+      queryBridgeSource === 'repair' && queryOrderType.toUpperCase() === 'DISPOSAL'
+
+    const parsedBridgeContext =
+      safeParseBridgeContext(queryBridgeData) || readBridgeContextFromStorage(queryBridgeKey)
+
+    if (queryOrderType.toUpperCase() === 'DISPOSAL') {
+      activeOrderType.value = 'DISPOSAL'
+      syncSearchParams()
+      getData()
+    }
+
+    if (!parsedBridgeContext) {
+      if (isRepairBridgeEntry) {
+        ElMessage.warning('未找到维修桥接上下文，请从维修单重新发起报废单')
+        stripBridgeQuery()
+        return
+      }
+      if (queryOrderType.toUpperCase() === 'DISPOSAL' && queryAutoOpen === '1') {
+        dialogContext.value = { orderType: 'DISPOSAL' }
+        dialogType.value = 'add'
+        currentOrder.value = undefined
+        orderDialogVisible.value = true
+      }
+      return
+    }
+
+    dialogContext.value = normalizeBridgeContext(parsedBridgeContext)
+    if (dialogContext.value.orderType === 'DISPOSAL') {
+      activeOrderType.value = 'DISPOSAL'
+      syncSearchParams()
+      getData()
+    }
+
+    dialogType.value = 'add'
+    currentOrder.value = undefined
+    orderDialogVisible.value = true
+    stripBridgeQuery()
+  }
+
+  const hydrateRouteOrderDetail = async () => {
+    const queryOrderId = Number(route.query.orderId)
+    const shouldOpenDetail =
+      typeof route.query.openDetail === 'string' && route.query.openDetail === '1'
+    if (!queryOrderId || !shouldOpenDetail) return
+
+    try {
+      const response: any = await getAssetOrder(queryOrderId)
+      const orderDetail = response?.data || response || undefined
+      if (!orderDetail?.orderId) return
+
+      const queryOrderType = typeof route.query.orderType === 'string' ? route.query.orderType : ''
+      if (queryOrderType.toUpperCase() === 'DISPOSAL' || orderDetail.orderType === 'DISPOSAL') {
+        activeOrderType.value = 'DISPOSAL'
+        syncSearchParams()
+        getData()
+      }
+
+      currentOrder.value = orderDetail
+      detailDrawerVisible.value = true
+      stripDetailQuery()
+    } catch (error) {
+      console.error('根据路由打开业务单据详情失败:', error)
+    }
   }
 
   const handleEdit = (row?: any) => {
     if (!row?.orderId) return
     dialogType.value = 'edit'
     currentOrder.value = { ...row }
+    dialogContext.value = {}
     orderDialogVisible.value = true
   }
 
@@ -604,11 +751,15 @@
     if (!row?.orderId) return
 
     try {
-      await ElMessageBox.confirm(`确认完成单据【${row.orderNo || row.orderId}】吗？`, '提示', {
+      const confirmMessage =
+        row?.orderType === 'DISPOSAL'
+          ? `确认执行报废单【${row.orderNo || row.orderId}】吗？执行后资产状态将落到已报废，后续不再允许继续流转。`
+          : `确认完成单据【${row.orderNo || row.orderId}】吗？`
+      await ElMessageBox.confirm(confirmMessage, '提示', {
         type: 'warning'
       })
       await finishAssetOrder(row.orderId)
-      ElMessage.success('完成成功')
+      ElMessage.success(row?.orderType === 'DISPOSAL' ? '报废执行成功' : '完成成功')
       refreshData()
     } catch (error) {
       if (error !== 'cancel') {
@@ -690,6 +841,8 @@
     syncSearchParams()
     void asset_order_type.value
     void asset_order_status.value
+    hydrateBridgeContext()
+    void hydrateRouteOrderDetail()
   })
 </script>
 

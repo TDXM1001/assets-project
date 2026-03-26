@@ -1,6 +1,6 @@
 <template>
   <ElDialog
-    :title="dialogType === 'add' ? '新增业务单据' : '编辑业务单据'"
+    :title="dialogTitle"
     v-model="visible"
     width="1280px"
     destroy-on-close
@@ -13,6 +13,14 @@
       show-icon
       :closable="false"
       title="单据头负责定义流转方向，单据明细负责圈定具体资产；两者一起提交后，后端才会生成完整业务快照。"
+    />
+    <ElAlert
+      v-if="bridgeHintText"
+      class="mb-4"
+      type="success"
+      show-icon
+      :closable="false"
+      :title="bridgeHintText"
     />
 
     <ElForm
@@ -102,159 +110,220 @@
         </ElCol>
       </ElRow>
 
-      <ElDivider content-position="left">流转范围</ElDivider>
-      <ElRow :gutter="16">
-        <ElCol :span="12">
-          <ElFormItem label="来源部门" prop="fromDeptId">
-            <ElTreeSelect
-              v-model="formData.fromDeptId"
-              :data="deptOptions"
-              :props="{ value: 'id', label: 'label', children: 'children' }"
-              value-key="id"
-              filterable
-              clearable
-              check-strictly
-              class="w-full"
-              placeholder="请选择来源部门"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="目标部门" prop="toDeptId">
-            <ElTreeSelect
-              v-model="formData.toDeptId"
-              :data="deptOptions"
-              :props="{ value: 'id', label: 'label', children: 'children' }"
-              value-key="id"
-              filterable
-              clearable
-              check-strictly
-              class="w-full"
-              placeholder="请选择目标部门"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="来源责任人" prop="fromUserId">
-            <ElSelect v-model="formData.fromUserId" filterable clearable class="w-full">
-              <ElOption
-                v-for="item in userOptions"
-                :key="item.userId"
-                :label="item.displayName"
-                :value="item.userId"
+      <template v-if="!isDisposalOrder">
+        <ElDivider content-position="left">流转范围</ElDivider>
+        <ElRow :gutter="16">
+          <ElCol :span="12">
+            <ElFormItem label="来源部门" prop="fromDeptId">
+              <ElTreeSelect
+                v-model="formData.fromDeptId"
+                :data="deptOptions"
+                :props="{ value: 'id', label: 'label', children: 'children' }"
+                value-key="id"
+                filterable
+                clearable
+                check-strictly
+                class="w-full"
+                placeholder="请选择来源部门"
               />
-            </ElSelect>
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="目标责任人" prop="toUserId">
-            <ElSelect v-model="formData.toUserId" filterable clearable class="w-full">
-              <ElOption
-                v-for="item in userOptions"
-                :key="item.userId"
-                :label="item.displayName"
-                :value="item.userId"
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="目标部门" prop="toDeptId">
+              <ElTreeSelect
+                v-model="formData.toDeptId"
+                :data="deptOptions"
+                :props="{ value: 'id', label: 'label', children: 'children' }"
+                value-key="id"
+                filterable
+                clearable
+                check-strictly
+                class="w-full"
+                placeholder="请选择目标部门"
               />
-            </ElSelect>
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="来源位置" prop="fromLocationId">
-            <ElTreeSelect
-              v-model="formData.fromLocationId"
-              :data="locationOptions"
-              :props="{ value: 'id', label: 'label', children: 'children' }"
-              value-key="id"
-              filterable
-              clearable
-              check-strictly
-              class="w-full"
-              placeholder="请选择来源位置"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="目标位置" prop="toLocationId">
-            <ElTreeSelect
-              v-model="formData.toLocationId"
-              :data="locationOptions"
-              :props="{ value: 'id', label: 'label', children: 'children' }"
-              value-key="id"
-              filterable
-              clearable
-              check-strictly
-              class="w-full"
-              placeholder="请选择目标位置"
-            />
-          </ElFormItem>
-        </ElCol>
-      </ElRow>
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="来源责任人" prop="fromUserId">
+              <ElSelect v-model="formData.fromUserId" filterable clearable class="w-full">
+                <ElOption
+                  v-for="item in userOptions"
+                  :key="item.userId"
+                  :label="item.displayName"
+                  :value="item.userId"
+                />
+              </ElSelect>
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="目标责任人" prop="toUserId">
+              <ElSelect v-model="formData.toUserId" filterable clearable class="w-full">
+                <ElOption
+                  v-for="item in userOptions"
+                  :key="item.userId"
+                  :label="item.displayName"
+                  :value="item.userId"
+                />
+              </ElSelect>
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="来源位置" prop="fromLocationId">
+              <ElTreeSelect
+                v-model="formData.fromLocationId"
+                :data="locationOptions"
+                :props="{ value: 'id', label: 'label', children: 'children' }"
+                value-key="id"
+                filterable
+                clearable
+                check-strictly
+                class="w-full"
+                placeholder="请选择来源位置"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="目标位置" prop="toLocationId">
+              <ElTreeSelect
+                v-model="formData.toLocationId"
+                :data="locationOptions"
+                :props="{ value: 'id', label: 'label', children: 'children' }"
+                value-key="id"
+                filterable
+                clearable
+                check-strictly
+                class="w-full"
+                placeholder="请选择目标位置"
+              />
+            </ElFormItem>
+          </ElCol>
+        </ElRow>
 
-      <ElDivider content-position="left">业务补充</ElDivider>
-      <ElRow :gutter="16">
-        <ElCol :span="12">
-          <ElFormItem label="预计归还日" prop="expectedReturnDate">
-            <ElDatePicker
-              v-model="formData.expectedReturnDate"
-              type="date"
-              value-format="YYYY-MM-DD"
-              class="w-full"
-              placeholder="请选择预计归还日"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="处置金额" prop="disposalAmount">
-            <ElInputNumber
-              v-model="formData.disposalAmount"
-              :min="0"
-              :precision="2"
-              :step="100"
-              controls-position="right"
-              class="w-full"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="附件数量" prop="attachmentCount">
-            <ElInputNumber
-              v-model="formData.attachmentCount"
-              :min="0"
-              controls-position="right"
-              class="w-full"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="12">
-          <ElFormItem label="审批结果" prop="approveResult">
-            <ElInput v-model="formData.approveResult" disabled placeholder="审批通过后回填" />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="24">
-          <ElFormItem label="报废原因" prop="disposalReason">
-            <ElInput
-              v-model="formData.disposalReason"
-              type="textarea"
-              :rows="2"
-              maxlength="500"
-              show-word-limit
-              placeholder="当单据类型为报废时填写原因"
-            />
-          </ElFormItem>
-        </ElCol>
-        <ElCol :span="24">
-          <ElFormItem label="备注" prop="remark">
-            <ElInput
-              v-model="formData.remark"
-              type="textarea"
-              :rows="3"
-              maxlength="500"
-              show-word-limit
-              placeholder="请输入备注说明"
-            />
-          </ElFormItem>
-        </ElCol>
-      </ElRow>
+        <ElDivider content-position="left">业务补充</ElDivider>
+        <ElRow :gutter="16">
+          <ElCol :span="12">
+            <ElFormItem label="预计归还日" prop="expectedReturnDate">
+              <ElDatePicker
+                v-model="formData.expectedReturnDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                class="w-full"
+                placeholder="请选择预计归还日"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="处置金额" prop="disposalAmount">
+              <ElInputNumber
+                v-model="formData.disposalAmount"
+                :min="0"
+                :precision="2"
+                :step="100"
+                controls-position="right"
+                class="w-full"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="附件数量" prop="attachmentCount">
+              <ElInputNumber
+                v-model="formData.attachmentCount"
+                :min="0"
+                controls-position="right"
+                class="w-full"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="审批结果" prop="approveResult">
+              <ElInput v-model="formData.approveResult" disabled placeholder="审批通过后回填" />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="24">
+            <ElFormItem label="报废原因" prop="disposalReason">
+              <ElInput
+                v-model="formData.disposalReason"
+                type="textarea"
+                :rows="2"
+                maxlength="500"
+                show-word-limit
+                placeholder="当单据类型为报废时填写原因"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="24">
+            <ElFormItem label="备注" prop="remark">
+              <ElInput
+                v-model="formData.remark"
+                type="textarea"
+                :rows="3"
+                maxlength="500"
+                show-word-limit
+                placeholder="请输入备注说明"
+              />
+            </ElFormItem>
+          </ElCol>
+        </ElRow>
+      </template>
+      <template v-else>
+        <ElDivider content-position="left">报废信息</ElDivider>
+        <ElAlert
+          class="mb-4"
+          type="warning"
+          show-icon
+          :closable="false"
+          title="报废单会直接落到已报废状态，处置原因和处置金额是这张单据最重要的信息。"
+        />
+        <ElRow :gutter="16">
+          <ElCol :span="12">
+            <ElFormItem label="处置金额" prop="disposalAmount">
+              <ElInputNumber
+                v-model="formData.disposalAmount"
+                :min="0"
+                :precision="2"
+                :step="100"
+                controls-position="right"
+                class="w-full"
+                placeholder="请输入处置金额"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="12">
+            <ElFormItem label="附件数量" prop="attachmentCount">
+              <ElInputNumber
+                v-model="formData.attachmentCount"
+                :min="0"
+                controls-position="right"
+                class="w-full"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="24">
+            <ElFormItem label="报废原因" prop="disposalReason">
+              <ElInput
+                v-model="formData.disposalReason"
+                type="textarea"
+                :rows="3"
+                maxlength="500"
+                show-word-limit
+                placeholder="请填写报废原因、现状和处置说明"
+              />
+            </ElFormItem>
+          </ElCol>
+          <ElCol :span="24">
+            <ElFormItem label="备注" prop="remark">
+              <ElInput
+                v-model="formData.remark"
+                type="textarea"
+                :rows="3"
+                maxlength="500"
+                show-word-limit
+                placeholder="请输入备注说明"
+              />
+            </ElFormItem>
+          </ElCol>
+        </ElRow>
+      </template>
 
       <ElDivider content-position="left">单据明细</ElDivider>
       <ElAlert
@@ -327,19 +396,29 @@
     <template #footer>
       <div class="dialog-footer">
         <ElButton @click="visible = false">取消</ElButton>
-        <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">确定</ElButton>
+        <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">
+          {{ submitButtonText }}
+        </ElButton>
       </div>
     </template>
 
     <ElDialog
       v-model="selectorVisible"
-      title="选择资产"
+      :title="selectorDialogTitle"
       width="1080px"
       append-to-body
       destroy-on-close
       @open="handleSelectorOpen"
       @closed="handleSelectorClosed"
     >
+      <ElAlert
+        v-if="isDisposalOrder"
+        class="mb-4"
+        type="warning"
+        show-icon
+        :closable="false"
+        title="报废单优先选择当前需要处置的资产，选中后会沿用单据头的报废状态。"
+      />
       <ElForm :model="selectorQuery" inline class="order-selector-search">
         <ElFormItem label="资产编码">
           <ElInput v-model="selectorQuery.assetCode" clearable placeholder="请输入资产编码" />
@@ -491,6 +570,7 @@
     modelValue: boolean
     dialogType: 'add' | 'edit'
     orderData?: any
+    dialogContext?: Record<string, any>
   }>()
 
   const emit = defineEmits<{
@@ -517,10 +597,59 @@
   const selectorTotal = ref(0)
   const selectorSelection = ref<AssetCandidate[]>([])
 
+  const resultTypeLabelMap: Record<string, string> = {
+    RESUME_USE: '恢复在用',
+    TO_IDLE: '转闲置',
+    SUGGEST_DISPOSAL: '建议报废'
+  }
+
+  const isDisposalOrder = computed(() => formData.orderType === 'DISPOSAL')
+  const dialogTitle = computed(() => {
+    const actionLabel = props.dialogType === 'add' ? '新增' : '编辑'
+    return isDisposalOrder.value ? `${actionLabel}报废单` : `${actionLabel}业务单据`
+  })
+  const submitButtonText = computed(() =>
+    isDisposalOrder.value
+      ? props.dialogType === 'add'
+        ? '创建报废单'
+        : '保存报废单'
+      : props.dialogType === 'add'
+        ? '确定'
+        : '确定'
+  )
+  const selectorDialogTitle = computed(() => (isDisposalOrder.value ? '选择报废资产' : '选择资产'))
+  const bridgeHintText = computed(() => {
+    const context = props.dialogContext || {}
+    if (context.bridgeSource !== 'repair' && !context.repairNo && !context.sourceBizNo) {
+      return ''
+    }
+
+    const pieces = [
+      context.repairNo ? `来源维修单：${context.repairNo}` : '',
+      context.assetCode ? `资产：${context.assetCode}` : '',
+      context.resultType
+        ? `维修结果：${resultTypeLabelMap[context.resultType] || context.resultType}`
+        : '',
+      context.repairCost !== undefined && context.repairCost !== null
+        ? `维修费用：${context.repairCost}`
+        : '',
+      context.downtimeHours !== undefined && context.downtimeHours !== null
+        ? `停用时长：${context.downtimeHours} 小时`
+        : ''
+    ].filter(Boolean)
+
+    return pieces.length
+      ? `已从维修流程带入草稿信息，${pieces.join('，')}。请补齐处置金额和报废原因后提交。`
+      : '已从维修流程带入草稿信息，请补齐处置金额和报废原因后提交。'
+  })
+
   const createInitialFormData = () => ({
     orderId: undefined as number | undefined,
     orderNo: '',
     orderType: 'INBOUND',
+    sourceBizType: '',
+    sourceBizId: undefined as number | undefined,
+    sourceBizNo: '',
     bizDate: '',
     applyUserId: undefined as number | undefined,
     applyDeptId: undefined as number | undefined,
@@ -550,12 +679,42 @@
     assetStatus: ''
   })
 
-  const formRules: FormRules = {
+  const validateDisposalAmount = (_rule: any, value: any, callback: (error?: Error) => void) => {
+    if (!isDisposalOrder.value) {
+      callback()
+      return
+    }
+    if (value === null || value === undefined || value === '') {
+      callback(new Error('处置金额不能为空'))
+      return
+    }
+    if (Number(value) < 0) {
+      callback(new Error('处置金额不能小于 0'))
+      return
+    }
+    callback()
+  }
+
+  const validateDisposalReason = (_rule: any, value: any, callback: (error?: Error) => void) => {
+    if (!isDisposalOrder.value) {
+      callback()
+      return
+    }
+    if (!String(value ?? '').trim()) {
+      callback(new Error('报废原因不能为空'))
+      return
+    }
+    callback()
+  }
+
+  const formRules = computed<FormRules>(() => ({
     orderType: [{ required: true, message: '单据类型不能为空', trigger: 'change' }],
     bizDate: [{ required: true, message: '业务时间不能为空', trigger: 'change' }],
     applyUserId: [{ required: true, message: '发起人不能为空', trigger: 'change' }],
-    applyDeptId: [{ required: true, message: '发起部门不能为空', trigger: 'change' }]
-  }
+    applyDeptId: [{ required: true, message: '发起部门不能为空', trigger: 'change' }],
+    disposalAmount: [{ validator: validateDisposalAmount, trigger: ['blur', 'change'] }],
+    disposalReason: [{ validator: validateDisposalReason, trigger: ['blur', 'change'] }]
+  }))
 
   const flattenTreeLabels = (nodes: TreeOption[], map: Record<string, string>) => {
     nodes.forEach((node) => {
@@ -622,6 +781,141 @@
   const resetForm = () => {
     Object.assign(formData, createInitialFormData())
     fillDefaultApplicant()
+  }
+
+  const normalizeBridgeAsset = (context: Record<string, any>) => {
+    const assetId = Number(context.assetId)
+    if (!assetId) return undefined
+
+    return {
+      assetId,
+      assetCode: context.assetCode || '',
+      assetName: context.assetName || '',
+      assetStatus: context.afterStatus || context.assetStatus || context.beforeStatus || '',
+      currentUserId: context.currentUserId ?? context.beforeUserId,
+      useOrgDeptId: context.useOrgDeptId ?? context.currentDeptId ?? context.beforeDeptId,
+      currentLocationId: context.currentLocationId ?? context.beforeLocationId
+    } as AssetCandidate
+  }
+
+  const buildBridgeRemark = (context: Record<string, any>) => {
+    const lines = [
+      context.repairNo ? `来源维修单：${context.repairNo}` : '',
+      context.faultDesc ? `故障描述：${context.faultDesc}` : '',
+      context.repairRemark ? `维修处理：${context.repairRemark}` : '',
+      context.repairCost !== undefined && context.repairCost !== null
+        ? `维修费用：${context.repairCost}`
+        : '',
+      context.vendorName ? `供应商：${context.vendorName}` : '',
+      context.downtimeHours !== undefined && context.downtimeHours !== null
+        ? `停用时长：${context.downtimeHours} 小时`
+        : '',
+      context.resultType
+        ? `维修结果：${resultTypeLabelMap[context.resultType] || context.resultType}`
+        : ''
+    ].filter(Boolean)
+
+    return lines.join('\n')
+  }
+
+  const applyBridgeContext = () => {
+    const context = props.dialogContext || {}
+    const nextOrderType = String(context.orderType || '').toUpperCase()
+    if (nextOrderType === 'DISPOSAL') {
+      formData.orderType = 'DISPOSAL'
+    }
+    if (context.sourceBizType) formData.sourceBizType = String(context.sourceBizType)
+    if (context.sourceBizId !== undefined && context.sourceBizId !== null) {
+      const sourceBizId = Number(context.sourceBizId)
+      formData.sourceBizId =
+        Number.isFinite(sourceBizId) && sourceBizId > 0 ? sourceBizId : undefined
+    }
+    if (context.sourceBizNo) formData.sourceBizNo = String(context.sourceBizNo)
+    if (context.bridgeSource === 'repair') {
+      formData.sourceBizType = formData.sourceBizType || 'ASSET_REPAIR'
+      if (!formData.sourceBizId && context.repairId) {
+        const repairId = Number(context.repairId)
+        formData.sourceBizId = Number.isFinite(repairId) && repairId > 0 ? repairId : undefined
+      }
+      formData.sourceBizNo = formData.sourceBizNo || String(context.repairNo || '')
+    }
+
+    if (context.bizDate) formData.bizDate = context.bizDate
+    if (context.applyUserId) formData.applyUserId = context.applyUserId
+    if (context.applyDeptId) formData.applyDeptId = context.applyDeptId
+    if (context.fromDeptId) formData.fromDeptId = context.fromDeptId
+    if (context.toDeptId) formData.toDeptId = context.toDeptId
+    if (context.fromUserId) formData.fromUserId = context.fromUserId
+    if (context.toUserId) formData.toUserId = context.toUserId
+    if (context.fromLocationId) formData.fromLocationId = context.fromLocationId
+    if (context.toLocationId) formData.toLocationId = context.toLocationId
+    if (context.disposalAmount !== undefined && context.disposalAmount !== null) {
+      formData.disposalAmount = context.disposalAmount
+    }
+    if (context.disposalReason) {
+      formData.disposalReason = context.disposalReason
+    } else if (nextOrderType === 'DISPOSAL' && context.repairNo) {
+      formData.disposalReason = [
+        `来源维修单【${context.repairNo}】建议报废`,
+        context.faultDesc ? `故障：${context.faultDesc}` : '',
+        context.repairRemark ? `维修处理：${context.repairRemark}` : ''
+      ]
+        .filter(Boolean)
+        .join('；')
+    }
+    if (nextOrderType === 'DISPOSAL' && context.repairNo) {
+      formData.disposalReason = [
+        `来源维修单【${context.repairNo}】建议报废`,
+        context.disposalReason || '',
+        context.faultDesc ? `故障：${context.faultDesc}` : '',
+        context.repairRemark ? `维修处理：${context.repairRemark}` : ''
+      ]
+        .filter(Boolean)
+        .join('；')
+    }
+    if (context.remark) {
+      formData.remark = context.remark
+    } else {
+      const bridgeRemark = buildBridgeRemark(context)
+      if (bridgeRemark) {
+        formData.remark = bridgeRemark
+      }
+    }
+    if (context.attachmentCount !== undefined && context.attachmentCount !== null) {
+      formData.attachmentCount = context.attachmentCount
+    }
+    if (context.approveResult) {
+      formData.approveResult = context.approveResult
+    }
+
+    const contextItems = Array.isArray(context.itemList)
+      ? context.itemList
+      : Array.isArray(context.assets)
+        ? context.assets
+        : Array.isArray(context.assetList)
+          ? context.assetList
+          : []
+
+    if (contextItems.length) {
+      formData.itemList = contextItems
+        .map((item: any) => {
+          if (item?.assetId && item?.assetCode && item?.assetName && item?.beforeStatus) {
+            return normalizeOrderItems([item])[0]
+          }
+          const asset = normalizeBridgeAsset(item)
+          return asset ? buildOrderItemFromAsset(asset) : undefined
+        })
+        .filter(Boolean) as OrderItemForm[]
+    } else if (context.assetId) {
+      const asset = normalizeBridgeAsset(context)
+      if (asset) {
+        const bridgeItem = buildOrderItemFromAsset(asset)
+        bridgeItem.itemResult = context.repairNo
+          ? `来源维修单：${context.repairNo}`
+          : '来源维修流程'
+        formData.itemList = [bridgeItem]
+      }
+    }
   }
 
   const formatUserName = (userId?: number, fallbackName?: string) => {
@@ -886,6 +1180,7 @@
           })
         } else {
           resetForm()
+          applyBridgeContext()
         }
       } catch (error) {
         console.error('加载业务单据详情失败:', error)
@@ -900,6 +1195,7 @@
           })
         } else {
           resetForm()
+          applyBridgeContext()
         }
       } finally {
         loading.value = false

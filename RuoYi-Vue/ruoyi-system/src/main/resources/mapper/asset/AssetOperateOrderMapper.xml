@@ -8,6 +8,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id property="orderId" column="order_id"/>
         <result property="orderNo" column="order_no"/>
         <result property="orderType" column="order_type"/>
+        <result property="sourceBizType" column="source_biz_type"/>
+        <result property="sourceBizId" column="source_biz_id"/>
+        <result property="sourceBizNo" column="source_biz_no"/>
         <result property="orderStatus" column="order_status"/>
         <result property="bizDate" column="biz_date"/>
         <result property="applyUserId" column="apply_user_id"/>
@@ -71,6 +74,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select distinct o.order_id,
                o.order_no,
                o.order_type,
+               o.source_biz_type,
+               o.source_biz_id,
+               o.source_biz_no,
                o.order_status,
                o.biz_date,
                o.apply_user_id,
@@ -139,6 +145,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="orderId != null">and o.order_id = #{orderId}</if>
             <if test="orderNo != null and orderNo != ''">and o.order_no like concat('%', #{orderNo}, '%')</if>
             <if test="orderType != null and orderType != ''">and o.order_type = #{orderType}</if>
+            <if test="sourceBizType != null and sourceBizType != ''">and o.source_biz_type = #{sourceBizType}</if>
+            <if test="sourceBizId != null">and o.source_biz_id = #{sourceBizId}</if>
+            <if test="sourceBizNo != null and sourceBizNo != ''">and o.source_biz_no = #{sourceBizNo}</if>
+            <if test="excludeOrderId != null">and o.order_id != #{excludeOrderId}</if>
             <if test="orderStatus != null and orderStatus != ''">and o.order_status = #{orderStatus}</if>
             <if test="applyUserId != null">and o.apply_user_id = #{applyUserId}</if>
             <if test="applyUserName != null and applyUserName != ''">and apply_user.nick_name like concat('%', #{applyUserName}, '%')</if>
@@ -193,13 +203,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <insert id="insertAssetOperateOrder" parameterType="com.ruoyi.system.domain.asset.AssetOperateOrder" useGeneratedKeys="true" keyProperty="orderId">
         insert into asset_operate_order (
-            order_no, order_type, order_status, biz_date, apply_user_id, apply_dept_id,
+            order_no, order_type, source_biz_type, source_biz_id, source_biz_no, order_status, biz_date, apply_user_id, apply_dept_id,
             approve_user_id, approve_time, approve_result, from_dept_id, to_dept_id,
             from_user_id, to_user_id, from_location_id, to_location_id, expected_return_date,
             disposal_reason, disposal_amount, attachment_count, status, del_flag, create_by,
             create_time, remark
         ) values (
-            #{orderNo}, #{orderType}, #{orderStatus}, #{bizDate}, #{applyUserId}, #{applyDeptId},
+            #{orderNo}, #{orderType}, #{sourceBizType}, #{sourceBizId}, #{sourceBizNo}, #{orderStatus}, #{bizDate}, #{applyUserId}, #{applyDeptId},
             #{approveUserId}, #{approveTime}, #{approveResult}, #{fromDeptId}, #{toDeptId},
             #{fromUserId}, #{toUserId}, #{fromLocationId}, #{toLocationId}, #{expectedReturnDate},
             #{disposalReason}, #{disposalAmount}, #{attachmentCount}, #{status}, '0', #{createBy},
@@ -212,6 +222,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
             <if test="orderType != null and orderType != ''">order_type = #{orderType},</if>
+            <if test="sourceBizType != null">source_biz_type = #{sourceBizType},</if>
+            <if test="sourceBizId != null">source_biz_id = #{sourceBizId},</if>
+            <if test="sourceBizNo != null">source_biz_no = #{sourceBizNo},</if>
             <if test="orderStatus != null and orderStatus != ''">order_status = #{orderStatus},</if>
             <if test="bizDate != null">biz_date = #{bizDate},</if>
             <if test="applyUserId != null">apply_user_id = #{applyUserId},</if>

@@ -6,7 +6,7 @@
 
 -- 删除 QA 附件
 DELETE FROM asset_attachment
-WHERE biz_type IN ('ASSET_INFO', 'ASSET_ORDER')
+WHERE biz_type IN ('ASSET_INFO', 'ASSET_ORDER', 'ASSET_REPAIR')
   AND (
     biz_id IN (
       SELECT t.asset_id
@@ -22,6 +22,27 @@ WHERE biz_type IN ('ASSET_INFO', 'ASSET_ORDER')
         SELECT order_id
         FROM asset_operate_order
         WHERE order_no LIKE 'QA-%'
+           OR order_id IN (
+             SELECT order_id
+             FROM asset_operate_order_item
+             WHERE asset_id IN (
+               SELECT asset_id
+               FROM asset_info
+               WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+             )
+           )
+      ) t
+    )
+    OR biz_id IN (
+      SELECT t.repair_id
+      FROM (
+        SELECT repair_id
+        FROM asset_repair_order
+        WHERE asset_id IN (
+          SELECT asset_id
+          FROM asset_info
+          WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+        )
       ) t
     )
   );
@@ -44,6 +65,30 @@ WHERE asset_id IN (
         SELECT order_id
         FROM asset_operate_order
         WHERE order_no LIKE 'QA-%'
+           OR order_id IN (
+             SELECT order_id
+             FROM asset_operate_order_item
+             WHERE asset_id IN (
+               SELECT asset_id
+               FROM asset_info
+               WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+             )
+           )
+      ) t
+    )
+  )
+  OR (
+    source_order_type = 'ASSET_REPAIR'
+    AND source_order_id IN (
+      SELECT t.repair_id
+      FROM (
+        SELECT repair_id
+        FROM asset_repair_order
+        WHERE asset_id IN (
+          SELECT asset_id
+          FROM asset_info
+          WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+        )
       ) t
     )
   )
@@ -59,6 +104,19 @@ WHERE asset_id IN (
     )
   );
 
+-- 删除 QA 维修单
+DELETE FROM asset_repair_order
+WHERE asset_id IN (
+    SELECT t.asset_id
+    FROM (
+      SELECT asset_id
+      FROM asset_info
+      WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+    ) t
+  )
+  OR asset_code LIKE 'QA-%'
+  OR asset_name LIKE 'QA%';
+
 -- 删除 QA 单据明细
 DELETE FROM asset_operate_order_item
 WHERE order_id IN (
@@ -67,6 +125,15 @@ WHERE order_id IN (
       SELECT order_id
       FROM asset_operate_order
       WHERE order_no LIKE 'QA-%'
+         OR order_id IN (
+           SELECT order_id
+           FROM asset_operate_order_item
+           WHERE asset_id IN (
+             SELECT asset_id
+             FROM asset_info
+             WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+           )
+         )
     ) t
   )
   OR asset_id IN (
@@ -99,7 +166,19 @@ WHERE task_id IN (
 
 -- 删除 QA 单据
 DELETE FROM asset_operate_order
-WHERE order_no LIKE 'QA-%';
+WHERE order_no LIKE 'QA-%'
+   OR order_id IN (
+     SELECT t.order_id
+     FROM (
+       SELECT order_id
+       FROM asset_operate_order_item
+       WHERE asset_id IN (
+         SELECT asset_id
+         FROM asset_info
+         WHERE asset_code LIKE 'QA-%' OR asset_name LIKE 'QA%'
+       )
+     ) t
+   );
 
 -- 删除 QA 盘点任务
 DELETE FROM asset_inventory_task

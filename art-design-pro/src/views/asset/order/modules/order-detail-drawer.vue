@@ -18,9 +18,19 @@
         <div class="order-detail-drawer__actions">
           <ElTag effect="light" type="info">单据状态</ElTag>
           <DictTag :options="asset_order_status" :value="currentStatus" />
+          <DictTag :options="asset_order_type" :value="orderData?.orderType" />
           <ElTag effect="plain" type="primary">明细 {{ detailItems.length }} 项</ElTag>
         </div>
       </div>
+
+      <ElAlert
+        v-if="isDisposalOrder"
+        class="mb-4"
+        type="warning"
+        show-icon
+        :closable="false"
+        title="报废单完成后，资产状态会落到已报废，后续不再参与领用和流转。"
+      />
 
       <ElCard shadow="never" class="mb-4">
         <template #header>基础信息</template>
@@ -47,35 +57,48 @@
       </ElCard>
 
       <ElCard shadow="never" class="mb-4">
-        <template #header>流转范围</template>
+        <template #header>{{ isDisposalOrder ? '报废信息' : '流转范围' }}</template>
         <ElDescriptions :column="2" border>
-          <ElDescriptionsItem label="来源部门">
-            {{ displayText(orderData?.fromDeptName || orderData?.fromDeptId) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="目标部门">
-            {{ displayText(orderData?.toDeptName || orderData?.toDeptId) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="来源责任人">
-            {{ displayText(orderData?.fromUserName || orderData?.fromUserId) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="目标责任人">
-            {{ displayText(orderData?.toUserName || orderData?.toUserId) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="来源位置">
-            {{ displayText(orderData?.fromLocationName || orderData?.fromLocationId) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="目标位置">
-            {{ displayText(orderData?.toLocationName || orderData?.toLocationId) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="预计归还日">
-            {{ displayText(orderData?.expectedReturnDate) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="处置金额">
-            {{ displayText(orderData?.disposalAmount ?? '-') }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="报废原因" :span="2">
-            {{ displayText(orderData?.disposalReason) }}
-          </ElDescriptionsItem>
+          <template v-if="isDisposalOrder">
+            <ElDescriptionsItem label="处置金额">
+              {{ displayText(orderData?.disposalAmount ?? '-') }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="报废原因" :span="2">
+              {{ displayText(orderData?.disposalReason) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="备注" :span="2">
+              {{ displayText(orderData?.remark) }}
+            </ElDescriptionsItem>
+          </template>
+          <template v-else>
+            <ElDescriptionsItem label="来源部门">
+              {{ displayText(orderData?.fromDeptName || orderData?.fromDeptId) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="目标部门">
+              {{ displayText(orderData?.toDeptName || orderData?.toDeptId) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="来源责任人">
+              {{ displayText(orderData?.fromUserName || orderData?.fromUserId) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="目标责任人">
+              {{ displayText(orderData?.toUserName || orderData?.toUserId) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="来源位置">
+              {{ displayText(orderData?.fromLocationName || orderData?.fromLocationId) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="目标位置">
+              {{ displayText(orderData?.toLocationName || orderData?.toLocationId) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="预计归还日">
+              {{ displayText(orderData?.expectedReturnDate) }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="处置金额">
+              {{ displayText(orderData?.disposalAmount ?? '-') }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="报废原因" :span="2">
+              {{ displayText(orderData?.disposalReason) }}
+            </ElDescriptionsItem>
+          </template>
         </ElDescriptions>
       </ElCard>
 
@@ -207,7 +230,7 @@
             type="warning"
             @click="emit('finish')"
           >
-            完成
+            {{ finishButtonText }}
           </ElButton>
           <ElButton
             v-if="canCancel && hasPermission('asset:order:cancel')"
@@ -256,6 +279,8 @@
   const visible = ref(false)
 
   const currentStatus = computed(() => props.orderData?.orderStatus || 'DRAFT')
+  const isDisposalOrder = computed(() => props.orderData?.orderType === 'DISPOSAL')
+  const finishButtonText = computed(() => (isDisposalOrder.value ? '执行报废' : '完成'))
 
   const detailItems = computed(() => {
     const source =
@@ -264,7 +289,8 @@
   })
 
   const drawerTitle = computed(() => {
-    return props.orderData?.orderNo ? `单据详情 - ${props.orderData.orderNo}` : '单据详情'
+    const prefix = isDisposalOrder.value ? '报废单详情' : '单据详情'
+    return props.orderData?.orderNo ? `${prefix} - ${props.orderData.orderNo}` : prefix
   })
 
   const scopeSummary = computed(() => {
@@ -292,7 +318,9 @@
       case 'TRANSFER':
         return `${fromDept} / ${fromLocation} 调拨到 ${toDept} / ${toLocation}`
       case 'DISPOSAL':
-        return `报废原因：${props.orderData?.disposalReason || '待补充'}`
+        return `报废原因：${props.orderData?.disposalReason || '待补充'} / 处置金额：${displayText(
+          props.orderData?.disposalAmount ?? '待补充'
+        )}`
       default:
         return `${fromDept} -> ${toDept}`
     }

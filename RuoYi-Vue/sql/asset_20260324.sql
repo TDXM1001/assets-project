@@ -118,6 +118,9 @@ create table asset_operate_order (
   order_id bigint(20) not null auto_increment comment '单据ID',
   order_no varchar(64) not null comment '单据编号',
   order_type varchar(20) not null comment '单据类型',
+  source_biz_type varchar(20) default null comment '来源业务类型',
+  source_biz_id bigint(20) default null comment '来源业务ID',
+  source_biz_no varchar(64) default null comment '来源业务单号',
   order_status varchar(20) not null comment '单据状态',
   biz_date datetime comment '业务日期',
   apply_user_id bigint(20) default null comment '发起人ID',
@@ -144,7 +147,9 @@ create table asset_operate_order (
   remark varchar(500) default null comment '备注',
   primary key (order_id),
   unique key uk_asset_operate_order_no (order_no),
+  unique key uk_asset_operate_order_source_link (order_type, source_biz_type, source_biz_id, del_flag),
   key idx_asset_operate_order_type_status (order_type, order_status),
+  key idx_asset_operate_order_source_biz (source_biz_type, source_biz_id),
   key idx_asset_operate_order_apply_user (apply_user_id),
   key idx_asset_operate_order_apply_dept (apply_dept_id)
 ) engine=innodb comment = '资产通用业务单据主表';

@@ -69,6 +69,13 @@ public class AssetOrderController extends BaseController
         return success(assetOperateOrderService.selectAssetOperateOrderById(orderId));
     }
 
+    @PreAuthorize("@ss.hasPermi('asset:order:query')")
+    @GetMapping("/linked")
+    public AjaxResult getLinkedOrder(String orderType, String sourceBizType, Long sourceBizId)
+    {
+        return success(assetOperateOrderService.selectLinkedAssetOperateOrder(orderType, sourceBizType, sourceBizId));
+    }
+
     /**
      * 新增资产业务单据
      */

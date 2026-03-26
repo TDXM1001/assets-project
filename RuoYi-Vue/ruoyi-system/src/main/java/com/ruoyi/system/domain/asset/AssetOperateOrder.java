@@ -27,6 +27,9 @@ public class AssetOperateOrder extends BaseEntity
     @NotBlank(message = "单据类型不能为空")
     @Excel(name = "单据类型")
     private String orderType;
+    private String sourceBizType;
+    private Long sourceBizId;
+    private String sourceBizNo;
 
     @Excel(name = "单据状态")
     private String orderStatus;
@@ -78,6 +81,7 @@ public class AssetOperateOrder extends BaseEntity
     private String delFlag;
     private String bizDateStart;
     private String bizDateEnd;
+    private Long excludeOrderId;
     private List<AssetOperateOrderItem> itemList;
 
     public Long getOrderId()
@@ -109,6 +113,37 @@ public class AssetOperateOrder extends BaseEntity
     public void setOrderType(String orderType)
     {
         this.orderType = orderType;
+    }
+
+    public String getSourceBizType()
+    {
+        return sourceBizType;
+    }
+
+    public void setSourceBizType(String sourceBizType)
+    {
+        this.sourceBizType = sourceBizType;
+    }
+
+    public Long getSourceBizId()
+    {
+        return sourceBizId;
+    }
+
+    public void setSourceBizId(Long sourceBizId)
+    {
+        this.sourceBizId = sourceBizId;
+    }
+
+    @Size(max = 64, message = "来源业务单号长度不能超过64个字符")
+    public String getSourceBizNo()
+    {
+        return sourceBizNo;
+    }
+
+    public void setSourceBizNo(String sourceBizNo)
+    {
+        this.sourceBizNo = sourceBizNo;
     }
 
     public String getOrderStatus()
@@ -411,6 +446,16 @@ public class AssetOperateOrder extends BaseEntity
         this.bizDateEnd = bizDateEnd;
     }
 
+    public Long getExcludeOrderId()
+    {
+        return excludeOrderId;
+    }
+
+    public void setExcludeOrderId(Long excludeOrderId)
+    {
+        this.excludeOrderId = excludeOrderId;
+    }
+
     public List<AssetOperateOrderItem> getItemList()
     {
         return itemList;
@@ -428,6 +473,9 @@ public class AssetOperateOrder extends BaseEntity
             .append("orderId", getOrderId())
             .append("orderNo", getOrderNo())
             .append("orderType", getOrderType())
+            .append("sourceBizType", getSourceBizType())
+            .append("sourceBizId", getSourceBizId())
+            .append("sourceBizNo", getSourceBizNo())
             .append("orderStatus", getOrderStatus())
             .append("bizDate", getBizDate())
             .append("applyUserId", getApplyUserId())
@@ -452,6 +500,7 @@ public class AssetOperateOrder extends BaseEntity
             .append("updateBy", getUpdateBy())
             .append("updateTime", getUpdateTime())
             .append("remark", getRemark())
+            .append("excludeOrderId", getExcludeOrderId())
             .append("itemList", getItemList())
             .toString();
     }

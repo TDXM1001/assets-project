@@ -12,6 +12,8 @@ public interface IAssetOperateOrderService
 
     AssetOperateOrder selectAssetOperateOrderById(Long orderId);
 
+    AssetOperateOrder selectLinkedAssetOperateOrder(String orderType, String sourceBizType, Long sourceBizId);
+
     int insertAssetOperateOrder(AssetOperateOrder assetOperateOrder);
 
     int updateAssetOperateOrder(AssetOperateOrder assetOperateOrder);
