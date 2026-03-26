@@ -240,6 +240,8 @@ public class AssetDashboardServiceImpl implements IAssetDashboardService
         labelMap.put("IDLE", "闲置");
         labelMap.put("IN_USE", "在用");
         labelMap.put("BORROWED", "借用中");
+        // 归还单回写到维修中时，统计页也要保留这个状态口径。
+        labelMap.put("REPAIRING", "维修中");
         labelMap.put("IN_TRANSFER", "调拨中");
         labelMap.put("IN_INVENTORY", "盘点中");
         labelMap.put("PENDING_DISPOSAL", "待报废");

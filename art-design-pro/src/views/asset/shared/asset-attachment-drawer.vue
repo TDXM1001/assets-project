@@ -72,6 +72,7 @@
 <script setup lang="ts">
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox, type UploadRequestOptions } from 'element-plus'
+  import { UploadAjaxError } from 'element-plus/es/components/upload/src/ajax'
   import { useUserStore } from '@/store/modules/user'
   import {
     delAssetAttachment,
@@ -134,6 +135,8 @@
   )
   const uploadAccept = '.png,.jpg,.jpeg,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar'
 
+  const createUploadError = (message: string) => new UploadAjaxError(message, 0, 'POST', '')
+
   const hasPermission = (permission: string) => {
     if (!permission || permission === ':edit') return false
     const permissions = userStore.permissions || []
@@ -181,7 +184,7 @@
   const handleUploadRequest = async (options: UploadRequestOptions) => {
     if (!props.bizType || props.bizId === undefined || props.bizId === null) {
       ElMessage.warning('请先选择业务对象')
-      options.onError?.(new Error('业务对象未选择'))
+      options.onError?.(createUploadError('业务对象未选择'))
       return
     }
 
@@ -198,7 +201,8 @@
       emit('refresh')
     } catch (error) {
       console.error('上传附件失败:', error)
-      options.onError?.(error as Error)
+      const message = error instanceof Error ? error.message : '上传附件失败'
+      options.onError?.(createUploadError(message))
     } finally {
       uploading.value = false
     }

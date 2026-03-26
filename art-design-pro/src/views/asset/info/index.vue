@@ -52,7 +52,14 @@
                 <ElButton v-auth="'asset:info:add'" type="primary" @click="handleAdd" v-ripple>
                   新增资产
                 </ElButton>
-                <ElButton type="info" plain @click="importDialogVisible = true" v-ripple>
+                <!-- 导入入口单独收口到 import 权限，避免未授权角色看到可点击按钮。 -->
+                <ElButton
+                  v-auth="'asset:info:import'"
+                  type="info"
+                  plain
+                  @click="importDialogVisible = true"
+                  v-ripple
+                >
                   导入
                 </ElButton>
                 <ElButton
@@ -94,7 +101,15 @@
 
           <div v-if="showEmptyState" class="asset-info-empty">
             <ElEmpty :description="emptyDescription">
-              <ElButton v-if="!hasAnyFilter" type="primary" @click="handleAdd">新增资产</ElButton>
+              <!-- 空态主按钮也遵循同一套权限口径。 -->
+              <ElButton
+                v-if="!hasAnyFilter"
+                v-auth="'asset:info:add'"
+                type="primary"
+                @click="handleAdd"
+              >
+                新增资产
+              </ElButton>
               <ElButton v-else @click="handleReset">重置筛选</ElButton>
             </ElEmpty>
           </div>

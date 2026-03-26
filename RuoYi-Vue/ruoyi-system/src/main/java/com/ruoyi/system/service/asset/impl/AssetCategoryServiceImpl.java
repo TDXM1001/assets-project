@@ -97,6 +97,10 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
         {
             throw new ServiceException("上级分类不能是自己");
         }
+        if (isParentInCategorySubtree(category.getCategoryId(), category.getParentId()))
+        {
+            throw new ServiceException("上级分类不能选择当前分类的下级节点");
+        }
 
         String newAncestors = "0";
         if (category.getParentId() != null && category.getParentId().longValue() != 0L)
@@ -190,5 +194,22 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
         {
             categoryMapper.updateCategoryChildren(children);
         }
+    }
+
+    private boolean isParentInCategorySubtree(Long categoryId, Long parentId)
+    {
+        if (parentId == null || parentId.longValue() == 0L)
+        {
+            return false;
+        }
+        List<AssetCategory> descendants = categoryMapper.selectChildrenCategoryById(categoryId);
+        for (AssetCategory descendant : descendants)
+        {
+            if (descendant.getCategoryId() != null && descendant.getCategoryId().longValue() == parentId.longValue())
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

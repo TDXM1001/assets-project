@@ -212,6 +212,22 @@
               />
             </ElFormItem>
           </ElCol>
+          <ElCol v-if="isReturnOrder" :span="12">
+            <ElFormItem label="归还后状态" prop="returnAfterStatus">
+              <ElSelect
+                v-model="formData.returnAfterStatus"
+                class="w-full"
+                placeholder="请选择归还后的资产状态"
+              >
+                <ElOption
+                  v-for="item in returnAfterStatusOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </ElSelect>
+            </ElFormItem>
+          </ElCol>
           <ElCol :span="12">
             <ElFormItem label="处置金额" prop="disposalAmount">
               <ElInputNumber
@@ -604,6 +620,7 @@
   }
 
   const isDisposalOrder = computed(() => formData.orderType === 'DISPOSAL')
+  const isReturnOrder = computed(() => formData.orderType === 'RETURN')
   const dialogTitle = computed(() => {
     const actionLabel = props.dialogType === 'add' ? '新增' : '编辑'
     return isDisposalOrder.value ? `${actionLabel}报废单` : `${actionLabel}业务单据`
@@ -664,12 +681,23 @@
     disposalAmount: undefined as number | undefined,
     attachmentCount: 0,
     orderStatus: 'DRAFT',
+    returnAfterStatus: 'IDLE',
     approveResult: '',
     remark: '',
     itemList: [] as OrderItemForm[]
   })
 
   const formData = reactive(createInitialFormData())
+
+  /**
+   * 归还单允许选择的目标状态，避免把“可回到闲置/在用/维修中”的规则写死在代码里。
+   */
+  const returnAfterStatusAllowList = ['IDLE', 'IN_USE', 'REPAIRING']
+  const returnAfterStatusOptions = computed(() =>
+    (asset_status.value || []).filter((item: any) =>
+      returnAfterStatusAllowList.includes(String(item.value))
+    )
+  )
 
   const selectorQuery = reactive({
     pageNum: 1,
@@ -707,13 +735,41 @@
     callback()
   }
 
+  const normalizeReturnAfterStatus = (value?: string) => {
+    const normalized = value ? String(value) : ''
+    if (returnAfterStatusAllowList.includes(normalized)) {
+      return normalized
+    }
+    const fallback = returnAfterStatusOptions.value[0]?.value
+    return fallback ? String(fallback) : 'IDLE'
+  }
+
+  const syncReturnAfterStatusFromItems = () => {
+    if (!isReturnOrder.value) return
+    const candidate = formData.returnAfterStatus || formData.itemList[0]?.afterStatus
+    formData.returnAfterStatus = normalizeReturnAfterStatus(candidate)
+  }
+
+  const validateReturnAfterStatus = (_rule: any, value: any, callback: (error?: Error) => void) => {
+    if (!isReturnOrder.value) {
+      callback()
+      return
+    }
+    if (!value) {
+      callback(new Error('归还后状态不能为空'))
+      return
+    }
+    callback()
+  }
+
   const formRules = computed<FormRules>(() => ({
     orderType: [{ required: true, message: '单据类型不能为空', trigger: 'change' }],
     bizDate: [{ required: true, message: '业务时间不能为空', trigger: 'change' }],
     applyUserId: [{ required: true, message: '发起人不能为空', trigger: 'change' }],
     applyDeptId: [{ required: true, message: '发起部门不能为空', trigger: 'change' }],
     disposalAmount: [{ validator: validateDisposalAmount, trigger: ['blur', 'change'] }],
-    disposalReason: [{ validator: validateDisposalReason, trigger: ['blur', 'change'] }]
+    disposalReason: [{ validator: validateDisposalReason, trigger: ['blur', 'change'] }],
+    returnAfterStatus: [{ validator: validateReturnAfterStatus, trigger: 'change' }]
   }))
 
   const flattenTreeLabels = (nodes: TreeOption[], map: Record<string, string>) => {
@@ -963,13 +1019,16 @@
           afterUserId: formData.toUserId,
           afterLocationId: formData.toLocationId
         }
-      case 'RETURN':
+      case 'RETURN': {
+        // 归还单允许回到闲置/在用/维修中，避免默认写死为闲置。
+        const returnAfterStatus = formData.returnAfterStatus || 'IDLE'
         return {
-          afterStatus: 'IDLE',
+          afterStatus: returnAfterStatus,
           afterDeptId: formData.toDeptId,
-          afterUserId: undefined,
+          afterUserId: returnAfterStatus === 'IN_USE' ? formData.toUserId : undefined,
           afterLocationId: formData.toLocationId
         }
+      }
       case 'DISPOSAL':
         return {
           afterStatus: 'DISPOSED',
@@ -1178,9 +1237,11 @@
               order?.itemList || order?.items || order?.detailList || []
             )
           })
+          syncReturnAfterStatusFromItems()
         } else {
           resetForm()
           applyBridgeContext()
+          syncReturnAfterStatusFromItems()
         }
       } catch (error) {
         console.error('加载业务单据详情失败:', error)
@@ -1193,9 +1254,11 @@
                 []
             )
           })
+          syncReturnAfterStatusFromItems()
         } else {
           resetForm()
           applyBridgeContext()
+          syncReturnAfterStatusFromItems()
         }
       } finally {
         loading.value = false
@@ -1212,7 +1275,22 @@
   )
 
   watch(
-    () => [formData.orderType, formData.toDeptId, formData.toUserId, formData.toLocationId],
+    () => formData.orderType,
+    (value) => {
+      if (value === 'RETURN') {
+        syncReturnAfterStatusFromItems()
+      }
+    }
+  )
+
+  watch(
+    () => [
+      formData.orderType,
+      formData.toDeptId,
+      formData.toUserId,
+      formData.toLocationId,
+      formData.returnAfterStatus
+    ],
     () => {
       if (formData.itemList.length) {
         syncItemTargetsWithHeader()
@@ -1233,8 +1311,9 @@
 
     submitLoading.value = true
     try {
-      const payload = {
-        ...formData,
+      // returnAfterStatus 仅用于前端填充明细快照，不需要提交给后端。
+      const payload: any = {
+        ...(formData as any),
         itemList: formData.itemList.map((item) => ({
           itemId: item.itemId,
           orderId: item.orderId,
@@ -1253,6 +1332,7 @@
           itemResult: item.itemResult
         }))
       }
+      delete payload.returnAfterStatus
 
       if (props.dialogType === 'add') {
         await addAssetOrder(payload)

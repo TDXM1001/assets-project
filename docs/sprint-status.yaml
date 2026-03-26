@@ -1,10 +1,10 @@
 # Sprint Status - 资产管理系统
-# Generated: 2026-03-26T13:57:49.8637049Z
+# Generated: 2026-03-26T14:24:21.4417227Z
 
 project_name: "资产管理系统"
 project_type: "web-app"
 project_level: 2
-current_sprint: "sprint-1"
+current_sprint: "sprint-2"
 
 # 说明：
 # - 本文件用于跟踪实施阶段的冲刺与故事状态
@@ -14,7 +14,7 @@ sprints:
   - id: "sprint-1"
     name: "主数据与单据主链路"
     goal: "完成分类、位置、台账以及单据主链路，打通资产流转核心闭环"
-    status: "planned"
+    status: "done"
     capacity_points: 22
     committed_points: 21
     stories:
@@ -42,12 +42,12 @@ sprints:
         title: "调拨、归还与报废单据闭环"
         file: "docs/stories/story-E002-S002.md"
         points: 5
-        status: "todo"
+        status: "done"
 
   - id: "sprint-2"
     name: "盘点、运营视图与收口"
     goal: "补齐盘点、看板、流水和增强能力，让系统更稳定、更易管理"
-    status: "planned"
+    status: "done"
     capacity_points: 20
     committed_points: 20
     stories:
@@ -55,24 +55,24 @@ sprints:
         title: "盘点任务与差异处理"
         file: "docs/stories/story-E003-S001.md"
         points: 5
-        status: "todo"
+        status: "done"
       - id: "STORY-E004-S001"
         title: "资产事件流水"
         file: "docs/stories/story-E004-S001.md"
         points: 3
-        status: "todo"
+        status: "done"
       - id: "STORY-E004-S002"
         title: "资产运营看板"
         file: "docs/stories/story-E004-S002.md"
         points: 5
-        status: "todo"
+        status: "done"
       - id: "STORY-E005-S001"
         title: "附件能力"
         file: "docs/stories/story-E005-S001.md"
         points: 2
-        status: "todo"
+        status: "done"
       - id: "STORY-E005-S002"
         title: "导入导出与权限收口"
         file: "docs/stories/story-E005-S002.md"
         points: 5
-        status: "todo"
+        status: "done"

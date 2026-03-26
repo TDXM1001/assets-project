@@ -63,6 +63,9 @@
 3. [asset_role_20260324.sql](../RuoYi-Vue/sql/asset_role_20260324.sql)
 - 资产角色、菜单授权和自定义部门范围示例 SQL。
 
+4. [asset_patch_20260326_repair_module.sql](../RuoYi-Vue/sql/asset_patch_20260326_repair_module.sql)
+- 资产维修模块增量补丁，包含维修表、动态路由菜单和角色授权数据。
+
 ## 推荐阅读顺序
 
 1. 先看“产品方案”

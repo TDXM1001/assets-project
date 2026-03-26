@@ -54,7 +54,7 @@ insert into sys_menu (
   create_by, create_time, update_by, update_time, remark
 )
 select
-  '维修管理', @asset_root_id, 7, 'repair', 'asset/repair/index', '', 'AssetRepair',
+  '维修管理', @asset_root_id, 8, 'repair', 'asset/repair/index', '', 'AssetRepair',
   1, 0, 'C', '0', '0', 'asset:repair:list', 'operation',
   'admin', sysdate(), '', null, '资产维修管理菜单'
 where @asset_root_id is not null
