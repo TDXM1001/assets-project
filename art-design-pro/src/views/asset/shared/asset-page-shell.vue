@@ -1,5 +1,5 @@
 <template>
-  <div class="asset-info-create-page art-full-height" v-loading="loading">
+  <div class="asset-info-create-page art-full-height" v-loading="!!loading">
     <ElCard class="asset-info-create-page__hero" shadow="never">
       <div class="asset-info-create-page__hero-main">
         <div>

@@ -1,20 +1,23 @@
 <template>
-  <OrderWorkbenchShell eyebrow="业务单据" :title="pageTitle" :description="pageDescription">
-    <template #status>
+  <AssetPageShell
+    :loading="submitLoading || draftSaving"
+    eyebrow="业务单据"
+    :title="pageTitle"
+    :description="pageDescription"
+  >
+    <template #tags>
       <ElSpace wrap>
+        <!-- 页面本体保持统一壳层，标签只表达当前工作台状态，不再承担页面布局职责。 -->
+        <ElTag type="info" effect="light">独立页面</ElTag>
         <ElTag type="warning" effect="light">草稿阶段</ElTag>
-        <ElTag v-if="pageContext.orderType === 'DISPOSAL'" type="danger" effect="light">
-          报废流程
-        </ElTag>
-        <ElTag v-else type="info" effect="light">
-          {{ orderTypeLabel }}
-        </ElTag>
+        <ElTag type="info" effect="plain">{{ orderTypeLabel }}</ElTag>
       </ElSpace>
     </template>
 
-    <template #draft-tip>
+    <template #draftTip>
       <ElAlert
         v-if="savedDraftSummary"
+        class="asset-order-create-page__draft-tip"
         type="info"
         :closable="false"
         show-icon
@@ -32,16 +35,11 @@
       </ElAlert>
     </template>
 
-    <template #editor>
-      <OrderDialog
-        ref="orderEditorRef"
-        v-model="editorVisible"
-        page-mode
-        dialog-type="add"
-        :dialog-context="pageContext"
-        @success="handleEditorSuccess"
-      />
-    </template>
+    <OrderWorkbenchPage
+      ref="orderEditorRef"
+      :context="pageContext"
+      @success="handleEditorSuccess"
+    />
 
     <template #footer>
       <ElSpace wrap>
@@ -57,7 +55,7 @@
         </ElButton>
       </ElSpace>
     </template>
-  </OrderWorkbenchShell>
+  </AssetPageShell>
 </template>
 
 <script setup lang="ts">
@@ -65,8 +63,8 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useRoute, useRouter } from 'vue-router'
   import { useDict } from '@/utils/dict'
-  import OrderDialog from '../modules/order-dialog.vue'
-  import OrderWorkbenchShell from '../modules/order-workbench-shell.vue'
+  import AssetPageShell from '../../shared/asset-page-shell.vue'
+  import OrderWorkbenchPage from './order-workbench-page.vue'
   import {
     buildOrderWorkbenchDraftScope,
     buildOrderWorkbenchDraftStorageKey,
@@ -85,17 +83,24 @@
     formData: Record<string, any>
   }
 
+  interface OrderWorkbenchPageExpose {
+    saveDraftOrder: () => Promise<any>
+    submitFlowOrder: () => Promise<any>
+    getDraftPayload: () => Record<string, any> | undefined
+    applyDraftPayload: (payload?: Record<string, any>) => void
+  }
+
+  // 创建页继续兼容老草稿键，避免页面版上线后把已有本地草稿直接丢掉。
   const LOCAL_DRAFT_KEY = 'asset-order-create-draft'
 
   const route = useRoute()
   const router = useRouter()
   const { asset_order_type } = useDict('asset_order_type')
 
-  const editorVisible = ref(true)
   const submitLoading = ref(false)
   const draftSaving = ref(false)
   const savedDraft = ref<LocalDraftPayload | null>(null)
-  const orderEditorRef = ref<any>()
+  const orderEditorRef = ref<OrderWorkbenchPageExpose>()
 
   const rawOrderTypeQuery = computed(() =>
     typeof route.query.orderType === 'string' ? route.query.orderType : ''
@@ -113,7 +118,7 @@
     typeof route.query.repairId === 'string' ? route.query.repairId : ''
   )
 
-  // 页面模式下把路由参数与 sessionStorage 桥接数据合并成统一工作台上下文。
+  // 页面只认这一份标准化上下文，避免不同入口把创建页带成不同语义。
   const pageContext = computed<OrderWorkbenchContext>(() => {
     const queryBridgeKey = rawBridgeKeyQuery.value
     const parsedBridgeContext =
@@ -151,9 +156,7 @@
   )
 
   const parseDraftPayload = (rawDraft: string | null) => {
-    if (!rawDraft) {
-      return null
-    }
+    if (!rawDraft) return null
 
     try {
       return JSON.parse(rawDraft)
@@ -164,13 +167,8 @@
   }
 
   const isCompatibleDraft = (draft: LocalDraftPayload | null) => {
-    if (!draft) {
-      return false
-    }
-
-    if (draft.scope) {
-      return draft.scope === draftScope.value
-    }
+    if (!draft) return false
+    if (draft.scope) return draft.scope === draftScope.value
 
     const draftOrderType = String(draft.formData?.orderType || '').toUpperCase()
     return draftOrderType === pageContext.value.orderType && !pageContext.value.bridgeSource
@@ -227,11 +225,8 @@
     }
   }
 
-  const handleRestoreDraft = async () => {
-    if (!savedDraft.value?.formData) {
-      return
-    }
-
+  const handleRestoreDraft = () => {
+    if (!savedDraft.value?.formData) return
     orderEditorRef.value?.applyDraftPayload?.(savedDraft.value.formData)
     ElMessage.success('已恢复本地草稿')
   }
@@ -249,7 +244,6 @@
     ElMessage.success('草稿已清空')
   }
 
-  // 返回列表时保留原始单据类型，避免用户丢失当前筛选视角。
   const buildBackRouteQuery = () => {
     const queryOrderType = rawOrderTypeQuery.value.trim().toUpperCase()
     const preservedOrderType =
@@ -259,6 +253,12 @@
     if (preservedOrderType && (preservedOrderType !== 'INBOUND' || queryOrderType)) {
       query.orderType = preservedOrderType
     }
+
+    if (pageContext.value.bridgeSource) query.bridgeSource = pageContext.value.bridgeSource
+    if (pageContext.value.bridgeKey) query.bridgeKey = pageContext.value.bridgeKey
+    if (pageContext.value.sourceBizType) query.sourceBizType = pageContext.value.sourceBizType
+    if (pageContext.value.sourceBizId) query.sourceBizId = pageContext.value.sourceBizId
+    if (pageContext.value.repairId) query.repairId = pageContext.value.repairId
 
     return query
   }
@@ -308,20 +308,29 @@
   }
 
   const handleEditorSuccess = () => {
-    // 页面模式下只同步草稿状态，不在这里主动跳转，交互由底部操作区控制。
     if (savedDraft.value) {
       clearDraftStorage()
     }
   }
 
   watch(
-    () => editorVisible.value,
-    (value) => {
-      if (!value) {
-        backToList()
-      }
-    }
+    () => draftStorageKey.value,
+    () => {
+      readSavedDraft()
+    },
+    { immediate: true }
   )
-
-  readSavedDraft()
 </script>
+
+<style lang="scss" scoped>
+  .asset-order-create-page__draft-tip {
+    border-radius: 16px;
+  }
+
+  .asset-order-create-page__draft-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+</style>
