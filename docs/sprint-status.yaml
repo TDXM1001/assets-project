@@ -1,10 +1,10 @@
-# Sprint Status - 资产管理系统
+﻿# Sprint Status - 资产管理系统
 # Generated: 2026-03-26T16:38:05.5800273Z
 
 project_name: "资产管理系统"
 project_type: "web-app"
 project_level: 2
-current_sprint: "sprint-3"
+current_sprint: "sprint-4"
 
 # 说明：
 # - 本文件用于跟踪实施阶段的冲刺与故事状态
@@ -99,3 +99,15 @@ sprints:
         file: "docs/stories/story-E006-S003.md"
         points: 5
         status: "done"
+  - id: "sprint-4"
+    name: "操作栏统一"
+    goal: "把资产模块顶部操作栏、行内操作和详情抽屉动作区统一成一套可复用的规则"
+    status: "in_progress"
+    capacity_points: 8
+    committed_points: 5
+    stories:
+      - id: "STORY-E007-S001"
+        title: "资产模块操作栏统一"
+        file: "docs/stories/story-E007-S001.md"
+        points: 5
+        status: "todo"
