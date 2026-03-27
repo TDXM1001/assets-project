@@ -1,7 +1,7 @@
 <template>
   <ElDialog
     v-model="visible"
-    title="Complete Repair"
+    title="维修完工"
     width="960px"
     destroy-on-close
     append-to-body
@@ -12,8 +12,8 @@
       type="info"
       :closable="false"
       show-icon
-      title="Completing the repair will sync asset status and repair events."
-      description="If this repair order contains multiple assets, confirm each item below. Header fields act as defaults for unchanged rows."
+      title="完成维修后会同步资产状态并写入维修事件。"
+      description="如果当前维修单包含多项资产，请逐项确认明细。表头字段会作为未单独修改明细的默认值。"
     />
 
     <ElAlert
@@ -22,8 +22,8 @@
       type="warning"
       :closable="false"
       show-icon
-      :title="`This repair order contains ${repairItems.length} assets.`"
-      description="The dialog will submit itemList for per-asset completion. Back-end can still fall back to whole-order completion if needed."
+      :title="`当前维修单包含 ${repairItems.length} 项资产。`"
+      description="提交时会按资产明细上传 itemList；如果后端仍按整单处理，也会回退到整单完工逻辑。"
     />
 
     <ElAlert
@@ -32,15 +32,15 @@
       type="warning"
       :closable="false"
       show-icon
-      title="Current result suggests disposal"
-      description="Please include the disposal reason and current condition in the remark."
+      title="当前结果为建议处置"
+      description="请在备注中补充处置原因和资产当前情况。"
     />
 
     <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="120px">
       <ElRow :gutter="16">
         <ElCol :span="12">
-          <ElFormItem label="Default Result" prop="resultType">
-            <ElSelect v-model="formData.resultType" class="w-full" placeholder="Select result">
+          <ElFormItem label="默认结果" prop="resultType">
+            <ElSelect v-model="formData.resultType" class="w-full" placeholder="请选择结果">
               <ElOption
                 v-for="item in resultTypeOptions"
                 :key="item.value"
@@ -51,18 +51,18 @@
           </ElFormItem>
         </ElCol>
         <ElCol :span="12">
-          <ElFormItem label="Finish Time" prop="finishTime">
+          <ElFormItem label="完成时间" prop="finishTime">
             <ElDatePicker
               v-model="formData.finishTime"
               class="w-full"
               type="datetime"
               value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="Select finish time"
+              placeholder="请选择完成时间"
             />
           </ElFormItem>
         </ElCol>
         <ElCol :span="12">
-          <ElFormItem label="Repair Cost" prop="repairCost">
+          <ElFormItem label="维修费用" prop="repairCost">
             <ElInputNumber
               v-model="formData.repairCost"
               class="w-full"
@@ -74,7 +74,7 @@
           </ElFormItem>
         </ElCol>
         <ElCol :span="12">
-          <ElFormItem label="Downtime (h)" prop="downtimeHours">
+          <ElFormItem label="停机时长(小时)" prop="downtimeHours">
             <ElInputNumber
               v-model="formData.downtimeHours"
               class="w-full"
@@ -86,22 +86,18 @@
           </ElFormItem>
         </ElCol>
         <ElCol :span="12">
-          <ElFormItem label="Vendor" prop="vendorName">
-            <ElInput
-              v-model="formData.vendorName"
-              maxlength="100"
-              placeholder="Enter vendor name"
-            />
+          <ElFormItem label="维修厂商" prop="vendorName">
+            <ElInput v-model="formData.vendorName" maxlength="100" placeholder="请输入维修厂商" />
           </ElFormItem>
         </ElCol>
         <ElCol :span="12">
-          <ElFormItem label="Rework" prop="reworkFlag">
-            <ElSwitch v-model="reworkSwitch" inline-prompt active-text="Yes" inactive-text="No" />
+          <ElFormItem label="是否返修" prop="reworkFlag">
+            <ElSwitch v-model="reworkSwitch" inline-prompt active-text="是" inactive-text="否" />
           </ElFormItem>
         </ElCol>
       </ElRow>
 
-      <ElFormItem label="Remark" prop="remark">
+      <ElFormItem label="备注" prop="remark">
         <ElInput
           v-model="formData.remark"
           type="textarea"
@@ -109,33 +105,31 @@
           maxlength="500"
           show-word-limit
           :placeholder="
-            isSuggestDisposal
-              ? 'Enter disposal reason and current condition'
-              : 'Enter repair summary and follow-up suggestion'
+            isSuggestDisposal ? '请输入处置原因和资产当前情况' : '请输入维修总结和后续建议'
           "
         />
       </ElFormItem>
 
-      <ElDivider content-position="left">Asset Items</ElDivider>
+      <ElDivider content-position="left">维修资产明细</ElDivider>
       <ElTable
         :data="repairItems"
         border
         stripe
         row-key="rowKey"
         max-height="420"
-        empty-text="No repair items"
+        empty-text="暂无维修资产"
       >
         <ElTableColumn type="index" width="56" label="#" />
-        <ElTableColumn prop="assetCode" label="Asset Code" min-width="140" />
-        <ElTableColumn prop="assetName" label="Asset Name" min-width="180" />
-        <ElTableColumn label="Before Status" width="120" align="center">
+        <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
+        <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
+        <ElTableColumn label="维修前状态" width="120" align="center">
           <template #default="{ row }">
             <DictTag :options="asset_status" :value="row.beforeStatus" />
           </template>
         </ElTableColumn>
-        <ElTableColumn label="Result" width="150">
+        <ElTableColumn label="处理结果" width="150">
           <template #default="{ row }">
-            <ElSelect v-model="row.resultType" placeholder="Select" style="width: 100%">
+            <ElSelect v-model="row.resultType" placeholder="请选择" style="width: 100%">
               <ElOption
                 v-for="item in resultTypeOptions"
                 :key="item.value"
@@ -145,9 +139,9 @@
             </ElSelect>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="After Status" width="150">
+        <ElTableColumn label="维修后状态" width="150">
           <template #default="{ row }">
-            <ElSelect v-model="row.afterStatus" placeholder="Select" style="width: 100%">
+            <ElSelect v-model="row.afterStatus" placeholder="请选择" style="width: 100%">
               <ElOption
                 v-for="item in asset_status"
                 :key="item.value"
@@ -157,7 +151,7 @@
             </ElSelect>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="Fault Description" min-width="220">
+        <ElTableColumn label="故障描述" min-width="220">
           <template #default="{ row }">
             <ElInput
               v-model="row.faultDesc"
@@ -165,13 +159,13 @@
               :rows="2"
               maxlength="300"
               show-word-limit
-              placeholder="Enter item fault description"
+              placeholder="请输入该资产的故障描述"
             />
           </template>
         </ElTableColumn>
-        <ElTableColumn label="Item Remark" min-width="180">
+        <ElTableColumn label="明细备注" min-width="180">
           <template #default="{ row }">
-            <ElInput v-model="row.remark" maxlength="200" placeholder="Enter item remark" />
+            <ElInput v-model="row.remark" maxlength="200" placeholder="请输入明细备注" />
           </template>
         </ElTableColumn>
       </ElTable>
@@ -179,8 +173,8 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <ElButton @click="visible = false">Cancel</ElButton>
-        <ElButton type="primary" :loading="submitLoading" @click="handleSubmit"> Confirm </ElButton>
+        <ElButton @click="visible = false">取消</ElButton>
+        <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">确认</ElButton>
       </div>
     </template>
   </ElDialog>
@@ -195,9 +189,9 @@
   const { asset_status } = useDict('asset_status')
 
   const resultTypeOptions = [
-    { label: 'Resume Use', value: 'RESUME_USE' },
-    { label: 'To Idle', value: 'TO_IDLE' },
-    { label: 'Suggest Disposal', value: 'SUGGEST_DISPOSAL' }
+    { label: '恢复使用', value: 'RESUME_USE' },
+    { label: '转闲置', value: 'TO_IDLE' },
+    { label: '建议处置', value: 'SUGGEST_DISPOSAL' }
   ]
 
   const resultToStatusMap: Record<string, string> = {
@@ -258,13 +252,13 @@
   })
 
   const formRules: FormRules = {
-    resultType: [{ required: true, message: 'Select result', trigger: 'change' }],
-    finishTime: [{ required: true, message: 'Select finish time', trigger: 'change' }],
+    resultType: [{ required: true, message: '请选择处理结果', trigger: 'change' }],
+    finishTime: [{ required: true, message: '请选择完成时间', trigger: 'change' }],
     remark: [
       {
         validator: (_rule, value, callback) => {
           if (isSuggestDisposal.value && !String(value || '').trim()) {
-            callback(new Error('Remark is required for disposal suggestion'))
+            callback(new Error('建议处置时必须填写备注'))
             return
           }
           callback()

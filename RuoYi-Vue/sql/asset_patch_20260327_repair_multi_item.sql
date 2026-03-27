@@ -3,14 +3,14 @@ create table if not exists asset_repair_order_item (
     repair_item_id      bigint(20)      not null auto_increment comment '维修明细ID',
     repair_id           bigint(20)      not null comment '维修单ID',
     asset_id            bigint(20)      not null comment '资产ID',
-    asset_code          varchar(64)              default '' comment '资产编码',
-    asset_name          varchar(128)             default '' comment '资产名称',
-    fault_desc          varchar(500)             default null comment '故障描述',
-    before_status       varchar(32)              default null comment '维修前状态',
-    after_status        varchar(32)              default null comment '维修后状态',
-    result_type         varchar(32)              default null comment '维修结果',
+    asset_code          varchar(64)     not null comment '资产编码快照',
+    asset_name          varchar(200)    not null comment '资产名称快照',
+    fault_desc          varchar(500)    not null comment '故障描述',
+    before_status       varchar(20)              default null comment '维修前状态',
+    after_status        varchar(20)              default null comment '维修后状态',
+    result_type         varchar(20)              default null comment '完成结果',
     repair_cost         decimal(12, 2)           default null comment '维修费用',
-    downtime_hours      decimal(10, 1)           default null comment '停用时长',
+    downtime_hours      decimal(10, 2)           default null comment '停用时长(小时)',
     rework_flag         char(1)                  default '0' comment '是否返修',
     sort_order          int(11)                  default 1 comment '排序号',
     status              char(1)                  default '0' comment '状态',
@@ -21,9 +21,14 @@ create table if not exists asset_repair_order_item (
     update_time         datetime                 default current_timestamp on update current_timestamp comment '更新时间',
     remark              varchar(500)             default null comment '备注',
     primary key (repair_item_id),
-    key idx_asset_repair_order_item_repair_id (repair_id),
-    key idx_asset_repair_order_item_asset_id (asset_id)
-) engine=innodb auto_increment=1 comment='资产维修单明细表';
+    key idx_asset_repair_item_repair_id (repair_id),
+    key idx_asset_repair_item_asset_id (asset_id),
+    key idx_asset_repair_item_asset_status (asset_id, del_flag)
+) engine=innodb
+  auto_increment=1
+  default charset=utf8mb4
+  collate=utf8mb4_0900_ai_ci
+  comment='资产维修单明细表';
 
 -- 将历史单资产维修单回填为一条默认明细，兼容多资产页面读取。
 insert into asset_repair_order_item (
@@ -51,7 +56,7 @@ select r.repair_id,
        r.asset_id,
        ifnull(r.asset_code, ''),
        ifnull(r.asset_name, ''),
-       r.fault_desc,
+       ifnull(r.fault_desc, ''),
        r.before_status,
        r.after_status,
        r.result_type,

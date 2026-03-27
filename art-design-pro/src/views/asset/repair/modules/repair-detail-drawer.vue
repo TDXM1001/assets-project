@@ -14,7 +14,7 @@
           <div class="repair-detail-drawer__subtitle">{{ assetSummaryText }}</div>
         </div>
         <div class="repair-detail-drawer__actions">
-          <ElTag effect="light" type="info">Repair Status</ElTag>
+          <ElTag effect="light" type="info">维修状态</ElTag>
           <ElTag :type="statusTagType">{{ currentStatusLabel }}</ElTag>
         </div>
       </div>
@@ -39,27 +39,27 @@
             class="repair-detail-drawer__bridge-btn"
             @click="emit('createDisposal')"
           >
-            Create Disposal Order
+            创建处置单
           </ElButton>
         </template>
       </ElAlert>
 
       <ElCard v-if="relatedDisposalOrder" shadow="never" class="mb-4">
-        <template #header>Linked Disposal Order</template>
+        <template #header>关联处置单</template>
         <ElDescriptions :column="2" border>
-          <ElDescriptionsItem label="Order No">
+          <ElDescriptionsItem label="单号">
             {{ displayText(relatedDisposalOrder.orderNo) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Source Biz No">
+          <ElDescriptionsItem label="来源业务单号">
             {{ displayText(relatedDisposalOrder.sourceBizNo) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Order Status">
+          <ElDescriptionsItem label="单据状态">
             <DictTag :options="asset_order_status" :value="relatedDisposalOrder.orderStatus" />
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Amount">
+          <ElDescriptionsItem label="处置金额">
             {{ displayAmount(relatedDisposalOrder.disposalAmount) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Approval">
+          <ElDescriptionsItem label="审批信息">
             {{
               displayApproval(
                 relatedDisposalOrder.approveUserName,
@@ -67,7 +67,7 @@
               )
             }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Reason" :span="2">
+          <ElDescriptionsItem label="处置原因" :span="2">
             {{ displayText(relatedDisposalOrder.disposalReason) }}
           </ElDescriptionsItem>
         </ElDescriptions>
@@ -78,14 +78,14 @@
         class="repair-detail-drawer__linked-actions"
       >
         <ElButton type="primary" @click="emit('viewDisposal', relatedDisposalOrder)">
-          View Disposal Order
+          查看处置单
         </ElButton>
       </div>
 
       <ElCard shadow="never" class="mb-4">
-        <template #header>Asset Items</template>
+        <template #header>维修资产明细</template>
         <div class="repair-detail-drawer__asset-summary">
-          <ElTag type="info" effect="plain">Items: {{ repairItems.length }}</ElTag>
+          <ElTag type="info" effect="plain">资产数量：{{ repairItems.length }}</ElTag>
         </div>
         <ElTable
           :data="repairItems"
@@ -93,94 +93,89 @@
           stripe
           size="small"
           row-key="repairItemId"
-          empty-text="No repair items"
+          empty-text="暂无维修资产"
         >
           <ElTableColumn type="index" width="56" label="#" />
-          <ElTableColumn prop="assetCode" label="Asset Code" min-width="140" />
-          <ElTableColumn prop="assetName" label="Asset Name" min-width="180" />
-          <ElTableColumn label="Before Status" width="120" align="center">
+          <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
+          <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
+          <ElTableColumn label="维修前状态" width="120" align="center">
             <template #default="{ row }">
               <DictTag :options="asset_status" :value="row.beforeStatus" />
             </template>
           </ElTableColumn>
-          <ElTableColumn label="After Status" width="120" align="center">
+          <ElTableColumn label="维修后状态" width="120" align="center">
             <template #default="{ row }">
               <DictTag :options="asset_status" :value="row.afterStatus" />
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Result" width="140" align="center">
+          <ElTableColumn label="处理结果" width="140" align="center">
             <template #default="{ row }">
               {{ displayText(resultTypeMap[row.resultType] || row.resultType) }}
             </template>
           </ElTableColumn>
-          <ElTableColumn
-            prop="faultDesc"
-            label="Fault Description"
-            min-width="220"
-            show-overflow-tooltip
-          />
-          <ElTableColumn prop="remark" label="Item Remark" min-width="180" show-overflow-tooltip />
+          <ElTableColumn prop="faultDesc" label="故障描述" min-width="220" show-overflow-tooltip />
+          <ElTableColumn prop="remark" label="明细备注" min-width="180" show-overflow-tooltip />
         </ElTable>
       </ElCard>
 
       <ElCard shadow="never" class="mb-4">
-        <template #header>Repair Summary</template>
+        <template #header>维修概览</template>
         <ElDescriptions :column="2" border>
-          <ElDescriptionsItem label="Report Time">
+          <ElDescriptionsItem label="报修时间">
             {{ displayText(repairData?.reportTime) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Repair Mode">
+          <ElDescriptionsItem label="维修方式">
             {{ displayText(repairModeLabel) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Apply Dept">
+          <ElDescriptionsItem label="申请部门">
             {{ displayText(repairData?.applyDeptName || repairData?.applyDeptId) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Apply User">
+          <ElDescriptionsItem label="申请人">
             {{ displayText(repairData?.applyUserName || repairData?.applyUserId) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Vendor">
+          <ElDescriptionsItem label="维修厂商">
             {{ displayText(repairData?.vendorName) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Item Count">
+          <ElDescriptionsItem label="资产数量">
             {{ repairItems.length || '-' }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Header Fault Desc" :span="2">
+          <ElDescriptionsItem label="主单故障描述" :span="2">
             {{ displayText(repairData?.faultDesc) }}
           </ElDescriptionsItem>
         </ElDescriptions>
       </ElCard>
 
       <ElCard shadow="never" class="mb-4">
-        <template #header>Approval & Finish</template>
+        <template #header>审批与完工</template>
         <ElDescriptions :column="2" border>
-          <ElDescriptionsItem label="Approve User">
+          <ElDescriptionsItem label="审批人">
             {{ displayText(repairData?.approveUserName || repairData?.approveUserId) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Approve Time">
+          <ElDescriptionsItem label="审批时间">
             {{ displayText(repairData?.approveTime) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Approve Result">
+          <ElDescriptionsItem label="审批结果">
             {{ displayText(approveResultLabel) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Send Repair Time">
+          <ElDescriptionsItem label="送修时间">
             {{ displayText(repairData?.sendRepairTime) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Repair Cost">
+          <ElDescriptionsItem label="维修费用">
             {{ displayAmount(repairData?.repairCost) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Downtime">
+          <ElDescriptionsItem label="停机时长">
             {{ displayDowntime(repairData?.downtimeHours) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Finish Time">
+          <ElDescriptionsItem label="完成时间">
             {{ displayText(repairData?.finishTime) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Header Result">
+          <ElDescriptionsItem label="主单结果">
             {{ displayText(resultTypeLabel) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Rework">
-            {{ repairData?.reworkFlag === '1' ? 'Yes' : 'No' }}
+          <ElDescriptionsItem label="是否返修">
+            {{ repairData?.reworkFlag === '1' ? '是' : '否' }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Remark" :span="2">
+          <ElDescriptionsItem label="备注" :span="2">
             {{ displayText(repairData?.remark) }}
           </ElDescriptionsItem>
         </ElDescriptions>
@@ -196,7 +191,7 @@
             plain
             @click="emit('attachments')"
           >
-            Attachments
+            附件
           </ElButton>
           <ElButton
             v-if="canEdit && hasPermission('asset:repair:edit')"
@@ -204,21 +199,21 @@
             plain
             @click="emit('edit')"
           >
-            Edit
+            编辑
           </ElButton>
           <ElButton
             v-if="canSubmit && hasPermission('asset:repair:submit')"
             type="primary"
             @click="emit('submit')"
           >
-            Submit
+            提交
           </ElButton>
           <ElButton
             v-if="canApprove && hasPermission('asset:repair:approve')"
             type="success"
             @click="emit('approve')"
           >
-            Approve
+            审批通过
           </ElButton>
           <ElButton
             v-if="canReject && hasPermission('asset:repair:reject')"
@@ -226,14 +221,14 @@
             plain
             @click="emit('reject')"
           >
-            Reject
+            驳回
           </ElButton>
           <ElButton
             v-if="canFinish && hasPermission('asset:repair:finish')"
             type="warning"
             @click="emit('finish')"
           >
-            Finish
+            完工
           </ElButton>
           <ElButton
             v-if="canCancel && hasPermission('asset:repair:cancel')"
@@ -241,9 +236,9 @@
             plain
             @click="emit('cancel')"
           >
-            Cancel
+            作废
           </ElButton>
-          <ElButton @click="visible = false">Close</ElButton>
+          <ElButton @click="visible = false">关闭</ElButton>
         </ElSpace>
       </div>
     </template>
@@ -283,32 +278,32 @@
     string,
     { label: string; type: 'info' | 'warning' | 'success' | 'danger' }
   > = {
-    DRAFT: { label: 'Draft', type: 'info' },
-    SUBMITTED: { label: 'Submitted', type: 'warning' },
-    APPROVED: { label: 'Repairing', type: 'warning' },
-    REJECTED: { label: 'Rejected', type: 'danger' },
-    FINISHED: { label: 'Finished', type: 'success' },
-    CANCELED: { label: 'Canceled', type: 'info' }
+    DRAFT: { label: '草稿', type: 'info' },
+    SUBMITTED: { label: '待审批', type: 'warning' },
+    APPROVED: { label: '维修中', type: 'warning' },
+    REJECTED: { label: '已驳回', type: 'danger' },
+    FINISHED: { label: '已完成', type: 'success' },
+    CANCELED: { label: '已作废', type: 'info' }
   }
 
   const repairModeMap: Record<string, string> = {
-    IN_HOUSE: 'In House',
-    VENDOR: 'Vendor',
-    ONSITE: 'On Site'
+    IN_HOUSE: '内部维修',
+    VENDOR: '厂商维修',
+    ONSITE: '上门维修'
   }
 
   const resultTypeMap: Record<string, string> = {
-    RESUME_USE: 'Resume Use',
-    TO_IDLE: 'To Idle',
-    SUGGEST_DISPOSAL: 'Suggest Disposal'
+    RESUME_USE: '恢复使用',
+    TO_IDLE: '转闲置',
+    SUGGEST_DISPOSAL: '建议处置'
   }
 
   const approveResultMap: Record<string, string> = {
-    APPROVED: 'Approved',
-    REJECTED: 'Rejected'
+    APPROVED: '已通过',
+    REJECTED: '已驳回'
   }
 
-  // 兼容老数据：如果后端还未返回 itemList，则退化为单资产明细。
+  // 兼容旧数据：如果后端还未返回 itemList，则退化为单资产明细。
   const repairItems = computed(() => {
     if (Array.isArray(props.repairData?.itemList) && props.repairData.itemList.length > 0) {
       return props.repairData.itemList.filter(Boolean)
@@ -367,18 +362,18 @@
   )
   const bridgeAlertTitle = computed(() =>
     relatedDisposalOrder.value?.orderNo
-      ? `Linked disposal order ${relatedDisposalOrder.value.orderNo}`
-      : 'Repair finished with disposal suggestion'
+      ? `已关联处置单 ${relatedDisposalOrder.value.orderNo}`
+      : '当前维修结果为建议处置'
   )
   const bridgeAlertDescription = computed(() =>
     relatedDisposalOrder.value?.orderNo
-      ? `Source biz no: ${relatedDisposalOrder.value.sourceBizNo || '-'}`
+      ? `来源业务单号：${relatedDisposalOrder.value.sourceBizNo || '-'}`
       : repairItems.value.length > 1
-        ? 'This repair order contains multiple assets. Split or confirm individual items before creating a disposal order.'
-        : 'You can continue by creating a disposal order draft.'
+        ? '当前维修单包含多项资产，请先逐项确认维修结果后再创建处置单。'
+        : '你可以继续创建处置单草稿。'
   )
   const drawerTitle = computed(() =>
-    props.repairData?.repairNo ? `Repair Detail - ${props.repairData.repairNo}` : 'Repair Detail'
+    props.repairData?.repairNo ? `维修详情 - ${props.repairData.repairNo}` : '维修详情'
   )
   const assetSummaryText = computed(() => {
     if (!repairItems.value.length) return '-'
@@ -411,12 +406,12 @@
 
   const displayAmount = (value: unknown) => {
     if (value === null || value === undefined || value === '') return '-'
-    return `${value} yuan`
+    return `${value} 元`
   }
 
   const displayDowntime = (value: unknown) => {
     if (value === null || value === undefined || value === '') return '-'
-    return `${value} h`
+    return `${value} 小时`
   }
 
   const displayApproval = (userName?: string, approveTime?: string) => {

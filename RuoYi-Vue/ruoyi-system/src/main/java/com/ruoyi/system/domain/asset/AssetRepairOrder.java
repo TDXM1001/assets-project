@@ -90,7 +90,7 @@ public class AssetRepairOrder extends BaseEntity
     @Excel(name = "附件数量")
     private Integer attachmentCount;
 
-    @Excel(name = "缁翠慨璧勪骇鏁伴噺")
+    @Excel(name = "维修资产数量")
     private Integer itemCount;
 
     private String status;
