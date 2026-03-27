@@ -122,7 +122,6 @@
   import { getLinkedAssetOrder } from '@/api/asset/order'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import {
     approveAssetRepair,
     cancelAssetRepair,
@@ -134,6 +133,7 @@
     rejectAssetRepair,
     submitAssetRepair
   } from '@/api/asset/repair'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import RepairApproveDialog from './modules/repair-approve-dialog.vue'
   import RepairDetailDrawer from './modules/repair-detail-drawer.vue'
   import RepairDialog from './modules/repair-dialog.vue'
@@ -520,87 +520,111 @@
   }
 
   const renderOperation = (row: any) => {
-    const actionNodes = [
-      canCreateDisposalOrder(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'warning',
-            size: 'small',
-            onClick: () => handleCreateDisposalOrder(row)
-          },
-          () => '建报废单'
-        ),
-      hasPermission('asset:repair:query') &&
-        h(ArtButtonTable, { type: 'view', onClick: () => handleView(row) }),
-      hasPermission('asset:repair:query') &&
-        h(
-          ElButton,
-          { link: true, type: 'primary', size: 'small', onClick: () => handleOpenAttachments(row) },
-          () => '附件'
-        ),
-      hasPermission('asset:repair:edit') &&
-        canEditRepair(row) &&
-        h(ArtButtonTable, { type: 'edit', onClick: () => handleEdit(row) }),
-      hasPermission('asset:repair:remove') &&
-        canDeleteRepair(row) &&
-        h(ArtButtonTable, { type: 'delete', onClick: () => handleDelete(row) }),
-      hasPermission('asset:repair:submit') &&
-        canSubmitRepair(row) &&
-        h(
-          ElButton,
-          { link: true, type: 'primary', size: 'small', onClick: () => handleSubmitRepair(row) },
-          () => '提交'
-        ),
-      hasPermission('asset:repair:approve') &&
-        canApproveRepair(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'success',
-            size: 'small',
-            onClick: () => openApproveDialog(row, 'approve')
-          },
-          () => '通过'
-        ),
-      hasPermission('asset:repair:reject') &&
-        canRejectRepair(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'danger',
-            size: 'small',
-            onClick: () => openApproveDialog(row, 'reject')
-          },
-          () => '驳回'
-        ),
-      hasPermission('asset:repair:finish') &&
-        canFinishRepair(row) &&
-        h(
-          ElButton,
-          { link: true, type: 'warning', size: 'small', onClick: () => openFinishDialog(row) },
-          () => '完成'
-        ),
-      hasPermission('asset:repair:cancel') &&
-        canCancelRepair(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'info',
-            size: 'small',
-            onClick: () => handleCancelRepairAndRefresh(row)
-          },
-          () => '取消'
-        )
-    ].filter(Boolean)
+    const actions: AssetRowActionItem[] = []
 
-    return h('div', { class: 'asset-repair-operation' }, [
-      h(ElSpace, { wrap: true, size: 8 }, () => actionNodes as any)
-    ])
+    if (hasPermission('asset:repair:query')) {
+      actions.push({
+        key: 'view',
+        label: '详情',
+        type: 'primary',
+        icon: 'ri:eye-line',
+        onClick: () => handleView(row)
+      })
+    }
+
+    if (hasPermission('asset:repair:submit') && canSubmitRepair(row)) {
+      actions.push({
+        key: 'submit',
+        label: '提交',
+        type: 'primary',
+        icon: 'ri:send-plane-line',
+        onClick: () => handleSubmitRepair(row)
+      })
+    }
+
+    if (hasPermission('asset:repair:approve') && canApproveRepair(row)) {
+      actions.push({
+        key: 'approve',
+        label: '通过',
+        type: 'success',
+        icon: 'ri:checkbox-circle-line',
+        onClick: () => openApproveDialog(row, 'approve')
+      })
+    }
+
+    if (hasPermission('asset:repair:finish') && canFinishRepair(row)) {
+      actions.push({
+        key: 'finish',
+        label: '完成',
+        type: 'warning',
+        icon: 'ri:flag-line',
+        onClick: () => openFinishDialog(row)
+      })
+    }
+
+    if (canCreateDisposalOrder(row)) {
+      actions.push({
+        key: 'create-disposal',
+        label: '建报废单',
+        type: 'warning',
+        icon: 'ri:file-add-line',
+        onClick: () => handleCreateDisposalOrder(row)
+      })
+    }
+
+    if (hasPermission('asset:repair:edit') && canEditRepair(row)) {
+      actions.push({
+        key: 'edit',
+        label: '编辑',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
+      })
+    }
+
+    if (hasPermission('asset:repair:query')) {
+      actions.push({
+        key: 'attachments',
+        label: '附件',
+        type: 'info',
+        icon: 'ri:attachment-2',
+        onClick: () => handleOpenAttachments(row)
+      })
+    }
+
+    if (hasPermission('asset:repair:reject') && canRejectRepair(row)) {
+      actions.push({
+        key: 'reject',
+        label: '驳回',
+        type: 'danger',
+        icon: 'ri:close-circle-line',
+        color: '#f56c6c',
+        onClick: () => openApproveDialog(row, 'reject')
+      })
+    }
+
+    if (hasPermission('asset:repair:cancel') && canCancelRepair(row)) {
+      actions.push({
+        key: 'cancel',
+        label: '取消',
+        type: 'info',
+        icon: 'ri:forbid-2-line',
+        onClick: () => handleCancelRepairAndRefresh(row)
+      })
+    }
+
+    if (hasPermission('asset:repair:remove') && canDeleteRepair(row)) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        type: 'danger',
+        icon: 'ri:delete-bin-line',
+        color: '#f56c6c',
+        onClick: () => handleDelete(row)
+      })
+    }
+
+    return h(AssetRowActionBar, { actions })
   }
 
   const handleAdd = () => {

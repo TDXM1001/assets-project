@@ -89,8 +89,8 @@
   import { useDict } from '@/utils/dict'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useUserStore } from '@/store/modules/user'
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import DictTag from '@/components/DictTag/index.vue'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import CategoryDialog from './modules/category-dialog.vue'
   import CategoryTemplateDialog from './modules/category-template-dialog.vue'
 
@@ -141,6 +141,53 @@
   const hasPermission = (permission: string) => {
     const permissions = userStore.permissions || []
     return permissions.includes('*:*:*') || permissions.includes(permission)
+  }
+
+  /**
+   * 分类页的行内动作只保留高频入口，其他次级动作统一收进“更多”菜单。
+   */
+  const renderOperation = (row: any) => {
+    const actions: AssetRowActionItem[] = []
+
+    if (hasPermission('asset:category:add')) {
+      actions.push({
+        key: 'add-child',
+        label: '新增子级',
+        type: 'primary',
+        icon: 'ri:add-line',
+        onClick: () => handleAddChild(row)
+      })
+    }
+
+    if (hasPermission('asset:category:edit')) {
+      actions.push({
+        key: 'field-template',
+        label: '字段模板',
+        type: 'primary',
+        icon: 'ri:file-list-3-line',
+        onClick: () => handleEditTemplate(row)
+      })
+      actions.push({
+        key: 'edit',
+        label: '编辑',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
+      })
+    }
+
+    if (hasPermission('asset:category:remove')) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        type: 'danger',
+        icon: 'ri:delete-bin-line',
+        color: '#f56c6c',
+        onClick: () => handleDelete(row)
+      })
+    }
+
+    return h(AssetRowActionBar, { actions })
   }
 
   const showEmptyState = computed(
@@ -256,52 +303,9 @@
     {
       prop: 'operation',
       label: '操作',
-      width: 300,
+      width: 320,
       align: 'right',
-      formatter: (row: any) => {
-        const actionNodes = []
-
-        if (hasPermission('asset:category:add')) {
-          actionNodes.push(
-            h(ArtButtonTable, {
-              type: 'add',
-              onClick: () => handleAddChild(row)
-            })
-          )
-        }
-
-        if (hasPermission('asset:category:edit')) {
-          actionNodes.push(
-            h(
-              ElButton,
-              {
-                link: true,
-                type: 'primary',
-                size: 'small',
-                onClick: () => handleEditTemplate(row)
-              },
-              () => '字段模板'
-            )
-          )
-          actionNodes.push(
-            h(ArtButtonTable, {
-              type: 'edit',
-              onClick: () => handleEdit(row)
-            })
-          )
-        }
-
-        if (hasPermission('asset:category:remove')) {
-          actionNodes.push(
-            h(ArtButtonTable, {
-              type: 'delete',
-              onClick: () => handleDelete(row)
-            })
-          )
-        }
-
-        return h('div', { class: 'flex justify-end' }, actionNodes)
-      }
+      formatter: (row: any) => renderOperation(row)
     }
   ])
 

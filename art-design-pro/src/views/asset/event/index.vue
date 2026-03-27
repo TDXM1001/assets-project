@@ -97,11 +97,11 @@
   import { ElButton, ElMessage } from 'element-plus'
   import { exportAssetEvent, listAssetEvent } from '@/api/asset/event'
   import DictTag from '@/components/DictTag/index.vue'
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useDict } from '@/utils/dict'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import AssetEventDrawer from '../shared/asset-event-drawer.vue'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
 
   defineOptions({ name: 'AssetEvent' })
 
@@ -273,12 +273,19 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 110,
+          width: 120,
           align: 'right',
           formatter: (row: any) =>
-            h(ArtButtonTable, {
-              type: 'view',
-              onClick: () => handleOpenAssetTimeline(row)
+            h(AssetRowActionBar, {
+              actions: [
+                {
+                  key: 'view',
+                  label: '详情',
+                  type: 'primary',
+                  icon: 'ri:eye-line',
+                  onClick: () => handleOpenAssetTimeline(row)
+                } satisfies AssetRowActionItem
+              ]
             })
         }
       ]

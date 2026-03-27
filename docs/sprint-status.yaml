@@ -102,7 +102,7 @@ sprints:
   - id: "sprint-4"
     name: "操作栏统一"
     goal: "把资产模块顶部操作栏、行内操作和详情抽屉动作区统一成一套可复用的规则"
-    status: "in_progress"
+    status: "done"
     capacity_points: 8
     committed_points: 5
     stories:
@@ -110,4 +110,4 @@ sprints:
         title: "资产模块操作栏统一"
         file: "docs/stories/story-E007-S001.md"
         points: 5
-        status: "todo"
+        status: "done"

@@ -182,10 +182,10 @@
   import { useDict } from '@/utils/dict'
   import { useTable } from '@/hooks/core/useTable'
   import { useUserStore } from '@/store/modules/user'
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import DictTag from '@/components/DictTag/index.vue'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import InfoDialog from './modules/info-dialog.vue'
   import InfoEventDrawer from './modules/info-event-drawer.vue'
   import InfoFilterTree from './modules/info-filter-tree.vue'
@@ -290,6 +290,52 @@
   const infoScopeNotice = computed(() =>
     isSelfScopedAssetUser.value ? '当前为“我的资产”视角，系统仅展示你本人可见的资产数据。' : ''
   )
+
+  /**
+   * 台账页的行内动作保留编辑、流水、附件等高频入口，删除收进更多菜单。
+   */
+  const renderOperation = (row: any) => {
+    const actions: AssetRowActionItem[] = []
+
+    if (hasPermission('asset:info:edit')) {
+      actions.push({
+        key: 'edit',
+        label: '编辑',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
+      })
+    }
+
+    actions.push({
+      key: 'event',
+      label: '流水',
+      type: 'info',
+      icon: 'ri:timeline-line',
+      onClick: () => handleOpenEventDrawer(row)
+    })
+
+    actions.push({
+      key: 'attachments',
+      label: '附件',
+      type: 'primary',
+      icon: 'ri:attachment-2',
+      onClick: () => handleOpenAttachments(row)
+    })
+
+    if (hasPermission('asset:info:remove')) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        type: 'danger',
+        icon: 'ri:delete-bin-line',
+        color: '#f56c6c',
+        onClick: () => handleDelete(row)
+      })
+    }
+
+    return h(AssetRowActionBar, { actions })
+  }
 
   const formItems = computed(() => {
     const items = [
@@ -444,51 +490,9 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 170,
+          width: 260,
           align: 'right',
-          formatter: (row: any) => {
-            const actionNodes = []
-
-            if (hasPermission('asset:info:edit')) {
-              actionNodes.push(
-                h(ArtButtonTable, {
-                  type: 'edit',
-                  onClick: () => handleEdit(row)
-                })
-              )
-            }
-
-            actionNodes.push(
-              h(ArtButtonTable, {
-                type: 'view',
-                onClick: () => handleOpenEventDrawer(row)
-              })
-            )
-
-            actionNodes.push(
-              h(
-                ElButton,
-                {
-                  link: true,
-                  type: 'primary',
-                  size: 'small',
-                  onClick: () => handleOpenAttachments(row)
-                },
-                () => '附件'
-              )
-            )
-
-            if (hasPermission('asset:info:remove')) {
-              actionNodes.push(
-                h(ArtButtonTable, {
-                  type: 'delete',
-                  onClick: () => handleDelete(row)
-                })
-              )
-            }
-
-            return h('div', { class: 'flex justify-end' }, actionNodes)
-          }
+          formatter: (row: any) => renderOperation(row)
         }
       ]
     },

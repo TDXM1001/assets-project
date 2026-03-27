@@ -84,8 +84,8 @@
   import { useDict } from '@/utils/dict'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useUserStore } from '@/store/modules/user'
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import DictTag from '@/components/DictTag/index.vue'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import LocationDialog from './modules/location-dialog.vue'
 
   defineOptions({ name: 'AssetLocation' })
@@ -175,6 +175,46 @@
   const hasPermission = (permission: string) => {
     const permissions = userStore.permissions || []
     return permissions.includes('*:*:*') || permissions.includes(permission)
+  }
+
+  /**
+   * 位置页的行内动作只保留新增、编辑、删除三项，减少树表操作区噪音。
+   */
+  const renderOperation = (row: any) => {
+    const actions: AssetRowActionItem[] = []
+
+    if (hasPermission('asset:location:add')) {
+      actions.push({
+        key: 'add-child',
+        label: '新增子级',
+        type: 'primary',
+        icon: 'ri:add-line',
+        onClick: () => handleAddChild(row)
+      })
+    }
+
+    if (hasPermission('asset:location:edit')) {
+      actions.push({
+        key: 'edit',
+        label: '编辑',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
+      })
+    }
+
+    if (hasPermission('asset:location:remove')) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        type: 'danger',
+        icon: 'ri:delete-bin-line',
+        color: '#f56c6c',
+        onClick: () => handleDelete(row)
+      })
+    }
+
+    return h(AssetRowActionBar, { actions })
   }
 
   /**
@@ -275,40 +315,9 @@
     {
       prop: 'operation',
       label: '操作',
-      width: 210,
+      width: 240,
       align: 'right',
-      formatter: (row: any) => {
-        const actionNodes = []
-
-        if (hasPermission('asset:location:add')) {
-          actionNodes.push(
-            h(ArtButtonTable, {
-              type: 'add',
-              onClick: () => handleAddChild(row)
-            })
-          )
-        }
-
-        if (hasPermission('asset:location:edit')) {
-          actionNodes.push(
-            h(ArtButtonTable, {
-              type: 'edit',
-              onClick: () => handleEdit(row)
-            })
-          )
-        }
-
-        if (hasPermission('asset:location:remove')) {
-          actionNodes.push(
-            h(ArtButtonTable, {
-              type: 'delete',
-              onClick: () => handleDelete(row)
-            })
-          )
-        }
-
-        return h('div', { class: 'flex justify-end' }, actionNodes)
-      }
+      formatter: (row: any) => renderOperation(row)
     }
   ])
 

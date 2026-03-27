@@ -150,6 +150,7 @@
     listAssetInventory,
     startAssetInventory
   } from '@/api/asset/inventory'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import InventoryDialog from './modules/inventory-dialog.vue'
   import InventoryDetailDrawer from './modules/inventory-detail-drawer.vue'
   import InventoryDiffDialog from './modules/inventory-diff-dialog.vue'
@@ -551,7 +552,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 320,
+          width: 340,
           align: 'right',
           formatter: (row: InventoryTaskRow) => renderActions(row)
         }
@@ -658,53 +659,70 @@
    * 列表渲染时统一处理流程动作，避免状态判断散落到模板里。
    */
   const renderActions = (row: InventoryTaskRow) => {
-    const actionNodes: any[] = []
+    const actions: AssetRowActionItem[] = []
 
     if (hasPermission('asset:inventory:query')) {
-      actionNodes.push(
-        h(
-          ElButton,
-          { link: true, type: 'primary', onClick: () => handleOpenDetail(row) },
-          () => '详情'
-        )
-      )
-    }
-
-    if (hasPermission('asset:inventory:edit') && row.taskStatus === 'DRAFT') {
-      actionNodes.push(
-        h(ElButton, { link: true, type: 'primary', onClick: () => handleEdit(row) }, () => '编辑')
-      )
+      actions.push({
+        key: 'detail',
+        label: '详情',
+        type: 'primary',
+        icon: 'ri:eye-line',
+        onClick: () => handleOpenDetail(row)
+      })
     }
 
     if (hasPermission('asset:inventory:start') && row.taskStatus === 'DRAFT') {
-      actionNodes.push(
-        h(ElButton, { link: true, type: 'success', onClick: () => handleStart(row) }, () => '开始')
-      )
+      actions.push({
+        key: 'start',
+        label: '开始盘点',
+        type: 'success',
+        icon: 'ri:play-line',
+        onClick: () => handleStart(row)
+      })
     }
 
     if (hasPermission('asset:inventory:finish') && row.taskStatus === 'RUNNING') {
-      actionNodes.push(
-        h(ElButton, { link: true, type: 'warning', onClick: () => handleFinish(row) }, () => '结束')
-      )
+      actions.push({
+        key: 'finish',
+        label: '结束盘点',
+        type: 'warning',
+        icon: 'ri:stop-circle-line',
+        onClick: () => handleFinish(row)
+      })
     }
 
     if (hasPermission('asset:inventory:processDiff') && hasPendingDiffTask(row)) {
-      actionNodes.push(
-        h(
-          ElButton,
-          { link: true, type: 'danger', onClick: () => handleProcessDiff(row) },
-          () => '处理差异'
-        )
-      )
+      actions.push({
+        key: 'process-diff',
+        label: '处理差异',
+        type: 'warning',
+        icon: 'ri:clipboard-line',
+        onClick: () => handleProcessDiff(row)
+      })
+    }
+
+    if (hasPermission('asset:inventory:edit') && row.taskStatus === 'DRAFT') {
+      actions.push({
+        key: 'edit',
+        label: '编辑任务',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
+      })
     }
 
     if (hasPermission('asset:inventory:remove')) {
-      actionNodes.push(
-        h(ElButton, { link: true, type: 'danger', onClick: () => handleDelete(row) }, () => '删除')
-      )
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        type: 'danger',
+        icon: 'ri:delete-bin-line',
+        color: '#f56c6c',
+        onClick: () => handleDelete(row)
+      })
     }
 
-    return h(ElSpace, { wrap: true, size: 8 }, () => actionNodes)
+    return h(AssetRowActionBar, { actions })
   }
 
   const syncSearchParams = () => {

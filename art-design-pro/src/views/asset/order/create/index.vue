@@ -83,6 +83,13 @@
     formData: Record<string, any>
   }
 
+  interface PageContext extends Record<string, any> {
+    orderType: string
+    bridgeSource: string
+    bridgeKey: string
+    repairId: string
+  }
+
   const LOCAL_DRAFT_KEY = 'asset-order-create-draft'
 
   const route = useRoute()
@@ -151,11 +158,14 @@
     return undefined
   }
 
-  const normalizeBridgeContext = (context: Record<string, any> = {}) => {
+  const normalizeBridgeContext = (context: Record<string, any> = {}): PageContext => {
     const orderType = String(context.orderType || '').toUpperCase()
     return {
       ...context,
-      orderType: orderType || 'INBOUND'
+      orderType: orderType || 'INBOUND',
+      bridgeSource: String(context.bridgeSource || ''),
+      bridgeKey: String(context.bridgeKey || ''),
+      repairId: String(context.repairId || '')
     }
   }
 
@@ -172,7 +182,7 @@
     return [orderType, bridgeSource, sourceBizType, sourceBizId, repairId].join('|')
   }
 
-  const pageContext = computed(() => {
+  const pageContext = computed<PageContext>(() => {
     const queryOrderType = rawOrderTypeQuery.value
     const queryBridgeKey = rawBridgeKeyQuery.value
     const queryBridgeData = rawBridgeDataQuery.value

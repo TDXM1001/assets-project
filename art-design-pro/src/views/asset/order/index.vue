@@ -126,9 +126,9 @@
     submitAssetOrder
   } from '@/api/asset/order'
   import DictTag from '@/components/DictTag/index.vue'
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
   import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
+  import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import OrderApproveDialog from './modules/order-approve-dialog.vue'
   import OrderDetailDrawer from './modules/order-detail-drawer.vue'
   import OrderDialog from './modules/order-dialog.vue'
@@ -405,100 +405,101 @@
    * 这里把单据行内动作拆出来，避免模板里塞满 if/else。
    */
   const renderOperation = (row: any) => {
-    const actionNodes = [
-      hasPermission('asset:order:query') &&
-        h(ArtButtonTable, {
-          type: 'view',
-          onClick: () => handleView(row)
-        }),
-      hasPermission('asset:order:query') &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'primary',
-            size: 'small',
-            onClick: () => handleOpenAttachments(row)
-          },
-          () => '附件'
-        ),
-      hasPermission('asset:order:edit') &&
-        canEditOrder(row) &&
-        h(ArtButtonTable, {
-          type: 'edit',
-          onClick: () => handleEdit(row)
-        }),
-      hasPermission('asset:order:remove') &&
-        canDeleteOrder(row) &&
-        h(ArtButtonTable, {
-          type: 'delete',
-          onClick: () => handleDelete(row)
-        }),
-      hasPermission('asset:order:submit') &&
-        canSubmitOrder(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'primary',
-            size: 'small',
-            onClick: () => handleSubmitOrder(row)
-          },
-          () => '提交'
-        ),
-      hasPermission('asset:order:approve') &&
-        canApproveOrder(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'success',
-            size: 'small',
-            onClick: () => openApprovalDialog(row, 'approve')
-          },
-          () => '通过'
-        ),
-      hasPermission('asset:order:reject') &&
-        canRejectOrder(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'danger',
-            size: 'small',
-            onClick: () => openApprovalDialog(row, 'reject')
-          },
-          () => '驳回'
-        ),
-      hasPermission('asset:order:finish') &&
-        canFinishOrder(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'warning',
-            size: 'small',
-            onClick: () => handleFinishOrderAndRefresh(row)
-          },
-          () => '完成'
-        ),
-      hasPermission('asset:order:cancel') &&
-        canCancelOrder(row) &&
-        h(
-          ElButton,
-          {
-            link: true,
-            type: 'info',
-            size: 'small',
-            onClick: () => handleCancelOrderAndRefresh(row)
-          },
-          () => '取消'
-        )
-    ].filter(Boolean)
+    const actions: AssetRowActionItem[] = []
 
-    return h('div', { class: 'asset-order-operation' }, [
-      h(ElSpace, { wrap: true, size: 8 }, () => actionNodes as any)
-    ])
+    if (hasPermission('asset:order:query')) {
+      actions.push({
+        key: 'view',
+        label: '详情',
+        type: 'primary',
+        icon: 'ri:eye-line',
+        onClick: () => handleView(row)
+      })
+    }
+
+    if (hasPermission('asset:order:submit') && canSubmitOrder(row)) {
+      actions.push({
+        key: 'submit',
+        label: '提交',
+        type: 'primary',
+        icon: 'ri:send-plane-line',
+        onClick: () => handleSubmitOrder(row)
+      })
+    }
+
+    if (hasPermission('asset:order:approve') && canApproveOrder(row)) {
+      actions.push({
+        key: 'approve',
+        label: '通过',
+        type: 'success',
+        icon: 'ri:checkbox-circle-line',
+        onClick: () => openApprovalDialog(row, 'approve')
+      })
+    }
+
+    if (hasPermission('asset:order:finish') && canFinishOrder(row)) {
+      actions.push({
+        key: 'finish',
+        label: row?.orderType === 'DISPOSAL' ? '执行报废' : '完成',
+        type: 'warning',
+        icon: 'ri:flag-line',
+        onClick: () => handleFinishOrderAndRefresh(row)
+      })
+    }
+
+    if (hasPermission('asset:order:edit') && canEditOrder(row)) {
+      actions.push({
+        key: 'edit',
+        label: '编辑',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
+      })
+    }
+
+    if (hasPermission('asset:order:query')) {
+      actions.push({
+        key: 'attachments',
+        label: '附件',
+        type: 'info',
+        icon: 'ri:attachment-2',
+        onClick: () => handleOpenAttachments(row)
+      })
+    }
+
+    if (hasPermission('asset:order:reject') && canRejectOrder(row)) {
+      actions.push({
+        key: 'reject',
+        label: '驳回',
+        type: 'danger',
+        icon: 'ri:close-circle-line',
+        color: '#f56c6c',
+        onClick: () => openApprovalDialog(row, 'reject')
+      })
+    }
+
+    if (hasPermission('asset:order:cancel') && canCancelOrder(row)) {
+      actions.push({
+        key: 'cancel',
+        label: '取消',
+        type: 'info',
+        icon: 'ri:forbid-2-line',
+        onClick: () => handleCancelOrderAndRefresh(row)
+      })
+    }
+
+    if (hasPermission('asset:order:remove') && canDeleteOrder(row)) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        type: 'danger',
+        icon: 'ri:delete-bin-line',
+        color: '#f56c6c',
+        onClick: () => handleDelete(row)
+      })
+    }
+
+    return h(AssetRowActionBar, { actions })
   }
 
   const handleAdd = () => {

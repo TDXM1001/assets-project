@@ -1,48 +1,6 @@
 <template>
   <ElDrawer v-model="visible" :title="drawerTitle" size="920px" append-to-body destroy-on-close>
     <template v-if="taskData">
-      <div class="inventory-detail-toolbar">
-        <ElSpace wrap>
-          <ElButton
-            v-auth="'asset:inventory:edit'"
-            type="primary"
-            plain
-            :disabled="taskData.taskStatus !== 'DRAFT'"
-            @click="emit('edit')"
-          >
-            编辑任务
-          </ElButton>
-          <ElButton
-            v-auth="'asset:inventory:start'"
-            type="success"
-            plain
-            :disabled="taskData.taskStatus !== 'DRAFT'"
-            @click="emit('start')"
-          >
-            开始盘点
-          </ElButton>
-          <ElButton
-            v-auth="'asset:inventory:finish'"
-            type="warning"
-            plain
-            :disabled="taskData.taskStatus !== 'RUNNING'"
-            @click="emit('finish')"
-          >
-            结束盘点
-          </ElButton>
-          <ElButton
-            v-auth="'asset:inventory:processDiff'"
-            type="danger"
-            plain
-            :disabled="!hasPendingDiffItems"
-            @click="emit('process-diff')"
-          >
-            处理差异
-          </ElButton>
-          <ElButton plain @click="emitRefresh">刷新明细</ElButton>
-        </ElSpace>
-      </div>
-
       <ElDescriptions :column="2" border class="mb-4">
         <ElDescriptionsItem label="任务编号">{{ taskData.taskNo || '-' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="任务名称">{{ taskData.taskName || '-' }}</ElDescriptionsItem>
@@ -255,6 +213,49 @@
         </ElIcon>
       </template>
     </ElEmpty>
+
+    <template #footer>
+      <div v-if="taskData" class="inventory-detail-drawer__footer">
+        <ElSpace wrap>
+          <ElButton
+            v-auth="'asset:inventory:edit'"
+            type="primary"
+            plain
+            :disabled="taskData.taskStatus !== 'DRAFT'"
+            @click="emit('edit')"
+          >
+            编辑任务
+          </ElButton>
+          <ElButton
+            v-auth="'asset:inventory:start'"
+            type="success"
+            :disabled="taskData.taskStatus !== 'DRAFT'"
+            @click="emit('start')"
+          >
+            开始盘点
+          </ElButton>
+          <ElButton
+            v-auth="'asset:inventory:finish'"
+            type="warning"
+            :disabled="taskData.taskStatus !== 'RUNNING'"
+            @click="emit('finish')"
+          >
+            结束盘点
+          </ElButton>
+          <ElButton
+            v-auth="'asset:inventory:processDiff'"
+            type="warning"
+            plain
+            :disabled="!hasPendingDiffItems"
+            @click="emit('process-diff')"
+          >
+            处理差异
+          </ElButton>
+          <ElButton plain @click="emitRefresh">刷新明细</ElButton>
+          <ElButton @click="visible = false">关闭</ElButton>
+        </ElSpace>
+      </div>
+    </template>
   </ElDrawer>
 </template>
 
@@ -557,10 +558,6 @@
 </script>
 
 <style scoped>
-  .inventory-detail-toolbar {
-    margin-bottom: 16px;
-  }
-
   .inventory-metrics {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -603,5 +600,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  .inventory-detail-drawer__footer {
+    display: flex;
+    justify-content: flex-end;
   }
 </style>
