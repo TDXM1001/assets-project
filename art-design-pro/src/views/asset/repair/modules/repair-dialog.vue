@@ -2,7 +2,7 @@
   <ElDialog
     v-model="visible"
     :title="dialogType === 'add' ? '新增维修单' : '编辑维修单'"
-    width="1160px"
+    width="1280px"
     destroy-on-close
     append-to-body
     @closed="handleClosed"
@@ -12,7 +12,7 @@
       type="info"
       show-icon
       :closable="false"
-      title="维修单用于记录资产报修、审批和维修完成过程。一期先聚焦单资产维修主线，确保状态联动和维修流水真实可追踪。"
+      title="维修单现在支持一单多资产明细。为兼容旧接口，首条明细会同步回填到维修单头信息。"
     />
 
     <ElForm
@@ -100,52 +100,119 @@
         </ElCol>
       </ElRow>
 
-      <ElDivider content-position="left">维修资产</ElDivider>
-      <ElAlert
-        class="mb-4"
-        type="warning"
-        show-icon
-        :closable="false"
-        title="一期每张维修单只绑定一条资产，先把报修、审批、完成和状态联动跑通。"
-      />
-      <div class="repair-asset-toolbar">
-        <ElSpace wrap>
-          <ElButton type="primary" plain @click="selectorVisible = true">选择资产</ElButton>
-          <ElButton :disabled="!formData.assetId" @click="handleClearAsset">清空资产</ElButton>
-        </ElSpace>
-      </div>
-      <ElDescriptions :column="2" border>
-        <ElDescriptionsItem label="资产编码">{{
-          displayText(formData.assetCode)
-        }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="资产名称">{{
-          displayText(formData.assetName)
-        }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="维修前状态">
-          <DictTag :options="asset_status" :value="formData.beforeStatus" />
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="当前责任人">
-          {{ displayText(resolveUserName(formData.currentUserId)) }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="当前部门">
-          {{ displayText(resolveDeptName(formData.currentDeptId)) }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="当前位置">
-          {{ displayText(resolveLocationName(formData.currentLocationId)) }}
-        </ElDescriptionsItem>
-      </ElDescriptions>
+      <ElDivider content-position="left">维修资产明细</ElDivider>
+      <ElFormItem prop="repairItems" class="repair-items-form-item">
+        <ElAlert
+          class="mb-4"
+          type="warning"
+          show-icon
+          :closable="false"
+          title="多资产维修会逐条记录故障描述和状态。旧流程仍可只选一条资产，不会中断原有录入方式。"
+        />
 
-      <ElDivider content-position="left">故障信息</ElDivider>
+        <div class="repair-asset-toolbar">
+          <ElSpace wrap>
+            <ElButton type="primary" plain @click="selectorVisible = true">选择资产</ElButton>
+            <ElButton :disabled="!formData.repairItems.length" @click="handleClearAssets">
+              清空明细
+            </ElButton>
+          </ElSpace>
+          <div class="repair-asset-toolbar__summary">
+            已选择 {{ formData.repairItems.length }} 项资产
+          </div>
+        </div>
+
+        <ElTable
+          :data="formData.repairItems"
+          row-key="rowKey"
+          border
+          stripe
+          max-height="420"
+          class="repair-item-table"
+          empty-text="请先选择维修资产"
+        >
+          <ElTableColumn type="index" width="56" label="#" />
+          <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
+          <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
+          <ElTableColumn label="维修前状态" width="120" align="center">
+            <template #default="{ row }">
+              <DictTag :options="asset_status" :value="row.beforeStatus" />
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="维修后状态" width="150">
+            <template #default="{ row }">
+              <ElSelect
+                v-model="row.afterStatus"
+                clearable
+                placeholder="请选择"
+                style="width: 100%"
+              >
+                <ElOption
+                  v-for="item in asset_status"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </ElSelect>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="维修结果" width="150">
+            <template #default="{ row }">
+              <ElSelect v-model="row.resultType" clearable placeholder="请选择" style="width: 100%">
+                <ElOption
+                  v-for="item in resultTypeOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </ElSelect>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="故障描述" min-width="220">
+            <template #default="{ row }">
+              <ElInput
+                v-model="row.faultDesc"
+                type="textarea"
+                :rows="2"
+                maxlength="300"
+                show-word-limit
+                placeholder="请输入该资产的故障现象"
+              />
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="行级说明" min-width="180">
+            <template #default="{ row }">
+              <ElInput v-model="row.remark" maxlength="200" placeholder="配件、送修说明等" />
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="当前责任链" min-width="220">
+            <template #default="{ row }">
+              <div class="repair-item-meta">
+                <div>{{ resolveUserName(row.currentUserId, row.currentUserName) }}</div>
+                <div>{{ resolveDeptName(row.currentDeptId, row.currentDeptName) }}</div>
+                <div>{{ resolveLocationName(row.currentLocationId, row.currentLocationName) }}</div>
+              </div>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="操作" width="90" align="center" fixed="right">
+            <template #default="{ $index }">
+              <ElButton link type="danger" @click="handleRemoveRepairItem($index)"> 移除 </ElButton>
+            </template>
+          </ElTableColumn>
+        </ElTable>
+      </ElFormItem>
+
+      <ElDivider content-position="left">整体说明</ElDivider>
       <ElRow :gutter="16">
         <ElCol :span="24">
-          <ElFormItem label="故障描述" prop="faultDesc">
+          <ElFormItem label="报修概述" prop="faultDesc">
             <ElInput
               v-model="formData.faultDesc"
               type="textarea"
-              :rows="4"
+              :rows="3"
               maxlength="500"
               show-word-limit
-              placeholder="请输入故障现象、影响范围和现场情况"
+              placeholder="请输入整单报修背景，例如批量送修原因、现场影响范围和统一处理诉求"
             />
           </ElFormItem>
         </ElCol>
@@ -157,7 +224,7 @@
               :rows="3"
               maxlength="500"
               show-word-limit
-              placeholder="请输入补充说明，例如报修来源、现场联系人或配件情况"
+              placeholder="请输入补充说明，例如联系人、外部工单号或配件准备情况"
             />
           </ElFormItem>
         </ElCol>
@@ -174,7 +241,7 @@
     <ElDialog
       v-model="selectorVisible"
       title="选择维修资产"
-      width="1080px"
+      width="1120px"
       append-to-body
       destroy-on-close
       @open="handleSelectorOpen"
@@ -217,9 +284,9 @@
         border
         stripe
         height="420"
-        highlight-current-row
-        @current-change="handleCurrentAssetChange"
+        @selection-change="handleAssetSelectionChange"
       >
+        <ElTableColumn type="selection" width="52" reserve-selection />
         <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
         <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
         <ElTableColumn label="资产状态" width="120" align="center">
@@ -228,13 +295,19 @@
           </template>
         </ElTableColumn>
         <ElTableColumn label="责任人" min-width="140">
-          <template #default="{ row }">{{ resolveUserName(row.currentUserId) }}</template>
+          <template #default="{ row }">
+            {{ resolveUserName(row.currentUserId, row.currentUserName) }}
+          </template>
         </ElTableColumn>
         <ElTableColumn label="使用部门" min-width="150">
-          <template #default="{ row }">{{ resolveDeptName(row.useOrgDeptId) }}</template>
+          <template #default="{ row }">
+            {{ resolveDeptName(row.useOrgDeptId, row.useOrgDeptName) }}
+          </template>
         </ElTableColumn>
         <ElTableColumn label="当前位置" min-width="160">
-          <template #default="{ row }">{{ resolveLocationName(row.currentLocationId) }}</template>
+          <template #default="{ row }">
+            {{ resolveLocationName(row.currentLocationId, row.currentLocationName) }}
+          </template>
         </ElTableColumn>
       </ElTable>
 
@@ -254,7 +327,7 @@
       <template #footer>
         <div class="dialog-footer">
           <ElButton @click="selectorVisible = false">取消</ElButton>
-          <ElButton type="primary" @click="handleApplySelectedAsset">确认选择</ElButton>
+          <ElButton type="primary" @click="handleApplySelectedAssets">确认选择</ElButton>
         </div>
       </template>
     </ElDialog>
@@ -262,13 +335,19 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, reactive, ref, watch } from 'vue'
+  import { computed, nextTick, reactive, ref, watch } from 'vue'
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { deptTreeSelect, listUser } from '@/api/system/user'
   import { treeLocationSelect } from '@/api/asset/location'
   import { listAssetInfo } from '@/api/asset/info'
-  import { addAssetRepair, getAssetRepair, updateAssetRepair } from '@/api/asset/repair'
+  import {
+    addAssetRepair,
+    getAssetRepair,
+    updateAssetRepair,
+    type AssetRepairItemPayload,
+    type AssetRepairPayload
+  } from '@/api/asset/repair'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
@@ -290,14 +369,27 @@
     assetName: string
     assetStatus?: string
     currentUserId?: number
+    currentUserName?: string
     useOrgDeptId?: number
+    useOrgDeptName?: string
     currentLocationId?: number
+    currentLocationName?: string
+  }
+
+  interface RepairItemFormData extends AssetRepairItemPayload {
+    rowKey: string
   }
 
   const repairModeOptions = [
     { label: '内部维修', value: 'IN_HOUSE' },
     { label: '外部送修', value: 'VENDOR' },
     { label: '上门维修', value: 'ONSITE' }
+  ]
+
+  const resultTypeOptions = [
+    { label: '恢复在用', value: 'RESUME_USE' },
+    { label: '转闲置', value: 'TO_IDLE' },
+    { label: '建议报废', value: 'SUGGEST_DISPOSAL' }
   ]
 
   const { asset_status } = useDict('asset_status')
@@ -307,7 +399,7 @@
   const props = defineProps<{
     modelValue: boolean
     dialogType: 'add' | 'edit'
-    repairData?: any
+    repairData?: Record<string, any>
   }>()
 
   const emit = defineEmits<{
@@ -331,7 +423,28 @@
 
   const selectorData = ref<AssetCandidate[]>([])
   const selectorTotal = ref(0)
-  const selectedAsset = ref<AssetCandidate>()
+  const selectedAssets = ref<AssetCandidate[]>([])
+
+  const buildRowKey = (assetId?: number | string) =>
+    `${assetId || 'TEMP'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+  const createRepairItemFromAsset = (asset?: Partial<AssetCandidate>): RepairItemFormData => ({
+    rowKey: buildRowKey(asset?.assetId),
+    assetId: asset?.assetId,
+    assetCode: asset?.assetCode || '',
+    assetName: asset?.assetName || '',
+    beforeStatus: asset?.assetStatus || '',
+    afterStatus: asset?.assetStatus || '',
+    resultType: '',
+    faultDesc: '',
+    remark: '',
+    currentUserId: asset?.currentUserId,
+    currentUserName: asset?.currentUserName,
+    currentDeptId: asset?.useOrgDeptId,
+    currentDeptName: asset?.useOrgDeptName,
+    currentLocationId: asset?.currentLocationId,
+    currentLocationName: asset?.currentLocationName
+  })
 
   const createInitialFormData = () => ({
     repairId: undefined as number | undefined,
@@ -354,7 +467,8 @@
     repairCost: undefined as number | undefined,
     downtimeHours: undefined as number | undefined,
     reworkFlag: '0',
-    remark: ''
+    remark: '',
+    repairItems: [] as RepairItemFormData[]
   })
 
   const formData = reactive(createInitialFormData())
@@ -367,13 +481,41 @@
     assetStatus: ''
   })
 
+  const validateRepairItems = (_rule: unknown, value: RepairItemFormData[], callback: any) => {
+    if (!Array.isArray(value) || value.length === 0) {
+      callback(new Error('请至少选择一条维修资产明细'))
+      return
+    }
+
+    const seenIds = new Set<number>()
+    for (const item of value) {
+      if (!item.assetId) {
+        callback(new Error('维修明细里存在未绑定资产的行，请重新选择'))
+        return
+      }
+      if (seenIds.has(item.assetId)) {
+        callback(new Error('同一资产不能重复加入同一张维修单'))
+        return
+      }
+      seenIds.add(item.assetId)
+
+      if (!String(item.faultDesc || '').trim()) {
+        callback(
+          new Error(`请补充资产【${item.assetName || item.assetCode || item.assetId}】的故障描述`)
+        )
+        return
+      }
+    }
+
+    callback()
+  }
+
   const formRules: FormRules = {
     reportTime: [{ required: true, message: '请选择报修时间', trigger: 'change' }],
     repairMode: [{ required: true, message: '请选择维修方式', trigger: 'change' }],
     applyDeptId: [{ required: true, message: '请选择发起部门', trigger: 'change' }],
     applyUserId: [{ required: true, message: '请选择发起人', trigger: 'change' }],
-    assetId: [{ required: true, message: '请选择维修资产', trigger: 'change' }],
-    faultDesc: [{ required: true, message: '请输入故障描述', trigger: 'blur' }]
+    repairItems: [{ validator: validateRepairItems, trigger: 'change' }]
   }
 
   const flattenTreeLabels = (nodes: TreeOption[], map: Record<string, string>) => {
@@ -435,11 +577,6 @@
     fillDefaultApplicant()
   }
 
-  const displayText = (value: unknown) => {
-    if (value === null || value === undefined || value === '') return '-'
-    return String(value)
-  }
-
   const resolveDeptName = (deptId?: number, fallback?: string) => {
     if (fallback) return fallback
     if (deptId === null || deptId === undefined) return '-'
@@ -458,16 +595,71 @@
     return userLabelMap.value[String(userId)] || String(userId)
   }
 
-  const assignAsset = (asset?: AssetCandidate) => {
-    if (!asset) return
-    formData.assetId = asset.assetId
-    formData.assetCode = asset.assetCode
-    formData.assetName = asset.assetName
-    formData.beforeStatus = asset.assetStatus || ''
-    formData.afterStatus = asset.assetStatus || ''
-    formData.currentUserId = asset.currentUserId
-    formData.currentDeptId = asset.useOrgDeptId
-    formData.currentLocationId = asset.currentLocationId
+  const normalizeRepairItems = (repair?: Record<string, any>) => {
+    // 兼容老数据：详情如果还没返回 itemList，就从单头快照回填成一条明细。
+    const sourceItems = Array.isArray(repair?.itemList)
+      ? repair?.itemList
+      : Array.isArray(repair?.repairItems)
+        ? repair?.repairItems
+        : []
+
+    if (sourceItems.length > 0) {
+      return sourceItems.map((item: Record<string, any>) => ({
+        rowKey: buildRowKey(item.repairItemId || item.assetId),
+        repairItemId: item.repairItemId,
+        assetId: item.assetId,
+        assetCode: item.assetCode || '',
+        assetName: item.assetName || '',
+        beforeStatus: item.beforeStatus || '',
+        afterStatus: item.afterStatus || item.beforeStatus || '',
+        resultType: item.resultType || '',
+        faultDesc: item.faultDesc || '',
+        remark: item.remark || '',
+        currentUserId: item.currentUserId,
+        currentUserName: item.currentUserName,
+        currentDeptId: item.currentDeptId || item.useOrgDeptId,
+        currentDeptName: item.currentDeptName || item.useOrgDeptName,
+        currentLocationId: item.currentLocationId,
+        currentLocationName: item.currentLocationName
+      }))
+    }
+
+    if (repair?.assetId) {
+      return [
+        {
+          rowKey: buildRowKey(repair.assetId),
+          assetId: repair.assetId,
+          assetCode: repair.assetCode || '',
+          assetName: repair.assetName || '',
+          beforeStatus: repair.beforeStatus || '',
+          afterStatus: repair.afterStatus || repair.beforeStatus || '',
+          resultType: repair.resultType || '',
+          faultDesc: repair.faultDesc || '',
+          remark: repair.remark || '',
+          currentUserId: repair.currentUserId,
+          currentUserName: repair.currentUserName,
+          currentDeptId: repair.currentDeptId || repair.useOrgDeptId,
+          currentDeptName: repair.currentDeptName || repair.useOrgDeptName,
+          currentLocationId: repair.currentLocationId,
+          currentLocationName: repair.currentLocationName
+        }
+      ]
+    }
+
+    return []
+  }
+
+  const applyPrimaryItemSnapshot = () => {
+    const primaryItem = formData.repairItems[0]
+    formData.assetId = primaryItem?.assetId
+    formData.assetCode = primaryItem?.assetCode || ''
+    formData.assetName = primaryItem?.assetName || ''
+    formData.beforeStatus = primaryItem?.beforeStatus || ''
+    formData.afterStatus = primaryItem?.afterStatus || ''
+    formData.currentUserId = primaryItem?.currentUserId
+    formData.currentDeptId = primaryItem?.currentDeptId
+    formData.currentLocationId = primaryItem?.currentLocationId
+    formData.faultDesc = formData.faultDesc || primaryItem?.faultDesc || ''
   }
 
   const loadSelectorData = async () => {
@@ -505,44 +697,75 @@
     void loadSelectorData()
   }
 
-  const handleCurrentAssetChange = (row?: AssetCandidate) => {
-    selectedAsset.value = row
+  const handleAssetSelectionChange = (rows: AssetCandidate[]) => {
+    selectedAssets.value = rows
   }
 
-  const handleApplySelectedAsset = () => {
-    if (!selectedAsset.value) {
-      ElMessage.warning('请先选择一条资产')
+  const handleApplySelectedAssets = async () => {
+    if (!selectedAssets.value.length) {
+      ElMessage.warning('请先选择至少一条资产')
       return
     }
-    assignAsset(selectedAsset.value)
+
+    const selectedIds = new Set(formData.repairItems.map((item) => item.assetId).filter(Boolean))
+    const nextItems = selectedAssets.value
+      .filter((asset) => !selectedIds.has(asset.assetId))
+      .map((asset) => createRepairItemFromAsset(asset))
+
+    if (!nextItems.length) {
+      ElMessage.warning('所选资产都已经在当前维修单里了')
+      return
+    }
+
+    formData.repairItems.push(...nextItems)
+    applyPrimaryItemSnapshot()
     selectorVisible.value = false
+    await nextTick()
+    formRef.value?.validateField?.('repairItems').catch(() => undefined)
   }
 
-  const handleClearAsset = async () => {
+  const handleRemoveRepairItem = async (index: number) => {
+    const item = formData.repairItems[index]
+    if (!item) return
+
     try {
-      await ElMessageBox.confirm('确认清空当前维修资产吗？', '提示', { type: 'warning' })
-      formData.assetId = undefined
-      formData.assetCode = ''
-      formData.assetName = ''
-      formData.beforeStatus = ''
-      formData.afterStatus = ''
-      formData.currentUserId = undefined
-      formData.currentDeptId = undefined
-      formData.currentLocationId = undefined
+      await ElMessageBox.confirm(
+        `确认移除资产“${item.assetName || item.assetCode || item.assetId}”吗？`,
+        '提示',
+        { type: 'warning' }
+      )
+      formData.repairItems.splice(index, 1)
+      applyPrimaryItemSnapshot()
+      await nextTick()
+      formRef.value?.validateField?.('repairItems').catch(() => undefined)
     } catch (error) {
       if (error !== 'cancel') {
-        console.error('清空维修资产失败:', error)
+        console.error('移除维修明细失败:', error)
+      }
+    }
+  }
+
+  const handleClearAssets = async () => {
+    try {
+      await ElMessageBox.confirm('确认清空当前维修明细吗？', '提示', { type: 'warning' })
+      formData.repairItems = []
+      applyPrimaryItemSnapshot()
+      await nextTick()
+      formRef.value?.validateField?.('repairItems').catch(() => undefined)
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('清空维修明细失败:', error)
       }
     }
   }
 
   const handleSelectorOpen = async () => {
-    selectedAsset.value = undefined
+    selectedAssets.value = []
     await loadSelectorData()
   }
 
   const handleSelectorClosed = () => {
-    selectedAsset.value = undefined
+    selectedAssets.value = []
   }
 
   watch(
@@ -557,14 +780,18 @@
         if (props.dialogType === 'edit' && props.repairData?.repairId) {
           const detail: any = await getAssetRepair(props.repairData.repairId)
           const repair = detail?.data || detail || props.repairData
-          Object.assign(formData, createInitialFormData(), repair)
+          const repairItems = normalizeRepairItems(repair)
+          Object.assign(formData, createInitialFormData(), repair, { repairItems })
+          applyPrimaryItemSnapshot()
         } else {
           resetForm()
         }
       } catch (error) {
         console.error('加载维修单详情失败:', error)
         if (props.dialogType === 'edit') {
-          Object.assign(formData, createInitialFormData(), props.repairData || {})
+          const repairItems = normalizeRepairItems(props.repairData)
+          Object.assign(formData, createInitialFormData(), props.repairData || {}, { repairItems })
+          applyPrimaryItemSnapshot()
         } else {
           resetForm()
         }
@@ -582,6 +809,30 @@
     }
   )
 
+  const buildPayload = (): AssetRepairPayload => {
+    // 这里保留单头字段，是为了兼容仍然读取 assetId / faultDesc 的旧后端实现。
+    const itemList = formData.repairItems.map((item) => {
+      const payloadItem: Record<string, any> = { ...item }
+      delete payloadItem.rowKey
+      return payloadItem
+    })
+    const primaryItem = itemList[0]
+
+    return {
+      ...formData,
+      assetId: primaryItem?.assetId,
+      assetCode: primaryItem?.assetCode || '',
+      assetName: primaryItem?.assetName || '',
+      beforeStatus: primaryItem?.beforeStatus || '',
+      afterStatus: primaryItem?.afterStatus || '',
+      currentUserId: primaryItem?.currentUserId,
+      currentDeptId: primaryItem?.currentDeptId,
+      currentLocationId: primaryItem?.currentLocationId,
+      faultDesc: String(formData.faultDesc || primaryItem?.faultDesc || '').trim(),
+      itemList
+    }
+  }
+
   const handleSubmit = async () => {
     if (!formRef.value) return
     const valid = await formRef.value.validate().catch(() => false)
@@ -589,7 +840,7 @@
 
     submitLoading.value = true
     try {
-      const payload = { ...formData }
+      const payload = buildPayload()
       if (props.dialogType === 'add') {
         await addAssetRepair(payload)
       } else {
@@ -608,7 +859,7 @@
   const handleClosed = () => {
     resetForm()
     selectorVisible.value = false
-    selectedAsset.value = undefined
+    selectedAssets.value = []
     selectorData.value = []
     selectorTotal.value = 0
     selectorQuery.pageNum = 1
@@ -623,10 +874,34 @@
 </script>
 
 <style scoped lang="scss">
+  .repair-items-form-item {
+    display: block;
+  }
+
   .repair-asset-toolbar {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 16px;
+  }
+
+  .repair-asset-toolbar__summary {
+    color: var(--el-text-color-secondary);
+    font-size: 13px;
+  }
+
+  .repair-item-table {
+    width: 100%;
+  }
+
+  .repair-item-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   .repair-selector-search {

@@ -32,6 +32,30 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="beforeStatus" column="before_status"/>
         <result property="afterStatus" column="after_status"/>
         <result property="attachmentCount" column="attachment_count"/>
+        <result property="itemCount" column="item_count"/>
+        <result property="status" column="status"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="AssetRepairOrderItemResult" type="com.ruoyi.system.domain.asset.AssetRepairOrderItem">
+        <id property="repairItemId" column="repair_item_id"/>
+        <result property="repairId" column="repair_id"/>
+        <result property="assetId" column="asset_id"/>
+        <result property="assetCode" column="asset_code"/>
+        <result property="assetName" column="asset_name"/>
+        <result property="faultDesc" column="fault_desc"/>
+        <result property="beforeStatus" column="before_status"/>
+        <result property="afterStatus" column="after_status"/>
+        <result property="resultType" column="result_type"/>
+        <result property="repairCost" column="repair_cost"/>
+        <result property="downtimeHours" column="downtime_hours"/>
+        <result property="reworkFlag" column="rework_flag"/>
+        <result property="sortOrder" column="sort_order"/>
         <result property="status" column="status"/>
         <result property="delFlag" column="del_flag"/>
         <result property="createBy" column="create_by"/>
@@ -69,6 +93,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                r.before_status,
                r.after_status,
                r.attachment_count,
+               ifnull(item_cnt.item_count, 0) as item_count,
                r.status,
                r.del_flag,
                r.create_by,
@@ -80,6 +105,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         left join sys_user apply_user on apply_user.user_id = r.apply_user_id
         left join sys_user approve_user on approve_user.user_id = r.approve_user_id
         left join sys_dept apply_dept on apply_dept.dept_id = r.apply_dept_id
+        left join (
+            select repair_id, count(1) as item_count
+            from asset_repair_order_item
+            where del_flag = '0'
+            group by repair_id
+        ) item_cnt on item_cnt.repair_id = r.repair_id
         left join (
             select distinct repair_id, dept_id
             from (
@@ -102,9 +133,42 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             r.del_flag = '0'
             <if test="repairId != null">and r.repair_id = #{repairId}</if>
             <if test="repairNo != null and repairNo != ''">and r.repair_no like concat('%', #{repairNo}, '%')</if>
-            <if test="assetId != null">and r.asset_id = #{assetId}</if>
-            <if test="assetCode != null and assetCode != ''">and r.asset_code like concat('%', #{assetCode}, '%')</if>
-            <if test="assetName != null and assetName != ''">and r.asset_name like concat('%', #{assetName}, '%')</if>
+            <if test="assetId != null">
+                and (
+                    r.asset_id = #{assetId}
+                    or exists (
+                        select 1
+                        from asset_repair_order_item i
+                        where i.repair_id = r.repair_id
+                          and i.asset_id = #{assetId}
+                          and i.del_flag = '0'
+                    )
+                )
+            </if>
+            <if test="assetCode != null and assetCode != ''">
+                and (
+                    r.asset_code like concat('%', #{assetCode}, '%')
+                    or exists (
+                        select 1
+                        from asset_repair_order_item i
+                        where i.repair_id = r.repair_id
+                          and i.asset_code like concat('%', #{assetCode}, '%')
+                          and i.del_flag = '0'
+                    )
+                )
+            </if>
+            <if test="assetName != null and assetName != ''">
+                and (
+                    r.asset_name like concat('%', #{assetName}, '%')
+                    or exists (
+                        select 1
+                        from asset_repair_order_item i
+                        where i.repair_id = r.repair_id
+                          and i.asset_name like concat('%', #{assetName}, '%')
+                          and i.del_flag = '0'
+                    )
+                )
+            </if>
             <if test="repairStatus != null and repairStatus != ''">and r.repair_status = #{repairStatus}</if>
             <if test="applyUserId != null">and r.apply_user_id = #{applyUserId}</if>
             <if test="applyDeptId != null">and r.apply_dept_id = #{applyDeptId}</if>
@@ -125,13 +189,49 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectActiveAssetRepairOrder" resultMap="AssetRepairOrderResult">
         <include refid="selectAssetRepairOrderVo"/>
-        where r.asset_id = #{assetId}
-          and r.del_flag = '0'
+        where r.del_flag = '0'
           and r.repair_status in ('DRAFT', 'SUBMITTED', 'APPROVED')
+          and (
+              r.asset_id = #{assetId}
+              or exists (
+                  select 1
+                  from asset_repair_order_item i
+                  where i.repair_id = r.repair_id
+                    and i.asset_id = #{assetId}
+                    and i.del_flag = '0'
+              )
+          )
           <if test="excludeRepairId != null">
             and r.repair_id != #{excludeRepairId}
           </if>
         limit 1
+    </select>
+
+    <select id="selectAssetRepairOrderItemsByRepairId" parameterType="Long" resultMap="AssetRepairOrderItemResult">
+        select i.repair_item_id,
+               i.repair_id,
+               i.asset_id,
+               i.asset_code,
+               i.asset_name,
+               i.fault_desc,
+               i.before_status,
+               i.after_status,
+               i.result_type,
+               i.repair_cost,
+               i.downtime_hours,
+               i.rework_flag,
+               i.sort_order,
+               i.status,
+               i.del_flag,
+               i.create_by,
+               i.create_time,
+               i.update_by,
+               i.update_time,
+               i.remark
+        from asset_repair_order_item i
+        where i.repair_id = #{repairId}
+          and i.del_flag = '0'
+        order by i.sort_order asc, i.repair_item_id asc
     </select>
 
     <insert id="insertAssetRepairOrder" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrder" useGeneratedKeys="true" keyProperty="repairId">
@@ -147,6 +247,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{faultDesc}, #{repairMode}, #{vendorName}, #{repairCost}, #{downtimeHours}, #{reworkFlag},
             #{sendRepairTime}, #{finishTime}, #{resultType}, #{beforeStatus}, #{afterStatus}, #{attachmentCount},
             #{status}, '0', #{createBy}, sysdate(), #{remark}
+        )
+    </insert>
+
+    <insert id="insertAssetRepairOrderItem" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrderItem" useGeneratedKeys="true" keyProperty="repairItemId">
+        insert into asset_repair_order_item (
+            repair_id, asset_id, asset_code, asset_name, fault_desc, before_status, after_status,
+            result_type, repair_cost, downtime_hours, rework_flag, sort_order, status, del_flag,
+            create_by, create_time, update_by, update_time, remark
+        ) values (
+            #{repairId}, #{assetId}, #{assetCode}, #{assetName}, #{faultDesc}, #{beforeStatus}, #{afterStatus},
+            #{resultType}, #{repairCost}, #{downtimeHours}, #{reworkFlag}, #{sortOrder}, #{status}, #{delFlag},
+            #{createBy}, sysdate(), #{updateBy}, sysdate(), #{remark}
         )
     </insert>
 
@@ -182,6 +294,28 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             update_time = sysdate()
         </set>
         where repair_id = #{repairId}
+    </update>
+
+    <update id="updateAssetRepairOrderItem" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrderItem">
+        update asset_repair_order_item
+        <set>
+            <if test="assetId != null">asset_id = #{assetId},</if>
+            <if test="assetCode != null">asset_code = #{assetCode},</if>
+            <if test="assetName != null">asset_name = #{assetName},</if>
+            <if test="faultDesc != null">fault_desc = #{faultDesc},</if>
+            <if test="beforeStatus != null">before_status = #{beforeStatus},</if>
+            <if test="afterStatus != null">after_status = #{afterStatus},</if>
+            <if test="resultType != null">result_type = #{resultType},</if>
+            <if test="repairCost != null">repair_cost = #{repairCost},</if>
+            <if test="downtimeHours != null">downtime_hours = #{downtimeHours},</if>
+            <if test="reworkFlag != null and reworkFlag != ''">rework_flag = #{reworkFlag},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where repair_item_id = #{repairItemId}
     </update>
 
     <update id="updateAssetRepairOrderStatus" parameterType="com.ruoyi.system.domain.asset.AssetRepairOrder">
@@ -222,5 +356,34 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{repairId}
         </foreach>
     </update>
+
+    <delete id="deleteAssetRepairOrderItemsByRepairIds" parameterType="Long">
+        delete from asset_repair_order_item
+        where repair_id in
+        <foreach collection="array" item="repairId" open="(" separator="," close=")">
+            #{repairId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteAssetRepairOrderItemsByRepairId" parameterType="Long">
+        delete from asset_repair_order_item
+        where repair_id = #{repairId}
+    </delete>
+
+    <insert id="batchInsertAssetRepairOrderItems">
+        insert into asset_repair_order_item (
+            repair_id, asset_id, asset_code, asset_name, fault_desc, before_status, after_status,
+            result_type, repair_cost, downtime_hours, rework_flag, sort_order, status, del_flag,
+            create_by, create_time, update_by, update_time, remark
+        ) values
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.repairId}, #{item.assetId}, #{item.assetCode}, #{item.assetName}, #{item.faultDesc},
+                #{item.beforeStatus}, #{item.afterStatus}, #{item.resultType}, #{item.repairCost},
+                #{item.downtimeHours}, #{item.reworkFlag}, #{item.sortOrder}, #{item.status}, #{item.delFlag},
+                #{item.createBy}, sysdate(), #{item.updateBy}, sysdate(), #{item.remark}
+            )
+        </foreach>
+    </insert>
 
 </mapper>

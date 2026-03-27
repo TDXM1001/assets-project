@@ -178,6 +178,85 @@
     label
   }))
 
+  const getRepairItems = (repair?: any) => {
+    if (Array.isArray(repair?.itemList) && repair.itemList.length > 0) {
+      return repair.itemList.filter(Boolean)
+    }
+    if (Array.isArray(repair?.repairItems) && repair.repairItems.length > 0) {
+      return repair.repairItems.filter(Boolean)
+    }
+    if (Number(repair?.itemCount || 0) > 1) {
+      // 列表页只拿到头表时，如果明确是多资产维修，就不要伪装成单资产。
+      return []
+    }
+    if (repair?.assetId) {
+      return [
+        {
+          assetId: repair.assetId,
+          assetCode: repair.assetCode || '',
+          assetName: repair.assetName || '',
+          beforeStatus: repair.beforeStatus || '',
+          afterStatus: repair.afterStatus || repair.beforeStatus || '',
+          resultType: repair.resultType || '',
+          faultDesc: repair.faultDesc || '',
+          remark: repair.remark || '',
+          currentUserId: repair.currentUserId,
+          currentDeptId: repair.currentDeptId || repair.useOrgDeptId,
+          currentLocationId: repair.currentLocationId
+        }
+      ]
+    }
+    return []
+  }
+
+  const getPrimaryRepairItem = (repair?: any) => getRepairItems(repair)[0]
+
+  const normalizeRepairDetail = (repair?: any) => {
+    // 列表、详情和历史数据可能处在不同阶段，这里统一归一成 itemList 结构给前端消费。
+    const itemList = getRepairItems(repair)
+    const primaryItem = itemList[0]
+    return {
+      ...(repair || {}),
+      itemList,
+      itemCount: itemList.length,
+      assetId: repair?.assetId ?? primaryItem?.assetId,
+      assetCode: repair?.assetCode || primaryItem?.assetCode || '',
+      assetName: repair?.assetName || primaryItem?.assetName || '',
+      beforeStatus: repair?.beforeStatus || primaryItem?.beforeStatus || '',
+      afterStatus:
+        repair?.afterStatus || primaryItem?.afterStatus || primaryItem?.beforeStatus || '',
+      faultDesc: repair?.faultDesc || primaryItem?.faultDesc || ''
+    }
+  }
+
+  const formatAssetCode = (repair?: any) => {
+    const items = getRepairItems(repair)
+    if (!items.length) {
+      if (repair?.assetCode) {
+        return Number(repair?.itemCount || 0) > 1
+          ? `${repair.assetCode} 等 ${repair.itemCount} 项`
+          : repair.assetCode
+      }
+      return '-'
+    }
+    if (items.length === 1) return items[0].assetCode || '-'
+    return `${items[0].assetCode || '-'} 等 ${items.length} 项`
+  }
+
+  const formatAssetName = (repair?: any) => {
+    const items = getRepairItems(repair)
+    if (!items.length) {
+      if (repair?.assetName) {
+        return Number(repair?.itemCount || 0) > 1
+          ? `${repair.assetName} 等 ${repair.itemCount} 项`
+          : repair.assetName
+      }
+      return '-'
+    }
+    if (items.length === 1) return items[0].assetName || '-'
+    return `${items[0].assetName || '-'} 等 ${items.length} 项`
+  }
+
   const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
@@ -293,8 +372,18 @@
       apiParams: { pageNum: 1, pageSize: 10 },
       columnsFactory: () => [
         { prop: 'repairNo', label: '维修单号', minWidth: 150 },
-        { prop: 'assetCode', label: '资产编码', minWidth: 140 },
-        { prop: 'assetName', label: '资产名称', minWidth: 180 },
+        {
+          prop: 'assetCode',
+          label: '资产编码',
+          minWidth: 160,
+          formatter: (row: any) => formatAssetCode(row)
+        },
+        {
+          prop: 'assetName',
+          label: '资产名称',
+          minWidth: 220,
+          formatter: (row: any) => formatAssetName(row)
+        },
         {
           prop: 'repairStatus',
           label: '维修状态',
@@ -362,10 +451,11 @@
   ])
 
   const createDisposalBridgePayload = async (repair: any) => {
+    const primaryItem = getPrimaryRepairItem(repair)
     let assetSnapshot: Record<string, any> | undefined
-    if (repair?.assetId) {
+    if (primaryItem?.assetId) {
       try {
-        const response: any = await getAssetInfo(repair.assetId)
+        const response: any = await getAssetInfo(primaryItem.assetId)
         assetSnapshot = response?.data || response || undefined
       } catch (error) {
         console.error('加载报废桥接资产快照失败，回退到维修单快照:', error)
@@ -380,9 +470,9 @@
       sourceBizNo: repair?.repairNo || '',
       repairId: repair?.repairId,
       repairNo: repair?.repairNo || '',
-      assetId: repair?.assetId,
-      assetCode: repair?.assetCode || '',
-      assetName: repair?.assetName || '',
+      assetId: primaryItem?.assetId || repair?.assetId,
+      assetCode: primaryItem?.assetCode || repair?.assetCode || '',
+      assetName: primaryItem?.assetName || repair?.assetName || '',
       assetStatus: assetSnapshot?.assetStatus || repair?.afterStatus || repair?.beforeStatus || '',
       beforeStatus: repair?.beforeStatus || assetSnapshot?.assetStatus || '',
       afterStatus: repair?.afterStatus || assetSnapshot?.assetStatus || repair?.beforeStatus || '',
@@ -522,19 +612,19 @@
   const handleEdit = (row?: any) => {
     if (!row?.repairId) return
     dialogType.value = 'edit'
-    currentRepair.value = { ...row }
+    currentRepair.value = normalizeRepairDetail(row)
     dialogVisible.value = true
   }
 
   const loadRepairDetail = async (row?: any) => {
     if (!row?.repairId) {
-      currentRepair.value = row ? { ...row } : undefined
+      currentRepair.value = row ? normalizeRepairDetail(row) : undefined
       return
     }
-    currentRepair.value = { ...row }
+    currentRepair.value = normalizeRepairDetail(row)
     try {
       const response: any = await getAssetRepair(row.repairId)
-      const repairDetail = { ...row, ...(response?.data || response || {}) }
+      const repairDetail = normalizeRepairDetail({ ...row, ...(response?.data || response || {}) })
       const relatedDisposalOrder = await findRelatedDisposalOrder(repairDetail)
       currentRepair.value = { ...repairDetail, relatedDisposalOrder }
     } catch (error) {
@@ -677,12 +767,19 @@
   const handleFinishConfirm = async (payload: any) => {
     if (!currentRepair.value?.repairId) return
     try {
-      await finishAssetRepair(currentRepair.value.repairId, payload)
-      currentRepair.value = {
-        ...currentRepair.value,
+      const finishPayload = {
         ...payload,
-        repairStatus: 'FINISHED'
+        // 兼容多资产维修完成场景，优先使用弹窗传回的 itemList。
+        itemList: Array.isArray(payload?.itemList)
+          ? payload.itemList
+          : currentRepair.value?.itemList
       }
+      await finishAssetRepair(currentRepair.value.repairId, finishPayload)
+      currentRepair.value = normalizeRepairDetail({
+        ...currentRepair.value,
+        ...finishPayload,
+        repairStatus: 'FINISHED'
+      })
       finishDialogVisible.value = false
       refreshData()
       if (detailDrawerVisible.value) {

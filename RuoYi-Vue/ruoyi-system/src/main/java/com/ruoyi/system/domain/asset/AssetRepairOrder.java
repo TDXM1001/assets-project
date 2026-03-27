@@ -2,9 +2,8 @@ package com.ruoyi.system.domain.asset;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -13,6 +12,10 @@ import com.ruoyi.common.core.domain.BaseEntity;
 
 /**
  * 资产维修单对象 asset_repair_order
+ *
+ * 兼容说明：
+ * 1. 单头字段继续保留，旧前端和历史报表仍然可以读取 assetId、assetCode、faultDesc 等字段。
+ * 2. 多资产维修通过 itemList 承载明细，服务层会将首条明细回写到单头快照字段。
  */
 public class AssetRepairOrder extends BaseEntity
 {
@@ -87,10 +90,16 @@ public class AssetRepairOrder extends BaseEntity
     @Excel(name = "附件数量")
     private Integer attachmentCount;
 
+    @Excel(name = "缁翠慨璧勪骇鏁伴噺")
+    private Integer itemCount;
+
     private String status;
     private String delFlag;
     private String reportTimeStart;
     private String reportTimeEnd;
+
+    /** 维修明细列表 */
+    private List<AssetRepairOrderItem> itemList;
 
     public Long getRepairId()
     {
@@ -113,7 +122,6 @@ public class AssetRepairOrder extends BaseEntity
         this.repairNo = repairNo;
     }
 
-    @NotNull(message = "资产ID不能为空")
     public Long getAssetId()
     {
         return assetId;
@@ -154,7 +162,6 @@ public class AssetRepairOrder extends BaseEntity
         this.repairStatus = repairStatus;
     }
 
-    @NotNull(message = "报修时间不能为空")
     public Date getReportTime()
     {
         return reportTime;
@@ -245,7 +252,6 @@ public class AssetRepairOrder extends BaseEntity
         this.approveResult = approveResult;
     }
 
-    @NotBlank(message = "故障描述不能为空")
     @Size(max = 500, message = "故障描述长度不能超过500个字符")
     public String getFaultDesc()
     {
@@ -367,6 +373,16 @@ public class AssetRepairOrder extends BaseEntity
         this.attachmentCount = attachmentCount;
     }
 
+    public Integer getItemCount()
+    {
+        return itemCount;
+    }
+
+    public void setItemCount(Integer itemCount)
+    {
+        this.itemCount = itemCount;
+    }
+
     public String getStatus()
     {
         return status;
@@ -407,6 +423,16 @@ public class AssetRepairOrder extends BaseEntity
         this.reportTimeEnd = reportTimeEnd;
     }
 
+    public List<AssetRepairOrderItem> getItemList()
+    {
+        return itemList;
+    }
+
+    public void setItemList(List<AssetRepairOrderItem> itemList)
+    {
+        this.itemList = itemList;
+    }
+
     @Override
     public String toString()
     {
@@ -435,8 +461,10 @@ public class AssetRepairOrder extends BaseEntity
             .append("beforeStatus", getBeforeStatus())
             .append("afterStatus", getAfterStatus())
             .append("attachmentCount", getAttachmentCount())
+            .append("itemCount", getItemCount())
             .append("status", getStatus())
             .append("delFlag", getDelFlag())
+            .append("itemList", getItemList())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
             .append("updateBy", getUpdateBy())
