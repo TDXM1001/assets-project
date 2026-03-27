@@ -851,9 +851,10 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    background:
-      radial-gradient(circle at top right, rgb(17 24 39 / 5%), transparent 35%),
-      linear-gradient(180deg, rgb(248 250 252), rgb(255 255 255));
+    // background:
+    //   radial-gradient(circle at top right, rgb(17 24 39 / 5%), transparent 35%),
+    //   linear-gradient(180deg, rgb(248 250 252), rgb(255 255 255));
+    animation: asset-page-enter 180ms ease-out both;
   }
 
   .asset-info-create-page__hero,
@@ -979,6 +980,18 @@
 
     .asset-info-create-page__title {
       font-size: 24px;
+    }
+  }
+
+  @keyframes asset-page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 </style>

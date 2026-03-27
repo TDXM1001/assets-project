@@ -1,12 +1,192 @@
 <template>
-  <ElDrawer
+  <AssetPageShell
+    v-if="pageMode"
+    eyebrow="资产维修单"
+    title="维修单详情"
+    :description="assetSummaryText"
+  >
+    <template #tags>
+      <ElSpace wrap>
+        <ElTag type="info" effect="light">独立页面</ElTag>
+        <ElTag :type="statusTagType" effect="light">{{ currentStatusLabel }}</ElTag>
+        <ElTag type="info" effect="plain">多资产明细</ElTag>
+      </ElSpace>
+    </template>
+
+    <div class="repair-detail-page">
+      <ElAlert
+        v-if="showDisposalBridgeAlert"
+        class="repair-detail-page__summary"
+        type="warning"
+        :closable="false"
+        show-icon
+        :title="bridgeAlertTitle"
+        :description="bridgeAlertDescription"
+      >
+        <template #default>
+          <div class="repair-detail-page__bridge-text">
+            {{ bridgeAlertDescription }}
+          </div>
+          <ElButton
+            v-if="canCreateDisposal"
+            type="warning"
+            size="small"
+            class="repair-detail-page__bridge-btn"
+            @click="emit('createDisposal')"
+          >
+            创建处置单
+          </ElButton>
+        </template>
+      </ElAlert>
+
+      <ElCard v-if="relatedDisposalOrder" shadow="never" class="mb-4">
+        <template #header>关联处置单</template>
+        <ElDescriptions :column="2" border>
+          <ElDescriptionsItem label="单号">
+            {{ displayText(relatedDisposalOrder.orderNo) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="来源业务单号">
+            {{ displayText(relatedDisposalOrder.sourceBizNo) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="单据状态">
+            <DictTag :options="asset_order_status" :value="relatedDisposalOrder.orderStatus" />
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="处置金额">
+            {{ displayAmount(relatedDisposalOrder.disposalAmount) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="审批信息">
+            {{
+              displayApproval(
+                relatedDisposalOrder.approveUserName,
+                relatedDisposalOrder.approveTime
+              )
+            }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="处置原因" :span="2">
+            {{ displayText(relatedDisposalOrder.disposalReason) }}
+          </ElDescriptionsItem>
+        </ElDescriptions>
+      </ElCard>
+
+      <div
+        v-if="relatedDisposalOrder && canViewRelatedDisposal"
+        class="repair-detail-page__linked-actions"
+      >
+        <ElButton type="primary" @click="emit('viewDisposal', relatedDisposalOrder)">
+          查看处置单
+        </ElButton>
+      </div>
+
+      <ElCard shadow="never" class="mb-4">
+        <template #header>维修资产明细</template>
+        <div class="repair-detail-page__asset-summary">
+          <ElTag type="info" effect="plain">资产数量：{{ repairItems.length }}</ElTag>
+        </div>
+        <ElTable
+          :data="repairItems"
+          border
+          stripe
+          size="small"
+          row-key="repairItemId"
+          empty-text="暂无维修资产"
+        >
+          <ElTableColumn type="index" width="56" label="#" />
+          <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
+          <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
+          <ElTableColumn label="维修前状态" width="120" align="center">
+            <template #default="{ row }">
+              <DictTag :options="asset_status" :value="row.beforeStatus" />
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="维修后状态" width="120" align="center">
+            <template #default="{ row }">
+              <DictTag :options="asset_status" :value="row.afterStatus" />
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="处理结果" width="140" align="center">
+            <template #default="{ row }">
+              {{ displayText(resultTypeMap[row.resultType] || row.resultType) }}
+            </template>
+          </ElTableColumn>
+          <ElTableColumn prop="faultDesc" label="故障描述" min-width="220" show-overflow-tooltip />
+          <ElTableColumn prop="remark" label="明细备注" min-width="180" show-overflow-tooltip />
+        </ElTable>
+      </ElCard>
+
+      <ElCard shadow="never" class="mb-4">
+        <template #header>维修概览</template>
+        <ElDescriptions :column="2" border>
+          <ElDescriptionsItem label="报修时间">
+            {{ displayText(repairData?.reportTime) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="维修方式">
+            {{ displayText(repairModeLabel) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="申请部门">
+            {{ displayText(repairData?.applyDeptName || repairData?.applyDeptId) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="申请人">
+            {{ displayText(repairData?.applyUserName || repairData?.applyUserId) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="维修厂商">
+            {{ displayText(repairData?.vendorName) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="资产数量">
+            {{ repairItems.length || '-' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="主单故障描述" :span="2">
+            {{ displayText(repairData?.faultDesc) }}
+          </ElDescriptionsItem>
+        </ElDescriptions>
+      </ElCard>
+
+      <ElCard shadow="never" class="mb-4">
+        <template #header>审批与完工</template>
+        <ElDescriptions :column="2" border>
+          <ElDescriptionsItem label="审批人">
+            {{ displayText(repairData?.approveUserName || repairData?.approveUserId) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="审批时间">
+            {{ displayText(repairData?.approveTime) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="审批结果">
+            {{ displayText(approveResultLabel) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="送修时间">
+            {{ displayText(repairData?.sendRepairTime) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="维修费用">
+            {{ displayAmount(repairData?.repairCost) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="停机时长">
+            {{ displayDowntime(repairData?.downtimeHours) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="完成时间">
+            {{ displayText(repairData?.finishTime) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="主单结果">
+            {{ displayText(resultTypeLabel) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="是否返修">
+            {{ repairData?.reworkFlag === '1' ? '是' : '否' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="备注" :span="2">
+            {{ displayText(repairData?.remark) }}
+          </ElDescriptionsItem>
+        </ElDescriptions>
+      </ElCard>
+    </div>
+  </AssetPageShell>
+
+  <component
+    v-else
+    :is="EpDrawer"
     v-model="visible"
     :title="drawerTitle"
-    :size="pageMode ? '100%' : '78%'"
-    :append-to-body="!pageMode"
-    :modal="!pageMode"
-    :show-close="!pageMode"
-    :class="{ 'repair-detail-drawer--page': pageMode }"
+    size="78%"
+    append-to-body
+    modal
+    show-close
     destroy-on-close
     @closed="handleClosed"
   >
@@ -185,7 +365,7 @@
       </ElCard>
     </div>
 
-    <template #footer>
+    <template v-if="!pageMode" #footer>
       <div class="repair-detail-drawer__footer">
         <ElSpace wrap>
           <ElButton
@@ -245,14 +425,75 @@
         </ElSpace>
       </div>
     </template>
-  </ElDrawer>
+  </component>
+
+  <div v-if="pageMode" class="repair-detail-drawer__footer repair-detail-drawer__page-footer">
+    <ElSpace wrap>
+      <ElButton
+        v-if="hasPermission('asset:repair:query')"
+        type="primary"
+        plain
+        @click="emit('attachments')"
+      >
+        附件
+      </ElButton>
+      <ElButton
+        v-if="canEdit && hasPermission('asset:repair:edit')"
+        type="primary"
+        plain
+        @click="emit('edit')"
+      >
+        编辑
+      </ElButton>
+      <ElButton
+        v-if="canSubmit && hasPermission('asset:repair:submit')"
+        type="primary"
+        @click="emit('submit')"
+      >
+        提交
+      </ElButton>
+      <ElButton
+        v-if="canApprove && hasPermission('asset:repair:approve')"
+        type="success"
+        @click="emit('approve')"
+      >
+        审批通过
+      </ElButton>
+      <ElButton
+        v-if="canReject && hasPermission('asset:repair:reject')"
+        type="danger"
+        plain
+        @click="emit('reject')"
+      >
+        驳回
+      </ElButton>
+      <ElButton
+        v-if="canFinish && hasPermission('asset:repair:finish')"
+        type="warning"
+        @click="emit('finish')"
+      >
+        完工
+      </ElButton>
+      <ElButton
+        v-if="canCancel && hasPermission('asset:repair:cancel')"
+        type="info"
+        plain
+        @click="emit('cancel')"
+      >
+        作废
+      </ElButton>
+      <ElButton @click="handleCancel">关闭</ElButton>
+    </ElSpace>
+  </div>
 </template>
 
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
+  import { ElDrawer as EpDrawer } from 'element-plus'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
+  import AssetPageShell from '../../shared/asset-page-shell.vue'
 
   const { asset_status, asset_order_status } = useDict('asset_status', 'asset_order_status')
   const userStore = useUserStore()
@@ -467,6 +708,38 @@
 </script>
 
 <style scoped>
+  .repair-detail-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .repair-detail-page :deep(.el-card) {
+    border-radius: 18px;
+    border-color: rgb(15 23 42 / 8%);
+  }
+
+  .repair-detail-page__summary {
+    border-radius: 16px;
+  }
+
+  .repair-detail-page__bridge-text {
+    margin-top: 8px;
+  }
+
+  .repair-detail-page__bridge-btn {
+    margin-top: 12px;
+  }
+
+  .repair-detail-page__linked-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .repair-detail-page__asset-summary {
+    margin-bottom: 12px;
+  }
+
   .repair-detail-drawer {
     display: flex;
     flex-direction: column;
@@ -523,28 +796,23 @@
   }
 
   .repair-detail-drawer--page {
-    :deep(.el-drawer) {
-      box-shadow: none;
-      background: transparent;
-      position: static !important;
-      inset: auto !important;
-      margin: 0 !important;
-      width: 100% !important;
-      height: auto !important;
-      transform: none !important;
-    }
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 
-    :deep(.el-drawer__header) {
-      display: none;
-    }
-
-    :deep(.el-drawer__body) {
-      padding: 0;
-    }
-
-    :deep(.el-drawer__footer) {
-      padding: 0;
-      background: transparent;
-    }
+  .repair-detail-drawer__page-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    border: 1px solid rgb(15 23 42 / 8%);
+    border-radius: 18px;
+    background: rgb(255 255 255 / 92%);
+    backdrop-filter: blur(14px);
   }
 </style>

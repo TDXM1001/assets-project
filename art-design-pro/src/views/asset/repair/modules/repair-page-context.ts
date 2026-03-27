@@ -67,3 +67,11 @@ export const safeParseRepairPageContext = (value: string | null) => {
     return undefined
   }
 }
+
+export const readRepairPageContextFromStorage = (
+  bridgeKey: string | null
+): Record<string, any> | undefined => {
+  if (!bridgeKey) return undefined
+  const storageVal = window.localStorage.getItem(`asset-repair-bridge:${bridgeKey}`)
+  return safeParseRepairPageContext(storageVal)
+}

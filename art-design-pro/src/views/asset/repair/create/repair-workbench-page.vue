@@ -1,316 +1,282 @@
 <template>
-  <div class="repair-workbench-page">
-    <AssetPageShell
-      :loading="loading"
-      eyebrow="资产维修单"
-      :title="dialogType === 'add' ? '新建维修单' : '编辑维修单'"
-      :description="
-        dialogType === 'add'
-          ? '把报修时间、维修方式和供应商信息录稳，后续审批、完工和附件都会沿用这张单据。'
-          : '继续补齐当前维修单后，再提交审批和完工处理。'
-      "
-    >
-      <template #tags>
-        <ElSpace wrap>
-          <ElTag type="info" effect="light">独立页面</ElTag>
-          <ElTag :type="dialogType === 'add' ? 'warning' : 'success'" effect="light">
-            {{ dialogType === 'add' ? '草稿阶段' : '编辑模式' }}
-          </ElTag>
-          <ElTag type="info" effect="plain">多资产明细</ElTag>
-        </ElSpace>
-      </template>
+  <div class="repair-workbench-page" v-loading="loading">
+    <div class="repair-dialog-page">
+      <ElAlert
+        class="repair-dialog-page__tip"
+        type="info"
+        show-icon
+        :closable="false"
+        title="维修单现在支持一单多资产明细。为兼容旧接口，首条明细会同步回填到维修单头信息。"
+      />
 
-      <div class="repair-dialog-page" v-loading="loading">
-        <ElAlert
-          class="repair-dialog-page__tip"
-          type="info"
-          show-icon
-          :closable="false"
-          title="维修单现在支持一单多资产明细。为兼容旧接口，首条明细会同步回填到维修单头信息。"
-        />
-
-        <ElForm
-          ref="formRef"
-          :model="formData"
-          :rules="formRules"
-          label-width="110px"
-          class="repair-dialog-page__form"
-        >
-          <ElCard shadow="never">
-            <template #header>
-              <div class="repair-dialog-page__section-header">
-                <div>
-                  <div class="repair-dialog-page__section-title">基础信息</div>
-                  <div class="repair-dialog-page__section-subtitle">
-                    先把报修时间、维修方式和供应商信息录稳，再继续录入资产明细。
-                  </div>
+      <ElForm
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        label-width="110px"
+        class="repair-dialog-page__form"
+      >
+        <ElCard shadow="never">
+          <template #header>
+            <div class="repair-dialog-page__section-header">
+              <div>
+                <div class="repair-dialog-page__section-title">基础信息</div>
+                <div class="repair-dialog-page__section-subtitle">
+                  先把报修时间、维修方式和供应商信息录稳，再继续录入资产明细。
                 </div>
               </div>
-            </template>
+            </div>
+          </template>
 
-            <ElRow :gutter="16">
-              <ElCol :xs="24" :md="12">
-                <ElFormItem label="维修单号" prop="repairNo">
-                  <ElInput v-model="formData.repairNo" disabled placeholder="提交后由系统生成" />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :xs="24" :md="12">
-                <ElFormItem label="报修时间" prop="reportTime">
-                  <ElDatePicker
-                    v-model="formData.reportTime"
-                    type="datetime"
-                    value-format="YYYY-MM-DD HH:mm:ss"
-                    class="w-full"
-                    placeholder="请选择报修时间"
+          <ElRow :gutter="16">
+            <ElCol :xs="24" :md="12">
+              <ElFormItem label="维修单号" prop="repairNo">
+                <ElInput v-model="formData.repairNo" disabled placeholder="提交后由系统生成" />
+              </ElFormItem>
+            </ElCol>
+            <ElCol :xs="24" :md="12">
+              <ElFormItem label="报修时间" prop="reportTime">
+                <ElDatePicker
+                  v-model="formData.reportTime"
+                  type="datetime"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  class="w-full"
+                  placeholder="请选择报修时间"
+                />
+              </ElFormItem>
+            </ElCol>
+            <ElCol :xs="24" :md="12">
+              <ElFormItem label="维修方式" prop="repairMode">
+                <ElSelect
+                  v-model="formData.repairMode"
+                  class="w-full"
+                  placeholder="请选择维修方式"
+                >
+                  <ElOption
+                    v-for="item in repairModeOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
                   />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :xs="24" :md="12">
-                <ElFormItem label="维修方式" prop="repairMode">
+                </ElSelect>
+              </ElFormItem>
+            </ElCol>
+            <ElCol :xs="24" :md="12">
+              <ElFormItem label="外部供应商" prop="vendorName">
+                <ElInput
+                  v-model="formData.vendorName"
+                  maxlength="100"
+                  placeholder="请输入供应商名称，内部维修可留空"
+                />
+              </ElFormItem>
+            </ElCol>
+          </ElRow>
+        </ElCard>
+
+        <ElCard shadow="never">
+          <template #header>
+            <div class="repair-dialog-page__section-header">
+              <div>
+                <div class="repair-dialog-page__section-title">发起信息</div>
+                <div class="repair-dialog-page__section-subtitle">
+                  这里记录是谁在什么部门发起这张维修单，后续审批和完工会持续沿用。
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <ElRow :gutter="16">
+            <ElCol :xs="24" :md="12">
+              <ElFormItem label="发起部门" prop="applyDeptId">
+                <ElTreeSelect
+                  v-model="formData.applyDeptId"
+                  :data="deptOptions"
+                  :props="{ value: 'id', label: 'label', children: 'children' }"
+                  value-key="id"
+                  filterable
+                  clearable
+                  check-strictly
+                  class="w-full"
+                  placeholder="请选择发起部门"
+                />
+              </ElFormItem>
+            </ElCol>
+            <ElCol :xs="24" :md="12">
+              <ElFormItem label="发起人" prop="applyUserId">
+                <ElSelect
+                  v-model="formData.applyUserId"
+                  filterable
+                  clearable
+                  class="w-full"
+                  placeholder="请选择发起人"
+                >
+                  <ElOption
+                    v-for="item in userOptions"
+                    :key="item.userId"
+                    :label="item.displayName"
+                    :value="item.userId"
+                  />
+                </ElSelect>
+              </ElFormItem>
+            </ElCol>
+          </ElRow>
+        </ElCard>
+
+        <ElCard shadow="never">
+          <template #header>
+            <div class="repair-dialog-page__section-header">
+              <div>
+                <div class="repair-dialog-page__section-title">维修资产明细</div>
+                <div class="repair-dialog-page__section-subtitle">
+                  多资产维修会逐条记录故障描述和状态。旧流程仍可只选一条资产，不会中断原有录入方式。
+                </div>
+              </div>
+              <ElSpace>
+                <ElButton type="primary" plain @click="selectorVisible = true">选择资产</ElButton>
+                <ElButton :disabled="!formData.repairItems.length" @click="handleClearAssets">
+                  清空明细
+                </ElButton>
+              </ElSpace>
+            </div>
+          </template>
+
+          <ElFormItem prop="repairItems" class="repair-items-form-item">
+            <div class="repair-asset-toolbar">
+              <div class="repair-asset-toolbar__summary pb-3">
+                已选择 {{ formData.repairItems.length }} 项资产
+              </div>
+            </div>
+
+            <ElTable
+              :data="formData.repairItems"
+              row-key="rowKey"
+              border
+              stripe
+              max-height="420"
+              class="repair-item-table"
+              empty-text="请先选择维修资产"
+            >
+              <ElTableColumn type="index" width="56" label="#" />
+              <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
+              <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
+              <ElTableColumn label="维修前状态" width="120" align="center">
+                <template #default="{ row }">
+                  <DictTag :options="asset_status" :value="row.beforeStatus" />
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="维修后状态" width="150">
+                <template #default="{ row }">
                   <ElSelect
-                    v-model="formData.repairMode"
-                    class="w-full"
-                    placeholder="请选择维修方式"
+                    v-model="row.afterStatus"
+                    clearable
+                    placeholder="请选择"
+                    style="width: 100%"
                   >
                     <ElOption
-                      v-for="item in repairModeOptions"
+                      v-for="item in asset_status"
                       :key="item.value"
                       :label="item.label"
                       :value="item.value"
                     />
                   </ElSelect>
-                </ElFormItem>
-              </ElCol>
-              <ElCol :xs="24" :md="12">
-                <ElFormItem label="外部供应商" prop="vendorName">
-                  <ElInput
-                    v-model="formData.vendorName"
-                    maxlength="100"
-                    placeholder="请输入供应商名称，内部维修可留空"
-                  />
-                </ElFormItem>
-              </ElCol>
-            </ElRow>
-          </ElCard>
-
-          <ElCard shadow="never">
-            <template #header>
-              <div class="repair-dialog-page__section-header">
-                <div>
-                  <div class="repair-dialog-page__section-title">发起信息</div>
-                  <div class="repair-dialog-page__section-subtitle">
-                    这里记录是谁在什么部门发起这张维修单，后续审批和完工会持续沿用。
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <ElRow :gutter="16">
-              <ElCol :xs="24" :md="12">
-                <ElFormItem label="发起部门" prop="applyDeptId">
-                  <ElTreeSelect
-                    v-model="formData.applyDeptId"
-                    :data="deptOptions"
-                    :props="{ value: 'id', label: 'label', children: 'children' }"
-                    value-key="id"
-                    filterable
-                    clearable
-                    check-strictly
-                    class="w-full"
-                    placeholder="请选择发起部门"
-                  />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :xs="24" :md="12">
-                <ElFormItem label="发起人" prop="applyUserId">
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="维修结果" width="150">
+                <template #default="{ row }">
                   <ElSelect
-                    v-model="formData.applyUserId"
-                    filterable
+                    v-model="row.resultType"
                     clearable
-                    class="w-full"
-                    placeholder="请选择发起人"
+                    placeholder="请选择"
+                    style="width: 100%"
                   >
                     <ElOption
-                      v-for="item in userOptions"
-                      :key="item.userId"
-                      :label="item.displayName"
-                      :value="item.userId"
+                      v-for="item in resultTypeOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
                     />
                   </ElSelect>
-                </ElFormItem>
-              </ElCol>
-            </ElRow>
-          </ElCard>
-
-          <ElCard shadow="never">
-            <template #header>
-              <div class="repair-dialog-page__section-header">
-                <div>
-                  <div class="repair-dialog-page__section-title">维修资产明细</div>
-                  <div class="repair-dialog-page__section-subtitle">
-                    多资产维修会逐条记录故障描述和状态。旧流程仍可只选一条资产，不会中断原有录入方式。
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="故障描述" min-width="220">
+                <template #default="{ row }">
+                  <ElInput
+                    v-model="row.faultDesc"
+                    type="textarea"
+                    :rows="2"
+                    maxlength="300"
+                    show-word-limit
+                    placeholder="请输入该资产的故障现象"
+                  />
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="行级说明" min-width="180">
+                <template #default="{ row }">
+                  <ElInput v-model="row.remark" maxlength="200" placeholder="配件、送修说明等" />
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="当前责任链" min-width="220">
+                <template #default="{ row }">
+                  <div class="repair-item-meta">
+                    <div>{{ resolveUserName(row.currentUserId, row.currentUserName) }}</div>
+                    <div>{{ resolveDeptName(row.currentDeptId, row.currentDeptName) }}</div>
+                    <div>{{
+                      resolveLocationName(row.currentLocationId, row.currentLocationName)
+                    }}</div>
                   </div>
-                </div>
-              </div>
-            </template>
-
-            <ElFormItem prop="repairItems" class="repair-items-form-item">
-              <ElAlert
-                class="mb-4"
-                type="warning"
-                show-icon
-                :closable="false"
-                title="多资产维修会逐条记录故障描述和状态。旧流程仍可只选一条资产，不会中断原有录入方式。"
-              />
-
-              <div class="repair-asset-toolbar">
-                <ElSpace wrap>
-                  <ElButton type="primary" plain @click="selectorVisible = true">选择资产</ElButton>
-                  <ElButton :disabled="!formData.repairItems.length" @click="handleClearAssets">
-                    清空明细
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="操作" width="90" align="center" fixed="right">
+                <template #default="{ $index }">
+                  <ElButton link type="danger" @click="handleRemoveRepairItem($index)">
+                    移除
                   </ElButton>
-                </ElSpace>
-                <div class="repair-asset-toolbar__summary">
-                  已选择 {{ formData.repairItems.length }} 项资产
+                </template>
+              </ElTableColumn>
+            </ElTable>
+          </ElFormItem>
+        </ElCard>
+
+        <ElCard shadow="never">
+          <template #header>
+            <div class="repair-dialog-page__section-header">
+              <div>
+                <div class="repair-dialog-page__section-title">整体说明</div>
+                <div class="repair-dialog-page__section-subtitle">
+                  这里补充整单层面的报修背景和备注，后续审批和处置单桥接都会沿用。
                 </div>
               </div>
+            </div>
+          </template>
 
-              <ElTable
-                :data="formData.repairItems"
-                row-key="rowKey"
-                border
-                stripe
-                max-height="420"
-                class="repair-item-table"
-                empty-text="请先选择维修资产"
-              >
-                <ElTableColumn type="index" width="56" label="#" />
-                <ElTableColumn prop="assetCode" label="资产编码" min-width="140" />
-                <ElTableColumn prop="assetName" label="资产名称" min-width="180" />
-                <ElTableColumn label="维修前状态" width="120" align="center">
-                  <template #default="{ row }">
-                    <DictTag :options="asset_status" :value="row.beforeStatus" />
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn label="维修后状态" width="150">
-                  <template #default="{ row }">
-                    <ElSelect
-                      v-model="row.afterStatus"
-                      clearable
-                      placeholder="请选择"
-                      style="width: 100%"
-                    >
-                      <ElOption
-                        v-for="item in asset_status"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                      />
-                    </ElSelect>
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn label="维修结果" width="150">
-                  <template #default="{ row }">
-                    <ElSelect
-                      v-model="row.resultType"
-                      clearable
-                      placeholder="请选择"
-                      style="width: 100%"
-                    >
-                      <ElOption
-                        v-for="item in resultTypeOptions"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                      />
-                    </ElSelect>
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn label="故障描述" min-width="220">
-                  <template #default="{ row }">
-                    <ElInput
-                      v-model="row.faultDesc"
-                      type="textarea"
-                      :rows="2"
-                      maxlength="300"
-                      show-word-limit
-                      placeholder="请输入该资产的故障现象"
-                    />
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn label="行级说明" min-width="180">
-                  <template #default="{ row }">
-                    <ElInput v-model="row.remark" maxlength="200" placeholder="配件、送修说明等" />
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn label="当前责任链" min-width="220">
-                  <template #default="{ row }">
-                    <div class="repair-item-meta">
-                      <div>{{ resolveUserName(row.currentUserId, row.currentUserName) }}</div>
-                      <div>{{ resolveDeptName(row.currentDeptId, row.currentDeptName) }}</div>
-                      <div>{{
-                        resolveLocationName(row.currentLocationId, row.currentLocationName)
-                      }}</div>
-                    </div>
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn label="操作" width="90" align="center" fixed="right">
-                  <template #default="{ $index }">
-                    <ElButton link type="danger" @click="handleRemoveRepairItem($index)">
-                      移除
-                    </ElButton>
-                  </template>
-                </ElTableColumn>
-              </ElTable>
-            </ElFormItem>
-          </ElCard>
-
-          <ElCard shadow="never">
-            <template #header>
-              <div class="repair-dialog-page__section-header">
-                <div>
-                  <div class="repair-dialog-page__section-title">整体说明</div>
-                  <div class="repair-dialog-page__section-subtitle">
-                    这里补充整单层面的报修背景和备注，后续审批和处置单桥接都会沿用。
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <ElRow :gutter="16">
-              <ElCol :span="24">
-                <ElFormItem label="报修概述" prop="faultDesc">
-                  <ElInput
-                    v-model="formData.faultDesc"
-                    type="textarea"
-                    :rows="3"
-                    maxlength="500"
-                    show-word-limit
-                    placeholder="请输入整单报修背景，例如批量送修原因、现场影响范围和统一处理诉求"
-                  />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :span="24">
-                <ElFormItem label="备注" prop="remark">
-                  <ElInput
-                    v-model="formData.remark"
-                    type="textarea"
-                    :rows="3"
-                    maxlength="500"
-                    show-word-limit
-                    placeholder="请输入补充说明，例如联系人、外部工单号或配件准备情况"
-                  />
-                </ElFormItem>
-              </ElCol>
-            </ElRow>
-          </ElCard>
-        </ElForm>
-      </div>
-    </AssetPageShell>
-
-    <div v-if="pageMode" class="dialog-footer repair-dialog-page-footer">
-      <ElButton @click="handleCancel">取消返回</ElButton>
-      <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">保存维修单</ElButton>
+          <ElRow :gutter="16">
+            <ElCol :span="24">
+              <ElFormItem label="报修概述" prop="faultDesc">
+                <ElInput
+                  v-model="formData.faultDesc"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="500"
+                  show-word-limit
+                  placeholder="请输入整单报修背景，例如批量送修原因、现场影响范围和统一处理诉求"
+                />
+              </ElFormItem>
+            </ElCol>
+            <ElCol :span="24">
+              <ElFormItem label="备注" prop="remark">
+                <ElInput
+                  v-model="formData.remark"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="500"
+                  show-word-limit
+                  placeholder="请输入补充说明，例如联系人、外部工单号或配件准备情况"
+                />
+              </ElFormItem>
+            </ElCol>
+          </ElRow>
+        </ElCard>
+      </ElForm>
     </div>
 
     <ElDialog
@@ -410,7 +376,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, nextTick, reactive, ref, watch } from 'vue'
+  import { computed, nextTick, onMounted, reactive, ref } from 'vue'
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { deptTreeSelect, listUser } from '@/api/system/user'
@@ -426,7 +392,7 @@
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
-  import AssetPageShell from '../../shared/asset-page-shell.vue'
+  import type { RepairPageContext } from '../modules/repair-page-context'
 
   defineOptions({ name: 'AssetRepairWorkbenchPage' })
 
@@ -474,33 +440,16 @@
   const userStore = useUserStore()
   const currentUserInfo = computed(() => userStore.getUserInfo)
 
-  const props = withDefaults(
-    defineProps<{
-      modelValue?: boolean
-      pageMode?: boolean
-      dialogType: 'add' | 'edit'
-      repairData?: Record<string, any>
-    }>(),
-    {
-      modelValue: true,
-      pageMode: true
-    }
-  )
-
-  /**
-   * 页面模式和模式类型都显式转成计算属性，避免模板直接读 props 时出现兜底差异。
-   * 这样 create/edit 路由页就不会因为传参与编译细节而退回空壳。
-   */
-  const pageMode = computed(() => props.pageMode ?? true)
-  const dialogType = computed(() => props.dialogType)
-
-  const emit = defineEmits<{
-    (e: 'update:modelValue', value: boolean): void
-    (e: 'success'): void
-    (e: 'cancel'): void
+  const props = defineProps<{
+    context: RepairPageContext
   }>()
 
-  const visible = ref(false)
+  const dialogType = computed(() => (props.context.repairId ? 'edit' : 'add'))
+
+  const emit = defineEmits<{
+    (e: 'success'): void
+  }>()
+
   const loading = ref(false)
   const submitLoading = ref(false)
   const selectorVisible = ref(false)
@@ -689,7 +638,6 @@
   }
 
   const normalizeRepairItems = (repair?: Record<string, any>) => {
-    // 兼容老数据：详情如果还没返回 itemList，就从单头快照回填成一条明细。
     const sourceItems = Array.isArray(repair?.itemList)
       ? repair?.itemList
       : Array.isArray(repair?.repairItems)
@@ -753,6 +701,39 @@
     formData.currentDeptId = primaryItem?.currentDeptId
     formData.currentLocationId = primaryItem?.currentLocationId
     formData.faultDesc = formData.faultDesc || primaryItem?.faultDesc || ''
+  }
+
+  const applyContext = async () => {
+    loading.value = true
+    try {
+      await loadRelationOptions()
+      if (dialogType.value === 'edit' && props.context.repairId) {
+        const detail: any = await getAssetRepair(Number(props.context.repairId))
+        const repair = detail?.data || detail
+        const repairItems = normalizeRepairItems(repair)
+        Object.assign(formData, createInitialFormData(), repair, { repairItems })
+        applyPrimaryItemSnapshot()
+      } else {
+        resetForm()
+        if (props.context.assetId) {
+          const assetInfoRes: any = await listAssetInfo({
+            pageNum: 1,
+            pageSize: 1,
+            assetId: Number(props.context.assetId)
+          })
+          const asset = (assetInfoRes?.rows || assetInfoRes?.data || [])[0]
+          if (asset) {
+            formData.repairItems = [createRepairItemFromAsset(asset)]
+            applyPrimaryItemSnapshot()
+          }
+        }
+      }
+    } catch (error) {
+      console.error('加载维修单上下文失败:', error)
+      resetForm()
+    } finally {
+      loading.value = false
+    }
   }
 
   const loadSelectorData = async () => {
@@ -861,73 +842,7 @@
     selectedAssets.value = []
   }
 
-  watch(
-    () => props.modelValue,
-    async (value) => {
-      visible.value = value
-      if (!value) return
-
-      loading.value = true
-      try {
-        await loadRelationOptions()
-        if (props.dialogType === 'edit' && props.repairData?.repairId) {
-          const detail: any = await getAssetRepair(props.repairData.repairId)
-          const repair = detail?.data || detail || props.repairData
-          const repairItems = normalizeRepairItems(repair)
-          Object.assign(formData, createInitialFormData(), repair, { repairItems })
-          applyPrimaryItemSnapshot()
-        } else {
-          resetForm()
-        }
-      } catch (error) {
-        console.error('加载维修单详情失败:', error)
-        if (props.dialogType === 'edit') {
-          const repairItems = normalizeRepairItems(props.repairData)
-          Object.assign(formData, createInitialFormData(), props.repairData || {}, { repairItems })
-          applyPrimaryItemSnapshot()
-        } else {
-          resetForm()
-        }
-      } finally {
-        loading.value = false
-      }
-    },
-    { immediate: true }
-  )
-
-  watch(
-    () => props.pageMode,
-    (value) => {
-      if (value) {
-        // 页面模式下不再依赖弹层开关，始终保持可见，避免页面主体被关闭事件折叠掉。
-        visible.value = true
-      }
-    },
-    { immediate: true }
-  )
-
-  watch(
-    () => visible.value,
-    (value) => {
-      if (!props.pageMode) {
-        emit('update:modelValue', value)
-      } else if (value) {
-        // 页面模式下不允许把主流程关掉，关闭动作由页面壳自己接管。
-        emit('update:modelValue', true)
-      }
-    }
-  )
-
-  const handleCancel = () => {
-    if (props.pageMode) {
-      emit('cancel')
-      return
-    }
-    visible.value = false
-  }
-
   const buildPayload = (): AssetRepairPayload => {
-    // 这里保留单头字段，是为了兼容仍然读取 assetId / faultDesc 的旧后端实现。
     const itemList = formData.repairItems.map((item) => {
       const payloadItem: Record<string, any> = { ...item }
       delete payloadItem.rowKey
@@ -950,28 +865,58 @@
     }
   }
 
-  const handleSubmit = async () => {
-    if (!formRef.value) return
+  const persistOrder = async (successMessage: string) => {
+    if (!formRef.value) return undefined
     const valid = await formRef.value.validate().catch(() => false)
-    if (!valid) return
+    if (!valid) return undefined
 
     submitLoading.value = true
     try {
       const payload = buildPayload()
-      if (props.dialogType === 'add') {
-        await addAssetRepair(payload)
-      } else {
-        await updateAssetRepair(payload)
-      }
-      ElMessage.success(props.dialogType === 'add' ? '新增成功' : '修改成功')
-      visible.value = false
+      const response: any =
+        dialogType.value === 'add' ? await addAssetRepair(payload) : await updateAssetRepair(payload)
+
+      const repairId = response?.repairId || response?.data?.repairId
+      const repairNo = response?.repairNo || response?.data?.repairNo
+      if (repairId) formData.repairId = repairId
+      if (repairNo) formData.repairNo = repairNo
+
+      ElMessage.success(successMessage)
       emit('success')
+      return { repairId: formData.repairId, repairNo: formData.repairNo }
     } catch (error) {
-      console.error('提交维修单失败:', error)
+      console.error('保存维修单失败:', error)
+      return undefined
     } finally {
       submitLoading.value = false
     }
   }
+
+  const saveDraftOrder = async () =>
+    persistOrder(dialogType.value === 'add' ? '草稿已创建' : '草稿已更新')
+
+  const submitFlowOrder = async () => {
+    return persistOrder(dialogType.value === 'add' ? '新增成功' : '修改成功')
+  }
+
+  const getDraftPayload = () => JSON.parse(JSON.stringify(buildPayload()))
+
+  const applyDraftPayload = (payload?: Record<string, any>) => {
+    if (!payload) return
+    Object.assign(formData, payload)
+    formData.repairItems = Array.isArray(payload.repairItems) ? payload.repairItems : []
+  }
+
+  onMounted(() => {
+    applyContext()
+  })
+
+  defineExpose({
+    saveDraftOrder,
+    submitFlowOrder,
+    getDraftPayload,
+    applyDraftPayload
+  })
 </script>
 
 <style scoped lang="scss">
@@ -994,6 +939,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    // padding-bottom: 40px;
   }
 
   .repair-dialog-page__section-header {
@@ -1022,10 +968,9 @@
 
   .repair-asset-toolbar {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
   }
 
   .repair-asset-toolbar__summary {
@@ -1054,26 +999,5 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 16px;
-  }
-
-  .repair-dialog--page {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .repair-dialog-page-footer {
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 16px;
-    border: 1px solid rgb(15 23 42 / 8%);
-    border-radius: 18px;
-    background: rgb(255 255 255 / 92%);
-    backdrop-filter: blur(14px);
   }
 </style>
