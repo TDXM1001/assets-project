@@ -18,6 +18,10 @@ public interface IAssetCategoryService
 
     AssetCategoryFieldTemplateVo selectCategoryFieldTemplate(Long categoryId);
 
+    AssetCategoryFieldTemplateVo selectCategoryFieldTemplate(Long categoryId, Integer templateVersion);
+
+    AssetCategoryFieldTemplateVo selectCategoryFieldTemplateByVersion(Long categoryId, Integer templateVersion);
+
     boolean checkCategoryCodeUnique(AssetCategory category);
 
     boolean checkCategoryNameUnique(AssetCategory category);

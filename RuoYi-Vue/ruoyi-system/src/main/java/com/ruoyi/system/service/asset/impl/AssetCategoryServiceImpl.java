@@ -59,6 +59,12 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
     }
 
     @Override
+    public AssetCategoryFieldTemplateVo selectCategoryFieldTemplate(Long categoryId, Integer templateVersion)
+    {
+        return selectCategoryFieldTemplateByVersion(categoryId, templateVersion);
+    }
+
+    @Override
     public AssetCategoryFieldTemplateVo selectCategoryFieldTemplate(Long categoryId)
     {
         AssetCategory category = categoryMapper.selectCategoryById(categoryId);
@@ -67,6 +73,34 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
             throw new ServiceException("分类不存在");
         }
         return buildFieldTemplate(category);
+    }
+
+    @Override
+    public AssetCategoryFieldTemplateVo selectCategoryFieldTemplateByVersion(Long categoryId, Integer templateVersion)
+    {
+        if (templateVersion == null || templateVersion.intValue() <= 0)
+        {
+            return selectCategoryFieldTemplate(categoryId);
+        }
+
+        AssetCategory category = categoryMapper.selectCategoryById(categoryId);
+        if (StringUtils.isNull(category))
+        {
+            throw new ServiceException("分类不存在");
+        }
+
+        // 当前分类上只保留最新模板，历史版本统一从快照表读取。
+        if (templateVersion.equals(category.getFieldTemplateVersion()))
+        {
+            return buildFieldTemplate(category);
+        }
+
+        AssetCategory snapshot = categoryMapper.selectCategoryFieldTemplateSnapshot(categoryId, templateVersion);
+        if (StringUtils.isNull(snapshot))
+        {
+            throw new ServiceException("未找到对应的分类模板版本");
+        }
+        return buildFieldTemplate(snapshot);
     }
 
     @Override
@@ -153,6 +187,7 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
             throw new ServiceException("分类不存在");
         }
 
+        AssetCategoryFieldTemplateVo currentSnapshot = snapshotCurrentFieldTemplate(category);
         AssetCategoryFieldTemplateVo normalizedTemplate = normalizeFieldTemplate(categoryId, fieldTemplate);
         normalizedTemplate.setTemplateVersion(resolveNextTemplateVersion(category, normalizedTemplate));
 
@@ -162,7 +197,22 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
         updateTarget.setFieldTemplateVersion(normalizedTemplate.getTemplateVersion());
         updateTarget.setFieldTemplateJson(JSON.toJSONString(normalizedTemplate));
         updateTarget.setUpdateBy(operator);
-        return categoryMapper.updateCategoryFieldTemplate(updateTarget);
+        updateTarget.setCreateBy(StringUtils.defaultIfBlank(operator, category.getUpdateBy()));
+
+        int rows = categoryMapper.updateCategoryFieldTemplate(updateTarget);
+        if (rows > 0 && currentSnapshot != null)
+        {
+            // 保存最新模板的同时固化一份快照，保证后续能按分类+版本反查。
+            AssetCategory snapshotTarget = new AssetCategory();
+            snapshotTarget.setCategoryId(categoryId);
+            snapshotTarget.setFieldTemplateVersion(currentSnapshot == null ? null : currentSnapshot.getTemplateVersion());
+            snapshotTarget.setFieldTemplateStatus(currentSnapshot == null ? null : currentSnapshot.getStatus());
+            snapshotTarget.setFieldTemplateJson(currentSnapshot == null ? null : JSON.toJSONString(currentSnapshot));
+            snapshotTarget.setCreateBy(StringUtils.defaultIfBlank(operator, category.getUpdateBy()));
+            snapshotTarget.setUpdateBy(operator);
+            categoryMapper.insertCategoryFieldTemplateSnapshot(snapshotTarget);
+        }
+        return rows;
     }
 
     @Override
@@ -181,6 +231,21 @@ public class AssetCategoryServiceImpl implements IAssetCategoryService
             }
         }
         return categoryMapper.deleteCategoryByIds(categoryIds);
+    }
+
+    private AssetCategoryFieldTemplateVo snapshotCurrentFieldTemplate(AssetCategory category)
+    {
+        if (StringUtils.isBlank(category.getFieldTemplateJson()) || category.getFieldTemplateVersion() == null)
+        {
+            return null;
+        }
+
+        AssetCategory snapshot = new AssetCategory();
+        snapshot.setCategoryId(category.getCategoryId());
+        snapshot.setFieldTemplateVersion(category.getFieldTemplateVersion());
+        snapshot.setFieldTemplateStatus(category.getFieldTemplateStatus());
+        snapshot.setFieldTemplateJson(category.getFieldTemplateJson());
+        return buildFieldTemplate(snapshot);
     }
 
     private List<AssetCategory> buildCategoryTree(List<AssetCategory> categories)

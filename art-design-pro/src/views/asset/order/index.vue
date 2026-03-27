@@ -502,12 +502,12 @@
   }
 
   const handleAdd = () => {
-    dialogType.value = 'add'
-    currentOrder.value = undefined
-    dialogContext.value = {
-      orderType: activeOrderType.value === 'ALL' ? 'INBOUND' : activeOrderType.value
+    const query: Record<string, string> = {}
+    if (activeOrderType.value !== 'ALL') {
+      query.orderType = activeOrderType.value
     }
-    orderDialogVisible.value = true
+    // 新增单据已经升级为独立页面，这里直接路由跳转，避免再把复杂表单塞回弹窗。
+    router.push({ path: '/asset/order/create', query }).catch(() => undefined)
   }
 
   const safeParseBridgeContext = (value: string | null) => {
@@ -575,14 +575,15 @@
     const queryBridgeData = typeof route.query.bridgeData === 'string' ? route.query.bridgeData : ''
     const queryOrderType = typeof route.query.orderType === 'string' ? route.query.orderType : ''
     const queryAutoOpen = typeof route.query.autoOpen === 'string' ? route.query.autoOpen : ''
+    const normalizedQueryOrderType = queryOrderType.toUpperCase()
     const isRepairBridgeEntry =
-      queryBridgeSource === 'repair' && queryOrderType.toUpperCase() === 'DISPOSAL'
+      queryBridgeSource === 'repair' && normalizedQueryOrderType === 'DISPOSAL'
 
     const parsedBridgeContext =
       safeParseBridgeContext(queryBridgeData) || readBridgeContextFromStorage(queryBridgeKey)
 
-    if (queryOrderType.toUpperCase() === 'DISPOSAL') {
-      activeOrderType.value = 'DISPOSAL'
+    if (normalizedQueryOrderType && normalizedQueryOrderType !== 'ALL') {
+      activeOrderType.value = normalizedQueryOrderType
       syncSearchParams()
       getData()
     }
@@ -593,26 +594,35 @@
         stripBridgeQuery()
         return
       }
-      if (queryOrderType.toUpperCase() === 'DISPOSAL' && queryAutoOpen === '1') {
-        dialogContext.value = { orderType: 'DISPOSAL' }
-        dialogType.value = 'add'
-        currentOrder.value = undefined
-        orderDialogVisible.value = true
+      if (normalizedQueryOrderType === 'DISPOSAL' && queryAutoOpen === '1') {
+        router
+          .replace({
+            path: '/asset/order/create',
+            query: { orderType: 'DISPOSAL', autoOpen: '1' }
+          })
+          .catch(() => undefined)
       }
       return
     }
 
-    dialogContext.value = normalizeBridgeContext(parsedBridgeContext)
-    if (dialogContext.value.orderType === 'DISPOSAL') {
-      activeOrderType.value = 'DISPOSAL'
+    const nextDialogContext = normalizeBridgeContext(parsedBridgeContext)
+    if (nextDialogContext.orderType && nextDialogContext.orderType !== 'INBOUND') {
+      activeOrderType.value = String(nextDialogContext.orderType).toUpperCase()
       syncSearchParams()
       getData()
     }
 
-    dialogType.value = 'add'
-    currentOrder.value = undefined
-    orderDialogVisible.value = true
-    stripBridgeQuery()
+    router
+      .replace({
+        path: '/asset/order/create',
+        query: {
+          orderType: String(nextDialogContext.orderType || 'INBOUND'),
+          bridgeSource: queryBridgeSource || '',
+          bridgeKey: queryBridgeKey || '',
+          bridgeData: JSON.stringify(nextDialogContext)
+        }
+      })
+      .catch(() => undefined)
   }
 
   const hydrateRouteOrderDetail = async () => {
@@ -627,8 +637,11 @@
       if (!orderDetail?.orderId) return
 
       const queryOrderType = typeof route.query.orderType === 'string' ? route.query.orderType : ''
-      if (queryOrderType.toUpperCase() === 'DISPOSAL' || orderDetail.orderType === 'DISPOSAL') {
-        activeOrderType.value = 'DISPOSAL'
+      const normalizedQueryOrderType = queryOrderType.toUpperCase()
+      const normalizedDetailOrderType = String(orderDetail.orderType || '').toUpperCase()
+      const nextActiveOrderType = normalizedQueryOrderType || normalizedDetailOrderType
+      if (nextActiveOrderType && nextActiveOrderType !== 'ALL') {
+        activeOrderType.value = nextActiveOrderType
         syncSearchParams()
         getData()
       }

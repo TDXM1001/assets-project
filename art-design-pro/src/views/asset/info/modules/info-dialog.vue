@@ -391,7 +391,7 @@
   /**
    * 分类模板跟着资产表单走详情查询，避免台账弹窗自己维护另一套字段配置。
    */
-  const loadFieldTemplate = async (categoryId?: number) => {
+  const loadFieldTemplate = async (categoryId?: number, templateVersion?: number) => {
     if (!categoryId) {
       fieldTemplate.value = null
       formData.templateVersion = undefined
@@ -399,7 +399,7 @@
     }
 
     try {
-      const response: any = await getCategoryFieldTemplate(categoryId)
+      const response: any = await getCategoryFieldTemplate(categoryId, templateVersion)
       fieldTemplate.value = normalizeTemplate(response?.data || response)
       formData.templateVersion = fieldTemplate.value?.templateVersion
     } catch (error) {
@@ -423,7 +423,7 @@
           const detail: any = await getAssetInfo(props.assetData.assetId)
           Object.assign(formData, initialFormData, detail || {})
           formData.extraFieldValues = { ...(detail?.extraFieldValues || {}) }
-          await loadFieldTemplate(formData.categoryId)
+          await loadFieldTemplate(formData.categoryId, formData.templateVersion)
         } finally {
           loading.value = false
         }

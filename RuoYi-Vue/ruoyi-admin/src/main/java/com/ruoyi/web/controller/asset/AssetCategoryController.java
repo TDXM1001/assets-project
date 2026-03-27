@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -64,9 +65,10 @@ public class AssetCategoryController extends BaseController
      */
     @PreAuthorize("@ss.hasPermi('asset:category:query')")
     @GetMapping("/{categoryId}/fieldTemplate")
-    public AjaxResult getFieldTemplate(@PathVariable Long categoryId)
+    public AjaxResult getFieldTemplate(@PathVariable Long categoryId,
+        @RequestParam(value = "templateVersion", required = false) Integer templateVersion)
     {
-        return success(categoryService.selectCategoryFieldTemplate(categoryId));
+        return success(categoryService.selectCategoryFieldTemplate(categoryId, templateVersion));
     }
 
     /**

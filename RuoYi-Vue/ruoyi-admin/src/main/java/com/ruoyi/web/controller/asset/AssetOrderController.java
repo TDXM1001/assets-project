@@ -85,7 +85,13 @@ public class AssetOrderController extends BaseController
     public AjaxResult add(@Validated @RequestBody AssetOperateOrder assetOperateOrder)
     {
         assetOperateOrder.setCreateBy(getUsername());
-        return toAjax(assetOperateOrderService.insertAssetOperateOrder(assetOperateOrder));
+        int rows = assetOperateOrderService.insertAssetOperateOrder(assetOperateOrder);
+        if (rows <= 0)
+        {
+            return error("新增业务单据失败");
+        }
+        // 新增成功后直接返回已回填主键的单据对象，便于前端继续编辑、补录附件或跳转详情。
+        return success(assetOperateOrder);
     }
 
     /**

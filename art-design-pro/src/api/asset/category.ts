@@ -46,10 +46,11 @@ export function delCategory(categoryId: number | string) {
 /**
  * 查询分类字段模板
  */
-export function getCategoryFieldTemplate(categoryId: number | string) {
+export function getCategoryFieldTemplate(categoryId: number | string, templateVersion?: number) {
   return http.request<AssetCategoryFieldTemplate>({
     url: '/asset/category/' + categoryId + '/fieldTemplate',
-    method: 'get'
+    method: 'get',
+    params: templateVersion ? { templateVersion } : undefined
   })
 }
 

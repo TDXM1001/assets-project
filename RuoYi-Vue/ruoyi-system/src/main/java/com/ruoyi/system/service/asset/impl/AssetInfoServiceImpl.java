@@ -1,5 +1,6 @@
 package com.ruoyi.system.service.asset.impl;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,8 @@ public class AssetInfoServiceImpl implements IAssetInfoService
                 AssetInfo dbAsset = assetInfoMapper.checkAssetCodeUnique(asset.getAssetCode());
                 if (StringUtils.isNull(dbAsset))
                 {
+                    // 导入入口也走动态字段规则，避免和页面保存出现双轨口径。
+                    normalizeDynamicFields(asset);
                     asset.setCreateBy(operName);
                     asset.setUpdateBy(operName);
                     if (assetInfoMapper.insertAssetInfo(asset) <= 0)
@@ -107,6 +110,8 @@ public class AssetInfoServiceImpl implements IAssetInfoService
                 else if (Boolean.TRUE.equals(updateSupport))
                 {
                     asset.setAssetId(dbAsset.getAssetId());
+                    // 更新导入同样受模板必填、停用和只读规则约束。
+                    normalizeDynamicFields(asset);
                     asset.setUpdateBy(operName);
                     if (assetInfoMapper.updateAssetInfo(asset) <= 0)
                     {
@@ -168,7 +173,7 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     }
 
     /**
-     * 导入只走核心字段，模板化字段后续由页面化新增入口承接。
+     * 导入先补齐主档默认值，扩展字段规则统一交给 normalizeDynamicFields 处理。
      */
     private void normalizeImportAsset(AssetInfo asset)
     {
@@ -187,71 +192,153 @@ public class AssetInfoServiceImpl implements IAssetInfoService
     }
 
     /**
-     * 统一整理扩展字段，避免模板调整后直接把历史 JSON 覆盖掉。
+     * 统一整理扩展字段，保证页面新增、页面编辑和导入入口共用同一套模板规则。
      */
     private void normalizeDynamicFields(AssetInfo assetInfo)
     {
-        Map<String, Object> mergedValues = new LinkedHashMap<>();
+        AssetInfo dbAsset = null;
+        Map<String, Object> existingValues = new LinkedHashMap<>();
         if (assetInfo.getAssetId() != null)
         {
-            AssetInfo dbAsset = assetInfoMapper.selectAssetInfoById(assetInfo.getAssetId());
+            dbAsset = assetInfoMapper.selectAssetInfoById(assetInfo.getAssetId());
             if (dbAsset != null)
             {
-                mergedValues.putAll(parseExtraFieldValues(dbAsset.getExtraFieldsJson()));
+                existingValues.putAll(parseExtraFieldValues(dbAsset.getExtraFieldsJson()));
             }
         }
-        mergedValues.putAll(parseExtraFieldValues(assetInfo.getExtraFieldsJson()));
-        if (assetInfo.getExtraFieldValues() != null)
-        {
-            mergedValues.putAll(assetInfo.getExtraFieldValues());
-        }
 
-        applyTemplateRules(assetInfo, mergedValues);
-        assetInfo.setExtraFieldValues(mergedValues);
-        assetInfo.setExtraFieldsJson(mergedValues.isEmpty() ? "{}" : JSON.toJSONString(mergedValues));
+        Map<String, Object> incomingValues = collectIncomingDynamicValues(assetInfo);
+        Map<String, Object> normalizedValues = applyTemplateRules(assetInfo, existingValues, incomingValues, dbAsset != null);
+        assetInfo.setExtraFieldValues(normalizedValues);
+        assetInfo.setExtraFieldsJson(normalizedValues.isEmpty() ? "{}" : JSON.toJSONString(normalizedValues));
     }
 
     /**
-     * 把模板的默认值和必填约束前置到服务层，避免前后端口径漂移。
+     * 先整理前端传入的动态字段快照，后续再由模板规则决定哪些值可以落库。
      */
-    private void applyTemplateRules(AssetInfo assetInfo, Map<String, Object> mergedValues)
+    private Map<String, Object> collectIncomingDynamicValues(AssetInfo assetInfo)
     {
+        Map<String, Object> incomingValues = new LinkedHashMap<>();
+        incomingValues.putAll(parseExtraFieldValues(assetInfo.getExtraFieldsJson()));
+        if (assetInfo.getExtraFieldValues() != null)
+        {
+            incomingValues.putAll(assetInfo.getExtraFieldValues());
+        }
+        return incomingValues;
+    }
+
+    /**
+     * 在服务层统一收口模板启用、字段停用、只读和默认值规则，避免不同入口出现口径漂移。
+     */
+    private Map<String, Object> applyTemplateRules(AssetInfo assetInfo, Map<String, Object> existingValues,
+        Map<String, Object> incomingValues, boolean preserveHistory)
+    {
+        Map<String, Object> normalizedValues = preserveHistory
+            ? new LinkedHashMap<>(existingValues)
+            : new LinkedHashMap<>();
         if (assetInfo.getCategoryId() == null)
         {
-            return;
+            return normalizedValues;
         }
 
-        AssetCategoryFieldTemplateVo fieldTemplate = assetCategoryService.selectCategoryFieldTemplate(assetInfo.getCategoryId());
+        AssetCategoryFieldTemplateVo fieldTemplate = assetCategoryService
+            .selectCategoryFieldTemplate(assetInfo.getCategoryId(), assetInfo.getTemplateVersion());
         if (fieldTemplate == null)
         {
-            return;
+            return normalizedValues;
         }
 
         assetInfo.setTemplateVersion(fieldTemplate.getTemplateVersion());
         if (!UserConstants.NORMAL.equals(fieldTemplate.getStatus()) || fieldTemplate.getFields() == null)
         {
-            return;
+            return normalizedValues;
         }
 
         for (AssetCategoryFieldTemplateFieldVo field : fieldTemplate.getFields())
         {
-            if (field == null)
+            if (field == null || !UserConstants.NORMAL.equals(field.getStatus()) || StringUtils.isBlank(field.getFieldCode()))
             {
+                // 停用字段不再接收新值，但保留历史值，避免模板调整直接破坏旧数据。
                 continue;
             }
 
-            Object rawValue = mergedValues.get(field.getFieldCode());
-            if (rawValue == null && StringUtils.isNotBlank(field.getDefaultValue()))
+            String fieldCode = field.getFieldCode();
+            boolean hasExistingValue = existingValues.containsKey(fieldCode);
+            boolean hasIncomingValue = incomingValues.containsKey(fieldCode);
+            Object rawValue = resolveFieldValue(field, existingValues.get(fieldCode), incomingValues.get(fieldCode),
+                hasExistingValue, hasIncomingValue);
+
+            if (rawValue == null && !hasExistingValue && StringUtils.isNotBlank(field.getDefaultValue()))
             {
-                mergedValues.put(field.getFieldCode(), field.getDefaultValue());
-                rawValue = field.getDefaultValue();
+                rawValue = normalizeTemplateValue(field, field.getDefaultValue());
             }
 
             if (UserConstants.EXCEPTION.equals(field.getRequiredFlag()) && isBlankDynamicValue(rawValue))
             {
                 throw new ServiceException("扩展字段[" + field.getFieldName() + "]不能为空");
             }
+
+            if (isBlankDynamicValue(rawValue))
+            {
+                if (!preserveHistory || !hasExistingValue)
+                {
+                    normalizedValues.remove(fieldCode);
+                }
+                continue;
+            }
+
+            normalizedValues.put(fieldCode, normalizeTemplateValue(field, rawValue));
         }
+        return normalizedValues;
+    }
+
+    /**
+     * 只读字段在更新时始终保留历史值，不能被新的提交结果覆盖。
+     */
+    private Object resolveFieldValue(AssetCategoryFieldTemplateFieldVo field, Object existingValue, Object incomingValue,
+        boolean hasExistingValue, boolean hasIncomingValue)
+    {
+        if (UserConstants.EXCEPTION.equals(field.getReadonlyFlag()) && hasExistingValue)
+        {
+            return existingValue;
+        }
+        if (hasIncomingValue)
+        {
+            return incomingValue;
+        }
+        if (hasExistingValue)
+        {
+            return existingValue;
+        }
+        return null;
+    }
+
+    /**
+     * 按模板声明做最小类型收口，避免数值字段被错误保存成字符串。
+     */
+    private Object normalizeTemplateValue(AssetCategoryFieldTemplateFieldVo field, Object rawValue)
+    {
+        if (rawValue == null)
+        {
+            return null;
+        }
+        if ("number".equals(field.getDataType()) || "number".equals(field.getComponentType()))
+        {
+            String stringValue = String.valueOf(rawValue).trim();
+            if (StringUtils.isBlank(stringValue))
+            {
+                return null;
+            }
+            try
+            {
+                return new BigDecimal(stringValue);
+            }
+            catch (NumberFormatException ex)
+            {
+                throw new ServiceException("扩展字段[" + field.getFieldName() + "]必须是数字格式");
+            }
+        }
+        return rawValue;
     }
 
     private void hydrateExtraFieldValues(AssetInfo assetInfo)

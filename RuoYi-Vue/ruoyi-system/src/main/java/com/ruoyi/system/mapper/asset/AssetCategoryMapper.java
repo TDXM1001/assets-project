@@ -13,6 +13,9 @@ public interface AssetCategoryMapper
 
     AssetCategory selectCategoryById(Long categoryId);
 
+    AssetCategory selectCategoryFieldTemplateSnapshot(@Param("categoryId") Long categoryId,
+        @Param("templateVersion") Integer templateVersion);
+
     List<AssetCategory> selectChildrenCategoryById(Long categoryId);
 
     int hasChildByCategoryId(Long categoryId);
@@ -28,6 +31,8 @@ public interface AssetCategoryMapper
     int updateCategory(AssetCategory category);
 
     int updateCategoryFieldTemplate(AssetCategory category);
+
+    int insertCategoryFieldTemplateSnapshot(AssetCategory category);
 
     int updateCategoryChildren(@Param("categories") List<AssetCategory> categories);
 

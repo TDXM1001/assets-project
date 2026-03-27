@@ -595,14 +595,14 @@
   /**
    * 分类模板由后端统一维护，这里只做消费，避免页面自己再维护一套动态字段规则。
    */
-  const loadFieldTemplate = async (categoryId?: number) => {
+  const loadFieldTemplate = async (categoryId?: number, templateVersion?: number) => {
     if (!categoryId) {
       fieldTemplate.value = null
       formData.templateVersion = undefined
       return
     }
 
-    const response: any = await getCategoryFieldTemplate(categoryId)
+    const response: any = await getCategoryFieldTemplate(categoryId, templateVersion)
     fieldTemplate.value = normalizeTemplate(response?.data || response)
     formData.templateVersion = fieldTemplate.value?.templateVersion
   }
@@ -612,7 +612,7 @@
     Object.assign(formData, initialFormData, detail || {})
     formData.extraFieldValues = { ...(detail?.extraFieldValues || {}) }
     currentAssetId.value = detail?.assetId
-    await loadFieldTemplate(formData.categoryId)
+    await loadFieldTemplate(formData.categoryId, formData.templateVersion)
     categoryWatchEnabled.value = true
   }
 

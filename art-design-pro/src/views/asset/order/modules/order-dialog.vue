@@ -1,10 +1,17 @@
 <template>
   <ElDialog
-    :title="dialogTitle"
+    :title="pageMode ? '' : dialogTitle"
     v-model="visible"
-    width="1280px"
+    :width="pageMode ? '100%' : '1280px'"
     destroy-on-close
-    append-to-body
+    :append-to-body="!pageMode"
+    :show-close="!pageMode"
+    :modal="!pageMode"
+    :close-on-click-modal="!pageMode"
+    :close-on-press-escape="!pageMode"
+    :draggable="!pageMode"
+    class="asset-order-dialog"
+    :class="{ 'asset-order-dialog--page': pageMode }"
     @closed="handleClosed"
   >
     <ElAlert
@@ -399,6 +406,17 @@
             {{ formatLocationName(row.afterLocationId, row.afterLocationName) }}
           </template>
         </ElTableColumn>
+        <ElTableColumn label="行级信息" min-width="240">
+          <template #default="{ row }">
+            <!-- 这里复用 itemResult 作为最小行级编辑点，避免把明细区再拆成一套重表单。 -->
+            <ElInput
+              v-model="row.itemResult"
+              maxlength="200"
+              show-word-limit
+              placeholder="请输入行级补充信息"
+            />
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="操作" width="88" fixed="right" align="center">
           <template #default="{ row, $index }">
             <ElButton link type="danger" @click="handleRemoveItem(row.assetId, $index)"
@@ -409,7 +427,7 @@
       </ElTable>
     </ElForm>
 
-    <template #footer>
+    <template v-if="!pageMode" #footer>
       <div class="dialog-footer">
         <ElButton @click="visible = false">取消</ElButton>
         <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">
@@ -524,7 +542,12 @@
   import { listUser, deptTreeSelect } from '@/api/system/user'
   import { treeLocationSelect } from '@/api/asset/location'
   import { listAssetInfo } from '@/api/asset/info'
-  import { addAssetOrder, getAssetOrder, updateAssetOrder } from '@/api/asset/order'
+  import {
+    addAssetOrder,
+    getAssetOrder,
+    submitAssetOrder,
+    updateAssetOrder
+  } from '@/api/asset/order'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
@@ -585,6 +608,7 @@
   const props = defineProps<{
     modelValue: boolean
     dialogType: 'add' | 'edit'
+    pageMode?: boolean
     orderData?: any
     dialogContext?: Record<string, any>
   }>()
@@ -621,16 +645,18 @@
 
   const isDisposalOrder = computed(() => formData.orderType === 'DISPOSAL')
   const isReturnOrder = computed(() => formData.orderType === 'RETURN')
+  const pageMode = computed(() => Boolean(props.pageMode))
+  const isCreateMode = computed(() => props.dialogType === 'add' && !formData.orderId)
   const dialogTitle = computed(() => {
-    const actionLabel = props.dialogType === 'add' ? '新增' : '编辑'
+    const actionLabel = isCreateMode.value ? '新增' : '编辑'
     return isDisposalOrder.value ? `${actionLabel}报废单` : `${actionLabel}业务单据`
   })
   const submitButtonText = computed(() =>
     isDisposalOrder.value
-      ? props.dialogType === 'add'
+      ? isCreateMode.value
         ? '创建报废单'
         : '保存报废单'
-      : props.dialogType === 'add'
+      : isCreateMode.value
         ? '确定'
         : '确定'
   )
@@ -1220,6 +1246,156 @@
     }
   }
 
+  const extractOrderId = (response: any) => {
+    const candidates = [
+      response?.orderId,
+      response?.data?.orderId,
+      response?.id,
+      response?.data?.id,
+      typeof response === 'number' ? response : undefined,
+      typeof response?.data === 'number' ? response.data : undefined
+    ]
+
+    return candidates.find((item) => typeof item === 'number' && item > 0)
+  }
+
+  const extractOrderNo = (response: any) => {
+    const candidates = [response?.orderNo, response?.data?.orderNo]
+    return candidates.find((item) => typeof item === 'string' && item.trim())
+  }
+
+  const buildSubmitPayload = () => {
+    const payload: any = {
+      ...(formData as any),
+      itemList: formData.itemList.map((item) => ({
+        itemId: item.itemId,
+        orderId: item.orderId,
+        assetId: item.assetId,
+        assetCode: item.assetCode,
+        assetName: item.assetName,
+        beforeStatus: item.beforeStatus,
+        afterStatus: item.afterStatus,
+        beforeUserId: item.beforeUserId,
+        afterUserId: item.afterUserId,
+        beforeDeptId: item.beforeDeptId,
+        afterDeptId: item.afterDeptId,
+        beforeLocationId: item.beforeLocationId,
+        afterLocationId: item.afterLocationId,
+        itemStatus: item.itemStatus,
+        itemResult: item.itemResult
+      }))
+    }
+
+    // returnAfterStatus 只是页面辅助字段，不参与后端保存。
+    delete payload.returnAfterStatus
+    return payload
+  }
+
+  const applyDraftPayload = (payload?: Record<string, any>) => {
+    Object.assign(formData, createInitialFormData(), payload || {})
+    formData.itemList = normalizeOrderItems(payload?.itemList || payload?.items || [])
+    syncReturnAfterStatusFromItems()
+    formRef.value?.clearValidate?.()
+  }
+
+  const getDraftPayload = () => JSON.parse(JSON.stringify(buildSubmitPayload()))
+
+  const persistOrder = async (options?: { closeAfterSave?: boolean; successMessage?: string }) => {
+    if (!formRef.value) {
+      return undefined
+    }
+
+    const valid = await formRef.value.validate().catch(() => false)
+    if (!valid) {
+      return undefined
+    }
+
+    if (!formData.itemList.length) {
+      ElMessage.warning('请至少选择一项资产后再保存单据')
+      return undefined
+    }
+
+    submitLoading.value = true
+    try {
+      const payload = buildSubmitPayload()
+      const response: any = isCreateMode.value
+        ? await addAssetOrder(payload)
+        : await updateAssetOrder(payload)
+      const orderId = extractOrderId(response)
+      const orderNo = extractOrderNo(response)
+
+      if (orderId) {
+        formData.orderId = orderId
+        formData.itemList = formData.itemList.map((item) => ({
+          ...item,
+          orderId
+        }))
+      }
+      if (orderNo) {
+        formData.orderNo = orderNo
+      }
+      formData.orderStatus = formData.orderStatus || 'DRAFT'
+
+      ElMessage.success(options?.successMessage || (isCreateMode.value ? '新增成功' : '保存成功'))
+      emit('success')
+
+      if (options?.closeAfterSave) {
+        visible.value = false
+      }
+
+      return {
+        orderId: formData.orderId,
+        orderNo: formData.orderNo,
+        orderStatus: formData.orderStatus
+      }
+    } catch (error) {
+      console.error('提交业务单据失败:', error)
+      return undefined
+    } finally {
+      submitLoading.value = false
+    }
+  }
+
+  const saveDraftOrder = async () => {
+    return persistOrder({
+      closeAfterSave: false,
+      successMessage: formData.orderId ? '草稿已更新' : '草稿已保存'
+    })
+  }
+
+  const submitFlowOrder = async () => {
+    const saveResult = await persistOrder({
+      closeAfterSave: false,
+      successMessage: formData.orderId ? '单据已保存，正在提交' : '单据已创建，正在提交'
+    })
+
+    if (!saveResult?.orderId) {
+      ElMessage.warning('当前接口尚未返回单据ID，暂时无法继续提交流程。')
+      return undefined
+    }
+
+    if (!['DRAFT', 'REJECTED'].includes(formData.orderStatus)) {
+      return saveResult
+    }
+
+    submitLoading.value = true
+    try {
+      await submitAssetOrder(saveResult.orderId)
+      formData.orderStatus = 'SUBMITTED'
+      ElMessage.success('提交流程成功')
+      emit('success')
+      return {
+        ...saveResult,
+        orderStatus: 'SUBMITTED'
+      }
+    } catch (error) {
+      console.error('提交流程失败:', error)
+      return undefined
+    } finally {
+      submitLoading.value = false
+    }
+  }
+
   watch(
     () => props.modelValue,
     async (value) => {
@@ -1299,54 +1475,7 @@
   )
 
   const handleSubmit = async () => {
-    if (!formRef.value) return
-
-    const valid = await formRef.value.validate().catch(() => false)
-    if (!valid) return
-
-    if (!formData.itemList.length) {
-      ElMessage.warning('请至少选择一项资产后再保存单据')
-      return
-    }
-
-    submitLoading.value = true
-    try {
-      // returnAfterStatus 仅用于前端填充明细快照，不需要提交给后端。
-      const payload: any = {
-        ...(formData as any),
-        itemList: formData.itemList.map((item) => ({
-          itemId: item.itemId,
-          orderId: item.orderId,
-          assetId: item.assetId,
-          assetCode: item.assetCode,
-          assetName: item.assetName,
-          beforeStatus: item.beforeStatus,
-          afterStatus: item.afterStatus,
-          beforeUserId: item.beforeUserId,
-          afterUserId: item.afterUserId,
-          beforeDeptId: item.beforeDeptId,
-          afterDeptId: item.afterDeptId,
-          beforeLocationId: item.beforeLocationId,
-          afterLocationId: item.afterLocationId,
-          itemStatus: item.itemStatus,
-          itemResult: item.itemResult
-        }))
-      }
-      delete payload.returnAfterStatus
-
-      if (props.dialogType === 'add') {
-        await addAssetOrder(payload)
-      } else {
-        await updateAssetOrder(payload)
-      }
-      ElMessage.success(props.dialogType === 'add' ? '新增成功' : '修改成功')
-      visible.value = false
-      emit('success')
-    } catch (error) {
-      console.error('提交业务单据失败:', error)
-    } finally {
-      submitLoading.value = false
-    }
+    await persistOrder({ closeAfterSave: true })
   }
 
   const handleClosed = () => {
@@ -1364,9 +1493,32 @@
     submitLoading.value = false
     formRef.value?.clearValidate?.()
   }
+
+  defineExpose({
+    saveDraftOrder,
+    submitFlowOrder,
+    getDraftPayload,
+    applyDraftPayload
+  })
 </script>
 
 <style lang="scss" scoped>
+  .asset-order-dialog {
+    :deep(.el-dialog__body) {
+      padding-top: 8px;
+    }
+  }
+
+  .asset-order-dialog--page {
+    :deep(.el-dialog__header) {
+      display: none;
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 0;
+    }
+  }
+
   .order-item-toolbar {
     display: flex;
     justify-content: space-between;

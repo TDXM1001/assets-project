@@ -80,7 +80,7 @@ sprints:
   - id: "sprint-3"
     name: "页面化与模板化"
     goal: "把复杂新增流从弹窗升级为独立页面，并建立分类字段模板底座，为后续扩展打基础"
-    status: "in_progress"
+    status: "done"
     capacity_points: 21
     committed_points: 21
     stories:
@@ -93,7 +93,7 @@ sprints:
         title: "单据新增页面化"
         file: "docs/stories/story-E006-S002.md"
         points: 8
-        status: "todo"
+        status: "done"
       - id: "STORY-E006-S003"
         title: "分类字段模板落地"
         file: "docs/stories/story-E006-S003.md"

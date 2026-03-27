@@ -29,6 +29,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="remark" column="remark"/>
     </resultMap>
 
+    <resultMap id="AssetCategoryTemplateSnapshotResult" type="com.ruoyi.system.domain.asset.AssetCategory">
+        <result property="categoryId" column="category_id"/>
+        <result property="fieldTemplateVersion" column="field_template_version"/>
+        <result property="fieldTemplateStatus" column="field_template_status"/>
+        <result property="fieldTemplateJson" column="field_template_json"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
     <sql id="selectAssetCategoryVo">
         select c.category_id, c.parent_id, c.ancestors, c.category_code, c.category_name, c.order_num,
                c.depreciable_flag, c.serial_required_flag, c.borrowable_flag, c.inventory_required_flag,
@@ -55,6 +66,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectCategoryById" parameterType="Long" resultMap="AssetCategoryResult">
         <include refid="selectAssetCategoryVo"/>
         where c.category_id = #{categoryId} and c.del_flag = '0'
+    </select>
+
+    <select id="selectCategoryFieldTemplateSnapshot" resultMap="AssetCategoryTemplateSnapshotResult">
+        select category_id, field_template_version, field_template_status, field_template_json,
+               create_by, create_time, update_by, update_time
+        from asset_category_template_history
+        where category_id = #{categoryId}
+          and field_template_version = #{templateVersion}
+        limit 1
     </select>
 
     <select id="selectChildrenCategoryById" parameterType="Long" resultMap="AssetCategoryResult">
@@ -132,6 +152,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where category_id = #{categoryId}
           and del_flag = '0'
     </update>
+
+    <insert id="insertCategoryFieldTemplateSnapshot" parameterType="com.ruoyi.system.domain.asset.AssetCategory">
+        insert into asset_category_template_history (
+            category_id, field_template_version, field_template_status, field_template_json,
+            create_by, create_time, update_by, update_time
+        ) values (
+            #{categoryId}, #{fieldTemplateVersion}, #{fieldTemplateStatus}, #{fieldTemplateJson},
+            #{createBy}, sysdate(), #{updateBy}, sysdate()
+        )
+        on duplicate key update
+            field_template_status = values(field_template_status),
+            field_template_json = values(field_template_json),
+            update_by = values(update_by),
+            update_time = sysdate()
+    </insert>
 
     <update id="deleteCategoryByIds" parameterType="Long">
         update asset_category
