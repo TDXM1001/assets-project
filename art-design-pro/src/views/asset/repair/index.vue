@@ -628,16 +628,24 @@
   }
 
   const handleAdd = () => {
-    dialogType.value = 'add'
-    currentRepair.value = undefined
-    dialogVisible.value = true
+    router.push({
+      path: '/asset/repair/create',
+      query: {
+        sourcePage: 'repair-list',
+        bridgeSource: 'repair-list'
+      }
+    })
   }
 
   const handleEdit = (row?: any) => {
     if (!row?.repairId) return
-    dialogType.value = 'edit'
-    currentRepair.value = normalizeRepairDetail(row)
-    dialogVisible.value = true
+    router.push({
+      path: `/asset/repair/edit/${row.repairId}`,
+      query: {
+        sourcePage: 'repair-list',
+        bridgeSource: 'repair-list'
+      }
+    })
   }
 
   const loadRepairDetail = async (row?: any) => {
@@ -687,8 +695,13 @@
 
   const handleView = async (row?: any) => {
     if (!row?.repairId) return
-    await loadRepairDetail(row)
-    detailDrawerVisible.value = true
+    router.push({
+      path: `/asset/repair/detail/${row.repairId}`,
+      query: {
+        sourcePage: 'repair-list',
+        bridgeSource: 'repair-list'
+      }
+    })
   }
 
   const handleCreateDisposalOrder = async (row?: any) => {

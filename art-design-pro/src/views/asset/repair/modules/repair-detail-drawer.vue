@@ -2,8 +2,11 @@
   <ElDrawer
     v-model="visible"
     :title="drawerTitle"
-    size="78%"
-    append-to-body
+    :size="pageMode ? '100%' : '78%'"
+    :append-to-body="!pageMode"
+    :modal="!pageMode"
+    :show-close="!pageMode"
+    :class="{ 'repair-detail-drawer--page': pageMode }"
     destroy-on-close
     @closed="handleClosed"
   >
@@ -238,7 +241,7 @@
           >
             作废
           </ElButton>
-          <ElButton @click="visible = false">关闭</ElButton>
+          <ElButton @click="handleCancel">关闭</ElButton>
         </ElSpace>
       </div>
     </template>
@@ -256,11 +259,14 @@
 
   const props = defineProps<{
     modelValue: boolean
+    pageMode?: boolean
     repairData?: any
   }>()
 
   const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
+    (e: 'close'): void
+    (e: 'cancel'): void
     (e: 'edit'): void
     (e: 'submit'): void
     (e: 'approve'): void
@@ -427,11 +433,33 @@
   )
 
   watch(
+    () => props.pageMode,
+    (value) => {
+      if (value) {
+        visible.value = true
+      }
+    },
+    { immediate: true }
+  )
+
+  watch(
     () => visible.value,
     (value) => {
-      emit('update:modelValue', value)
+      if (!props.pageMode) {
+        emit('update:modelValue', value)
+      } else if (value) {
+        emit('update:modelValue', true)
+      }
     }
   )
+
+  const handleCancel = () => {
+    if (props.pageMode) {
+      emit('close')
+      return
+    }
+    visible.value = false
+  }
 
   const handleClosed = () => {
     visible.value = false
@@ -492,5 +520,31 @@
   .repair-detail-drawer__footer {
     display: flex;
     justify-content: flex-end;
+  }
+
+  .repair-detail-drawer--page {
+    :deep(.el-drawer) {
+      box-shadow: none;
+      background: transparent;
+      position: static !important;
+      inset: auto !important;
+      margin: 0 !important;
+      width: 100% !important;
+      height: auto !important;
+      transform: none !important;
+    }
+
+    :deep(.el-drawer__header) {
+      display: none;
+    }
+
+    :deep(.el-drawer__body) {
+      padding: 0;
+    }
+
+    :deep(.el-drawer__footer) {
+      padding: 0;
+      background: transparent;
+    }
   }
 </style>

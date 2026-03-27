@@ -2,9 +2,12 @@
   <ElDialog
     v-model="visible"
     :title="dialogType === 'add' ? '新增维修单' : '编辑维修单'"
-    width="1280px"
+    :width="pageMode ? '100%' : '1280px'"
     destroy-on-close
-    append-to-body
+    :append-to-body="!pageMode"
+    :modal="!pageMode"
+    :show-close="!pageMode"
+    :class="{ 'repair-dialog--page': pageMode }"
     @closed="handleClosed"
   >
     <ElAlert
@@ -233,7 +236,7 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <ElButton @click="visible = false">取消</ElButton>
+        <ElButton @click="handleCancel">取消</ElButton>
         <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">确定</ElButton>
       </div>
     </template>
@@ -398,6 +401,7 @@
 
   const props = defineProps<{
     modelValue: boolean
+    pageMode?: boolean
     dialogType: 'add' | 'edit'
     repairData?: Record<string, any>
   }>()
@@ -405,6 +409,7 @@
   const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
     (e: 'success'): void
+    (e: 'cancel'): void
   }>()
 
   const visible = ref(false)
@@ -803,11 +808,35 @@
   )
 
   watch(
+    () => props.pageMode,
+    (value) => {
+      if (value) {
+        // 页面模式下不再依赖弹层开关，始终保持可见，避免页面主体被关闭事件折叠掉。
+        visible.value = true
+      }
+    },
+    { immediate: true }
+  )
+
+  watch(
     () => visible.value,
     (value) => {
-      emit('update:modelValue', value)
+      if (!props.pageMode) {
+        emit('update:modelValue', value)
+      } else if (value) {
+        // 页面模式下不允许把主流程关掉，关闭动作由页面壳自己接管。
+        emit('update:modelValue', true)
+      }
     }
   )
+
+  const handleCancel = () => {
+    if (props.pageMode) {
+      emit('cancel')
+      return
+    }
+    visible.value = false
+  }
 
   const buildPayload = (): AssetRepairPayload => {
     // 这里保留单头字段，是为了兼容仍然读取 assetId / faultDesc 的旧后端实现。
@@ -912,5 +941,33 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 16px;
+  }
+
+  .repair-dialog--page {
+    :deep(.el-dialog) {
+      margin: 0 !important;
+      box-shadow: none;
+      border: 0;
+      background: transparent;
+      position: static !important;
+      inset: auto !important;
+      max-width: none !important;
+      width: 100% !important;
+      height: auto !important;
+      transform: none !important;
+    }
+
+    :deep(.el-dialog__header) {
+      display: none;
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 0;
+    }
+
+    :deep(.el-dialog__footer) {
+      padding: 0;
+      background: transparent;
+    }
   }
 </style>
