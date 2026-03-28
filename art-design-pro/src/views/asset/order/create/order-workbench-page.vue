@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="asset-order-workbench-page" v-loading="loading">
     <ElAlert
       class="asset-order-workbench-page__tip"
@@ -27,9 +27,11 @@
         <template #header>
           <div class="asset-order-workbench-page__section-header">
             <div>
-              <div class="asset-order-workbench-page__section-title">基础信息</div>
+              <div class="asset-order-workbench-page__section-title">
+                {{ activeTypeConfig.sectionTitle }}
+              </div>
               <div class="asset-order-workbench-page__section-subtitle">
-                先把单据类型、业务时间和发起信息录稳，再补资产明细。
+                {{ activeTypeConfig.sectionSubtitle }}
               </div>
             </div>
           </div>
@@ -95,7 +97,7 @@
               </ElSelect>
             </ElFormItem>
           </ElCol>
-          <ElCol v-if="!isDisposalOrder" :xs="24" :md="12">
+          <ElCol v-if="activeTypeConfig.showTargetFields" :xs="24" :md="12">
             <ElFormItem label="目标责任人">
               <ElSelect v-model="formData.toUserId" filterable clearable class="w-full">
                 <ElOption
@@ -107,7 +109,7 @@
               </ElSelect>
             </ElFormItem>
           </ElCol>
-          <ElCol v-if="!isDisposalOrder" :xs="24" :md="12">
+          <ElCol v-if="activeTypeConfig.showTargetFields" :xs="24" :md="12">
             <ElFormItem label="目标位置">
               <ElTreeSelect
                 v-model="formData.toLocationId"
@@ -121,7 +123,7 @@
               />
             </ElFormItem>
           </ElCol>
-          <ElCol v-if="isReturnOrder" :xs="24" :md="12">
+          <ElCol v-if="activeTypeConfig.showReturnAfterStatus" :xs="24" :md="12">
             <ElFormItem label="归还后状态" prop="returnAfterStatus">
               <ElSelect v-model="formData.returnAfterStatus" class="w-full">
                 <ElOption
@@ -134,12 +136,9 @@
             </ElFormItem>
           </ElCol>
           <ElCol :xs="24" :md="12">
-            <ElFormItem
-              :label="isDisposalOrder ? '处置金额' : '预计归还日'"
-              :prop="isDisposalOrder ? 'disposalAmount' : 'expectedReturnDate'"
-            >
+            <ElFormItem :label="activeTypeConfig.amountLabel" :prop="activeTypeConfig.amountProp">
               <ElInputNumber
-                v-if="isDisposalOrder"
+                v-if="activeTypeConfig.amountFieldType === 'number'"
                 v-model="formData.disposalAmount"
                 :min="0"
                 :precision="2"
@@ -157,10 +156,7 @@
             </ElFormItem>
           </ElCol>
           <ElCol :xs="24">
-            <ElFormItem
-              :label="isDisposalOrder ? '报废原因' : '备注'"
-              :prop="isDisposalOrder ? 'disposalReason' : 'remark'"
-            >
+            <ElFormItem :label="activeTypeConfig.remarkLabel" :prop="activeTypeConfig.remarkProp">
               <ElInput
                 v-model="remarkField"
                 type="textarea"
@@ -177,9 +173,11 @@
         <template #header>
           <div class="asset-order-workbench-page__section-header">
             <div>
-              <div class="asset-order-workbench-page__section-title">资产明细</div>
+              <div class="asset-order-workbench-page__section-title">
+                {{ activeTypeConfig.detailSectionTitle }}
+              </div>
               <div class="asset-order-workbench-page__section-subtitle">
-                单据头定义流转方向，明细记录每个资产的状态变化和行级备注。
+                {{ activeTypeConfig.detailSectionSubtitle }}
               </div>
             </div>
           </div>
@@ -281,6 +279,7 @@
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
   import type { OrderWorkbenchContext } from '../modules/order-workbench-context'
+  import { buildOrderTypeViewConfig } from '../modules/order-page-meta'
 
   defineOptions({ name: 'AssetOrderWorkbenchPage' })
 
@@ -367,12 +366,16 @@
     itemList: []
   })
 
-  const isDisposalOrder = computed(() => formData.orderType === 'DISPOSAL')
-  const isReturnOrder = computed(() => formData.orderType === 'RETURN')
+  const activeTypeConfig = computed(() => {
+    return buildOrderTypeViewConfig(formData.orderType)
+  })
   const remarkField = computed({
-    get: () => (isDisposalOrder.value ? formData.disposalReason : formData.remark),
+    get: () =>
+      activeTypeConfig.value.remarkProp === 'disposalReason'
+        ? formData.disposalReason
+        : formData.remark,
     set: (value: string) => {
-      if (isDisposalOrder.value) {
+      if (activeTypeConfig.value.remarkProp === 'disposalReason') {
         formData.disposalReason = value
       } else {
         formData.remark = value
@@ -395,7 +398,7 @@
     disposalAmount: [
       {
         validator: (_: any, value: any, callback: (error?: Error) => void) => {
-          if (!isDisposalOrder.value) {
+          if (!activeTypeConfig.value.requiresDisposalFields) {
             callback()
             return
           }
@@ -411,7 +414,7 @@
     disposalReason: [
       {
         validator: (_: any, value: any, callback: (error?: Error) => void) => {
-          if (!isDisposalOrder.value) {
+          if (!activeTypeConfig.value.requiresDisposalFields) {
             callback()
             return
           }
@@ -464,9 +467,14 @@
   }
 
   const buildAfterStatus = () => {
-    if (isDisposalOrder.value) return 'DISPOSED'
-    if (isReturnOrder.value) return formData.returnAfterStatus
-    return 'IN_USE'
+    switch (activeTypeConfig.value.afterStatusStrategy) {
+      case 'DISPOSED':
+        return 'DISPOSED'
+      case 'RETURN_AFTER':
+        return formData.returnAfterStatus
+      default:
+        return 'IN_USE'
+    }
   }
 
   const applyContext = () => {
@@ -499,7 +507,7 @@
         }
       ]
     }
-    if (props.context?.repairNo && isDisposalOrder.value) {
+    if (props.context?.repairNo && activeTypeConfig.value.remarkProp === 'disposalReason') {
       formData.disposalReason = `来源维修单【${props.context.repairNo}】建议报废`
     }
   }

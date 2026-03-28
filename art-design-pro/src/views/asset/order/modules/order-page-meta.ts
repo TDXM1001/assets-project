@@ -26,12 +26,82 @@ const DEFAULT_META: Omit<OrderPageMeta, 'orderType' | 'orderTypeLabel'> = {
   ]
 }
 
+export type OrderAfterStatusStrategy = 'DISPOSED' | 'RETURN_AFTER' | 'IN_USE'
+
+export interface OrderTypeViewConfig {
+  orderType: string
+  showTargetFields: boolean
+  showReturnAfterStatus: boolean
+  amountLabel: string
+  amountProp: 'disposalAmount' | 'expectedReturnDate'
+  amountFieldType: 'number' | 'date'
+  remarkLabel: string
+  remarkProp: 'disposalReason' | 'remark'
+  requiresDisposalFields: boolean
+  afterStatusStrategy: OrderAfterStatusStrategy
+  sectionTitle: string
+  sectionSubtitle: string
+  detailSectionTitle: string
+  detailSectionSubtitle: string
+}
+
 const ORDER_TYPE_META: Record<string, Partial<OrderPageMeta>> = {
   DISPOSAL: {
     pageTitle: '新建报废单',
     pageDescription: '先补齐报废原因、处置金额和资产明细，再把整张单据提交到正式流程。',
     listScopeTip: '当前聚焦报废单，完成后会把资产落到已报废。',
     listEmptyDescription: '还没有报废单，先创建一张报废单，把处置流程跑起来。'
+  }
+}
+
+const ORDER_TYPE_VIEW_CONFIGS: Record<string, OrderTypeViewConfig> = {
+  DISPOSAL: {
+    orderType: 'DISPOSAL',
+    showTargetFields: false,
+    showReturnAfterStatus: false,
+    amountLabel: '处置金额',
+    amountProp: 'disposalAmount',
+    amountFieldType: 'number',
+    remarkLabel: '报废原因',
+    remarkProp: 'disposalReason',
+    requiresDisposalFields: true,
+    afterStatusStrategy: 'DISPOSED',
+    sectionTitle: '基础信息',
+    sectionSubtitle: '先补齐报废原因、处置金额和发起信息，再补资产明细。',
+    detailSectionTitle: '资产明细',
+    detailSectionSubtitle: '单据头定义处置结果，明细记录资产状态变化和行级备注。'
+  },
+  RETURN: {
+    orderType: 'RETURN',
+    showTargetFields: true,
+    showReturnAfterStatus: true,
+    amountLabel: '预计归还日',
+    amountProp: 'expectedReturnDate',
+    amountFieldType: 'date',
+    remarkLabel: '备注',
+    remarkProp: 'remark',
+    requiresDisposalFields: false,
+    afterStatusStrategy: 'RETURN_AFTER',
+    sectionTitle: '基础信息',
+    sectionSubtitle: '先把单据类型、业务时间和发起信息录稳，再补资产明细。',
+    detailSectionTitle: '资产明细',
+    detailSectionSubtitle: '单据头定义流转方向，明细记录每个资产的状态变化和行级备注。'
+  },
+  DEFAULT: {
+    orderType: 'DEFAULT',
+    showTargetFields: true,
+    showReturnAfterStatus: false,
+    amountLabel: '预计归还日',
+    amountProp: 'expectedReturnDate',
+    amountFieldType: 'date',
+    remarkLabel: '备注',
+    remarkProp: 'remark',
+    requiresDisposalFields: false,
+    afterStatusStrategy: 'IN_USE',
+    sectionTitle: '基础信息',
+    sectionSubtitle: '先把单据类型、业务时间和发起信息录稳，再补资产明细。',
+    detailSectionTitle: '资产明细',
+    detailSectionSubtitle: '单据头定义流转方向，明细记录每个资产的状态变化和行级备注。'
   }
 }
 
@@ -64,4 +134,9 @@ export const buildOrderPageMeta = (orderType?: string, dictOptions: any[] = []):
     ...(customMeta || {}),
     statusTags
   }
+}
+
+export const buildOrderTypeViewConfig = (orderType?: string): OrderTypeViewConfig => {
+  const normalizedType = normalizeOrderType(orderType)
+  return ORDER_TYPE_VIEW_CONFIGS[normalizedType] || ORDER_TYPE_VIEW_CONFIGS.DEFAULT
 }
