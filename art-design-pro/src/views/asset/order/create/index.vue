@@ -1,11 +1,11 @@
 <template>
-  <AssetPageShell
+  <OrderWorkbenchShell
     :loading="submitLoading || draftSaving"
     eyebrow="业务单据"
     :title="pageTitle"
     :description="pageDescription"
   >
-    <template #tags>
+    <template #status>
       <ElSpace wrap>
         <!-- 页面本体保持统一壳层，标签只表达当前工作台状态，不再承担页面布局职责。 -->
         <ElTag
@@ -19,7 +19,7 @@
       </ElSpace>
     </template>
 
-    <template #draftTip>
+    <template #draft-tip>
       <ElAlert
         v-if="savedDraftSummary"
         class="asset-order-create-page__draft-tip"
@@ -40,11 +40,13 @@
       </ElAlert>
     </template>
 
-    <OrderWorkbenchPage
-      ref="orderEditorRef"
-      :context="pageContext"
-      @success="handleEditorSuccess"
-    />
+    <template #editor>
+      <OrderWorkbenchPage
+        ref="orderEditorRef"
+        :context="pageContext"
+        @success="handleEditorSuccess"
+      />
+    </template>
 
     <template #footer>
       <ElSpace wrap>
@@ -60,7 +62,7 @@
         </ElButton>
       </ElSpace>
     </template>
-  </AssetPageShell>
+  </OrderWorkbenchShell>
 </template>
 
 <script setup lang="ts">
@@ -68,8 +70,8 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useRoute, useRouter } from 'vue-router'
   import { useDict } from '@/utils/dict'
-  import AssetPageShell from '../../shared/asset-page-shell.vue'
   import OrderWorkbenchPage from './order-workbench-page.vue'
+  import OrderWorkbenchShell from '../modules/order-workbench-shell.vue'
   import {
     buildOrderWorkbenchDraftScope,
     buildOrderWorkbenchDraftStorageKey,
