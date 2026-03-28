@@ -7,45 +7,61 @@
     append-to-body
     @closed="handleClosed"
   >
-    <ElAlert
-      class="mb-4"
-      :type="actionType === 'reject' ? 'warning' : 'success'"
-      show-icon
-      :closable="false"
-      :title="dialogTip"
-    />
+    <OrderWorkbenchShell
+      :loading="submitLoading"
+      eyebrow="审批流程"
+      :title="shellTitle"
+      :description="dialogTip"
+    >
+      <template #status>
+        <ElSpace wrap>
+          <ElTag :type="actionTagType" effect="light">{{ actionLabel }}</ElTag>
+          <DictTag :options="asset_order_status" :value="orderData?.orderStatus" />
+          <DictTag :options="asset_order_type" :value="orderData?.orderType" />
+        </ElSpace>
+      </template>
 
-    <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-      <ElFormItem :label="remarkLabel" prop="remark">
-        <ElInput
-          v-model="formData.remark"
-          type="textarea"
-          :rows="5"
-          maxlength="500"
-          show-word-limit
-          :placeholder="remarkPlaceholder"
+      <template #editor>
+        <ElAlert
+          class="mb-4"
+          :type="actionType === 'reject' ? 'warning' : 'success'"
+          show-icon
+          :closable="false"
+          :title="dialogTip"
         />
-      </ElFormItem>
-    </ElForm>
 
-    <template #footer>
-      <div class="dialog-footer">
-        <ElButton @click="visible = false">取消</ElButton>
-        <ElButton
-          :type="actionType === 'reject' ? 'danger' : 'primary'"
-          :loading="submitLoading"
-          @click="handleSubmit"
-        >
-          {{ actionType === 'reject' ? '驳回' : '通过' }}
-        </ElButton>
-      </div>
-    </template>
+        <ElForm ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+          <ElFormItem :label="remarkLabel" prop="remark">
+            <ElInput
+              v-model="formData.remark"
+              type="textarea"
+              :rows="5"
+              maxlength="500"
+              show-word-limit
+              :placeholder="remarkPlaceholder"
+            />
+          </ElFormItem>
+        </ElForm>
+      </template>
+
+      <template #footer>
+        <ElSpace wrap>
+          <ElButton @click="visible = false">取消</ElButton>
+          <ElButton :type="actionTagType" :loading="submitLoading" @click="handleSubmit">
+            {{ actionType === 'reject' ? '驳回' : '通过' }}
+          </ElButton>
+        </ElSpace>
+      </template>
+    </OrderWorkbenchShell>
   </ElDialog>
 </template>
 
 <script setup lang="ts">
   import { computed, reactive, ref, watch } from 'vue'
   import type { FormRules } from 'element-plus'
+  import { useDict } from '@/utils/dict'
+  import DictTag from '@/components/DictTag/index.vue'
+  import OrderWorkbenchShell from './order-workbench-shell.vue'
 
   const props = defineProps<{
     modelValue: boolean
@@ -62,12 +78,22 @@
   const submitLoading = ref(false)
   const formRef = ref()
 
+  const { asset_order_status, asset_order_type } = useDict('asset_order_status', 'asset_order_type')
+
   const createInitialFormData = () => ({
     remark: ''
   })
 
   const formData = reactive(createInitialFormData())
 
+  const actionLabel = computed(() => (props.actionType === 'reject' ? '驳回' : '审批'))
+  const actionTagType = computed(() => (props.actionType === 'reject' ? 'danger' : 'success'))
+  const shellTitle = computed(() => {
+    if (props.orderData?.orderNo) {
+      return `${actionLabel.value}单据 - ${props.orderData.orderNo}`
+    }
+    return `${actionLabel.value}单据`
+  })
   const dialogTitle = computed(() => (props.actionType === 'reject' ? '驳回单据' : '审批单据'))
   const dialogTip = computed(() =>
     props.actionType === 'reject'
