@@ -113,7 +113,7 @@
 
 <script setup lang="ts">
   import { computed, h, onMounted, reactive, ref } from 'vue'
-  import { useRouter } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
   import FileSaver from 'file-saver'
   import { ElButton, ElMessage, ElMessageBox, ElSpace, ElTag } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
@@ -138,6 +138,16 @@
   import RepairDetailDrawer from './modules/repair-detail-drawer.vue'
   import RepairDialog from './modules/repair-dialog.vue'
   import RepairFinishDialog from './modules/repair-finish-dialog.vue'
+  import {
+    buildRepairListRestoreQuery,
+    resolveRepairListRestoreState
+  } from './modules/repair-list-query'
+  import {
+    formatRepairAssetCode,
+    formatRepairAssetName,
+    resolveRepairDetailRecord,
+    resolveRepairItems
+  } from './modules/repair-item-normalize'
 
   defineOptions({ name: 'AssetRepair' })
 
@@ -178,85 +188,17 @@
     label
   }))
 
-  const getRepairItems = (repair?: any) => {
-    if (Array.isArray(repair?.itemList) && repair.itemList.length > 0) {
-      return repair.itemList.filter(Boolean)
-    }
-    if (Array.isArray(repair?.repairItems) && repair.repairItems.length > 0) {
-      return repair.repairItems.filter(Boolean)
-    }
-    if (Number(repair?.itemCount || 0) > 1) {
-      // 列表页只拿到头表时，如果明确是多资产维修，就不要伪装成单资产。
-      return []
-    }
-    if (repair?.assetId) {
-      return [
-        {
-          assetId: repair.assetId,
-          assetCode: repair.assetCode || '',
-          assetName: repair.assetName || '',
-          beforeStatus: repair.beforeStatus || '',
-          afterStatus: repair.afterStatus || repair.beforeStatus || '',
-          resultType: repair.resultType || '',
-          faultDesc: repair.faultDesc || '',
-          remark: repair.remark || '',
-          currentUserId: repair.currentUserId,
-          currentDeptId: repair.currentDeptId || repair.useOrgDeptId,
-          currentLocationId: repair.currentLocationId
-        }
-      ]
-    }
-    return []
-  }
+  const listItemOptions = { strictListMode: true }
 
-  const getPrimaryRepairItem = (repair?: any) => getRepairItems(repair)[0]
+  const getPrimaryRepairItem = (repair?: any) => resolveRepairItems(repair, listItemOptions)[0]
 
-  const normalizeRepairDetail = (repair?: any) => {
-    // 列表、详情和历史数据可能处在不同阶段，这里统一归一成 itemList 结构给前端消费。
-    const itemList = getRepairItems(repair)
-    const primaryItem = itemList[0]
-    return {
-      ...(repair || {}),
-      itemList,
-      itemCount: itemList.length,
-      assetId: repair?.assetId ?? primaryItem?.assetId,
-      assetCode: repair?.assetCode || primaryItem?.assetCode || '',
-      assetName: repair?.assetName || primaryItem?.assetName || '',
-      beforeStatus: repair?.beforeStatus || primaryItem?.beforeStatus || '',
-      afterStatus:
-        repair?.afterStatus || primaryItem?.afterStatus || primaryItem?.beforeStatus || '',
-      faultDesc: repair?.faultDesc || primaryItem?.faultDesc || ''
-    }
-  }
+  const normalizeRepairDetail = (repair?: any) => resolveRepairDetailRecord(repair, listItemOptions)
 
-  const formatAssetCode = (repair?: any) => {
-    const items = getRepairItems(repair)
-    if (!items.length) {
-      if (repair?.assetCode) {
-        return Number(repair?.itemCount || 0) > 1
-          ? `${repair.assetCode} 等 ${repair.itemCount} 项`
-          : repair.assetCode
-      }
-      return '-'
-    }
-    if (items.length === 1) return items[0].assetCode || '-'
-    return `${items[0].assetCode || '-'} 等 ${items.length} 项`
-  }
+  const formatAssetCode = (repair?: any) => formatRepairAssetCode(repair, listItemOptions)
 
-  const formatAssetName = (repair?: any) => {
-    const items = getRepairItems(repair)
-    if (!items.length) {
-      if (repair?.assetName) {
-        return Number(repair?.itemCount || 0) > 1
-          ? `${repair.assetName} 等 ${repair.itemCount} 项`
-          : repair.assetName
-      }
-      return '-'
-    }
-    if (items.length === 1) return items[0].assetName || '-'
-    return `${items[0].assetName || '-'} 等 ${items.length} 项`
-  }
+  const formatAssetName = (repair?: any) => formatRepairAssetName(repair, listItemOptions)
 
+  const route = useRoute()
   const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
@@ -305,7 +247,7 @@
   const showEmptyState = computed(() => !loading.value && data.value.length === 0)
   const emptyDescription = computed(() => {
     if (formFilters.resultType === 'SUGGEST_DISPOSAL') {
-      return '当前没有待转报废的维修单，后续可从“建议报废”的维修结果继续进入报废单。'
+      return '当前没有待转报废的维修单，后续可以从“建议报废”的维修结果继续进入报废单。'
     }
     return hasAnyFilter.value
       ? '没有匹配的维修单，请调整筛选条件后再看看。'
@@ -319,6 +261,25 @@
     resultType: formFilters.resultType || undefined,
     repairStatus: activeStatus.value === 'ALL' ? undefined : activeStatus.value
   })
+
+  const buildListRestoreQuery = () => buildRepairListRestoreQuery(buildQuery())
+
+  const hydrateListStateFromRoute = () => {
+    const restoredState = resolveRepairListRestoreState(route.query)
+    activeStatus.value = restoredState.repairStatus
+    formFilters.repairNo = restoredState.repairNo
+    formFilters.assetCode = restoredState.assetCode
+    formFilters.vendorName = restoredState.vendorName
+    formFilters.resultType = restoredState.resultType
+
+    return Boolean(
+      restoredState.repairStatus !== 'ALL' ||
+        restoredState.repairNo ||
+        restoredState.assetCode ||
+        restoredState.vendorName ||
+        restoredState.resultType
+    )
+  }
 
   const syncSearchParams = () => {
     Object.assign(searchParams, buildQuery())
@@ -394,7 +355,7 @@
         { prop: 'applyDeptName', label: '发起部门', minWidth: 140 },
         { prop: 'applyUserName', label: '发起人', minWidth: 120 },
         { prop: 'reportTime', label: '报修时间', minWidth: 170, align: 'center' },
-        { prop: 'vendorName', label: '供应商', minWidth: 140 },
+        { prop: 'vendorName', label: '维修厂商', minWidth: 140 },
         {
           prop: 'repairCost',
           label: '维修费用',
@@ -631,6 +592,7 @@
     router.push({
       path: '/asset/repair/create',
       query: {
+        ...buildListRestoreQuery(),
         sourcePage: 'repair-list',
         bridgeSource: 'repair-list'
       }
@@ -642,6 +604,7 @@
     router.push({
       path: `/asset/repair/edit/${row.repairId}`,
       query: {
+        ...buildListRestoreQuery(),
         sourcePage: 'repair-list',
         bridgeSource: 'repair-list'
       }
@@ -660,7 +623,7 @@
       const relatedDisposalOrder = await findRelatedDisposalOrder(repairDetail)
       currentRepair.value = { ...repairDetail, relatedDisposalOrder }
     } catch (error) {
-      console.error('加载维修单详情失败，继续使用列表行数据:', error)
+      console.error('加载维修单详情失败，继续使用列表行数据', error)
     }
   }
 
@@ -698,6 +661,7 @@
     router.push({
       path: `/asset/repair/detail/${row.repairId}`,
       query: {
+        ...buildListRestoreQuery(),
         sourcePage: 'repair-list',
         bridgeSource: 'repair-list'
       }
@@ -733,7 +697,7 @@
   const handleDelete = async (row?: any) => {
     if (!row?.repairId) return
     try {
-      await ElMessageBox.confirm(`确认删除维修单“${row.repairNo || row.repairId}”吗？`, '提示', {
+      await ElMessageBox.confirm(`确认删除维修单「${row.repairNo || row.repairId}」吗？`, '提示', {
         type: 'warning'
       })
       await delAssetRepair(row.repairId)
@@ -741,7 +705,7 @@
       refreshData()
     } catch (error) {
       if (error !== 'cancel') {
-        console.error('删除维修单失败:', error)
+        console.error('删除维修单失败', error)
       }
     }
   }
@@ -749,7 +713,7 @@
   const handleSubmitRepair = async (row?: any) => {
     if (!row?.repairId) return
     try {
-      await ElMessageBox.confirm(`确认提交维修单“${row.repairNo || row.repairId}”吗？`, '提示', {
+      await ElMessageBox.confirm(`确认提交维修单「${row.repairNo || row.repairId}」吗？`, '提示', {
         type: 'warning'
       })
       await submitAssetRepair(row.repairId)
@@ -760,7 +724,7 @@
       }
     } catch (error) {
       if (error !== 'cancel') {
-        console.error('提交维修单失败:', error)
+        console.error('提交维修单失败', error)
       }
     }
   }
@@ -791,7 +755,7 @@
         await loadRepairDetail(currentRepair.value)
       }
     } catch (error) {
-      console.error('审批维修单失败:', error)
+      console.error('审批维修单失败', error)
     }
   }
 
@@ -846,14 +810,14 @@
 
       ElMessage.success('维修完成成功')
     } catch (error) {
-      console.error('完成维修单失败:', error)
+      console.error('完成维修单失败', error)
     }
   }
 
   const handleCancelRepair = async (row?: any) => {
     if (!row?.repairId) return
     try {
-      await ElMessageBox.confirm(`确认取消维修单“${row.repairNo || row.repairId}”吗？`, '提示', {
+      await ElMessageBox.confirm(`确认取消维修单「${row.repairNo || row.repairId}」吗？`, '提示', {
         type: 'warning'
       })
       await cancelAssetRepair(row.repairId)
@@ -861,7 +825,7 @@
       refreshData()
     } catch (error) {
       if (error !== 'cancel') {
-        console.error('取消维修单失败:', error)
+        console.error('取消维修单失败', error)
       }
     }
   }
@@ -901,14 +865,19 @@
       FileSaver.saveAs(blob as Blob, '资产维修单.xlsx')
       ElMessage.success('导出成功')
     } catch (error) {
-      console.error('导出维修单失败:', error)
+      console.error('导出维修单失败', error)
     } finally {
       exportLoading.value = false
     }
   }
 
   onMounted(() => {
+    const hasRestoredListState = hydrateListStateFromRoute()
     syncSearchParams()
+    if (hasRestoredListState) {
+      searchParams.pageNum = 1
+      getData()
+    }
   })
 </script>
 

@@ -87,7 +87,7 @@
           border
           stripe
           size="small"
-          row-key="repairItemId"
+          row-key="rowKey"
           empty-text="暂无维修资产"
         >
           <ElTableColumn type="index" width="56" label="#" />
@@ -275,7 +275,7 @@
           border
           stripe
           size="small"
-          row-key="repairItemId"
+          row-key="rowKey"
           empty-text="暂无维修资产"
         >
           <ElTableColumn type="index" width="56" label="#" />
@@ -494,6 +494,7 @@
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
   import AssetPageShell from '../../shared/asset-page-shell.vue'
+  import { resolveRepairItems } from './repair-item-normalize'
 
   const { asset_status, asset_order_status } = useDict('asset_status', 'asset_order_status')
   const userStore = useUserStore()
@@ -551,29 +552,7 @@
   }
 
   // 兼容旧数据：如果后端还未返回 itemList，则退化为单资产明细。
-  const repairItems = computed(() => {
-    if (Array.isArray(props.repairData?.itemList) && props.repairData.itemList.length > 0) {
-      return props.repairData.itemList.filter(Boolean)
-    }
-    if (Array.isArray(props.repairData?.repairItems) && props.repairData.repairItems.length > 0) {
-      return props.repairData.repairItems.filter(Boolean)
-    }
-    if (props.repairData?.assetId) {
-      return [
-        {
-          assetId: props.repairData.assetId,
-          assetCode: props.repairData.assetCode,
-          assetName: props.repairData.assetName,
-          beforeStatus: props.repairData.beforeStatus,
-          afterStatus: props.repairData.afterStatus,
-          resultType: props.repairData.resultType,
-          faultDesc: props.repairData.faultDesc,
-          remark: props.repairData.remark
-        }
-      ]
-    }
-    return []
-  })
+  const repairItems = computed(() => resolveRepairItems(props.repairData))
 
   const currentStatus = computed(() => props.repairData?.repairStatus || 'DRAFT')
   const currentStatusLabel = computed(

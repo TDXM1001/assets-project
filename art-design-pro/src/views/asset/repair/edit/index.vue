@@ -41,7 +41,15 @@
   import { useRoute, useRouter } from 'vue-router'
   import AssetPageShell from '../../shared/asset-page-shell.vue'
   import RepairWorkbenchPage from '../create/repair-workbench-page.vue'
-  import { normalizeRepairPageContext, type RepairPageContext } from '../modules/repair-page-context'
+  import {
+    normalizeRepairPageContext,
+    type RepairPageContext
+  } from '../modules/repair-page-context'
+  import {
+    buildRepairListRestoreQuery,
+    resolveRepairListRestoreState
+  } from '../modules/repair-list-query'
+  import { isSuccessfulRepairSubmit } from '../modules/repair-submit-flow'
 
   defineOptions({ name: 'AssetRepairEdit' })
 
@@ -68,12 +76,17 @@
     })
   )
 
+  const buildBackQuery = () =>
+    buildRepairListRestoreQuery(resolveRepairListRestoreState(route.query))
+
   const backToDetailOrList = () => {
     if (repairId.value) {
-      router.push(`/asset/repair/detail/${repairId.value}`).catch(() => undefined)
+      router
+        .push({ path: `/asset/repair/detail/${repairId.value}`, query: buildBackQuery() })
+        .catch(() => undefined)
       return
     }
-    router.push('/asset/repair').catch(() => undefined)
+    router.push({ path: '/asset/repair', query: buildBackQuery() }).catch(() => undefined)
   }
 
   const handleSaveContinue = async () => {
@@ -89,7 +102,7 @@
     submitLoading.value = true
     try {
       const result = await repairEditorRef.value?.submitFlowOrder?.()
-      if (result?.repairId) {
+      if (isSuccessfulRepairSubmit(result)) {
         backToDetailOrList()
       }
     } finally {

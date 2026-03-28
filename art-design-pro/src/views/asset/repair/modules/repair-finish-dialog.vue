@@ -185,6 +185,7 @@
   import type { FormRules } from 'element-plus'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
+  import { resolveRepairItems } from './repair-item-normalize'
 
   const { asset_status } = useDict('asset_status')
 
@@ -224,22 +225,6 @@
     remark: ''
   })
 
-  const createFallbackItem = (repair?: any) => {
-    if (!repair?.assetId) return undefined
-    return {
-      rowKey: `asset-${repair.assetId}`,
-      repairItemId: undefined,
-      assetId: repair.assetId,
-      assetCode: repair.assetCode || '',
-      assetName: repair.assetName || '',
-      beforeStatus: repair.beforeStatus || '',
-      afterStatus: repair.afterStatus || repair.beforeStatus || 'IN_USE',
-      resultType: repair.resultType || 'RESUME_USE',
-      faultDesc: repair.faultDesc || '',
-      remark: repair.remark || ''
-    }
-  }
-
   const formData = reactive(createInitialFormData())
   const repairItems = ref<any[]>([])
   const isSuggestDisposal = computed(() => formData.resultType === 'SUGGEST_DISPOSAL')
@@ -268,30 +253,6 @@
     ]
   }
 
-  const normalizeRepairItems = (repair?: any) => {
-    const sourceItems = Array.isArray(repair?.itemList)
-      ? repair.itemList
-      : Array.isArray(repair?.repairItems)
-        ? repair.repairItems
-        : []
-    if (sourceItems.length > 0) {
-      return sourceItems.map((item: any, index: number) => ({
-        ...item,
-        rowKey: item.repairItemId || item.assetId || `${index}`,
-        resultType: item.resultType || repair?.resultType || 'RESUME_USE',
-        afterStatus:
-          item.afterStatus ||
-          resultToStatusMap[item.resultType || repair?.resultType || 'RESUME_USE'] ||
-          item.beforeStatus ||
-          'IN_USE',
-        faultDesc: item.faultDesc || repair?.faultDesc || '',
-        remark: item.remark || ''
-      }))
-    }
-    const fallbackItem = createFallbackItem(repair)
-    return fallbackItem ? [fallbackItem] : []
-  }
-
   watch(
     () => props.modelValue,
     (value) => {
@@ -305,7 +266,15 @@
           reworkFlag: props.repairData?.reworkFlag || '0',
           remark: props.repairData?.remark || ''
         })
-        repairItems.value = normalizeRepairItems(props.repairData)
+        repairItems.value = resolveRepairItems(props.repairData).map((item) => {
+          const resultType = item.resultType || props.repairData?.resultType || 'RESUME_USE'
+          return {
+            ...item,
+            resultType,
+            afterStatus:
+              item.afterStatus || resultToStatusMap[resultType] || item.beforeStatus || 'IN_USE'
+          }
+        })
       }
     },
     { immediate: true }

@@ -71,6 +71,11 @@
     safeParseRepairPageContext,
     type RepairPageContext
   } from '../modules/repair-page-context'
+  import {
+    buildRepairListRestoreQuery,
+    resolveRepairListRestoreState
+  } from '../modules/repair-list-query'
+  import { isSuccessfulRepairSubmit } from '../modules/repair-submit-flow'
 
   defineOptions({ name: 'AssetRepairCreate' })
 
@@ -212,8 +217,11 @@
     ElMessage.success('草稿已清空')
   }
 
+  const buildBackRouteQuery = () =>
+    buildRepairListRestoreQuery(resolveRepairListRestoreState(route.query))
+
   const backToList = () => {
-    router.push({ path: '/asset/repair' }).catch(() => undefined)
+    router.push({ path: '/asset/repair', query: buildBackRouteQuery() }).catch(() => undefined)
   }
 
   const handleSaveContinue = async () => {
@@ -229,7 +237,7 @@
     submitLoading.value = true
     try {
       const result = await repairEditorRef.value?.submitFlowOrder?.()
-      if (result?.repairId) {
+      if (isSuccessfulRepairSubmit(result)) {
         clearDraftStorage()
         backToList()
       }

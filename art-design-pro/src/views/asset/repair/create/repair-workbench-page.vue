@@ -47,11 +47,7 @@
             </ElCol>
             <ElCol :xs="24" :md="12">
               <ElFormItem label="维修方式" prop="repairMode">
-                <ElSelect
-                  v-model="formData.repairMode"
-                  class="w-full"
-                  placeholder="请选择维修方式"
-                >
+                <ElSelect v-model="formData.repairMode" class="w-full" placeholder="请选择维修方式">
                   <ElOption
                     v-for="item in repairModeOptions"
                     :key="item.value"
@@ -386,13 +382,22 @@
     addAssetRepair,
     getAssetRepair,
     updateAssetRepair,
-    type AssetRepairItemPayload,
-    type AssetRepairPayload
+    type AssetRepairItemPayload
   } from '@/api/asset/repair'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
   import type { RepairPageContext } from '../modules/repair-page-context'
+  import {
+    buildRepairDraftCachePayload,
+    buildRepairHeaderStateFromItems,
+    buildRepairSubmitPayload,
+    resolveRepairDraftState
+  } from '../modules/repair-draft-payload'
+  import {
+    createRepairItemFromAsset,
+    resolveRepairFormState
+  } from '../modules/repair-item-normalize'
 
   defineOptions({ name: 'AssetRepairWorkbenchPage' })
 
@@ -466,27 +471,6 @@
   const selectorData = ref<AssetCandidate[]>([])
   const selectorTotal = ref(0)
   const selectedAssets = ref<AssetCandidate[]>([])
-
-  const buildRowKey = (assetId?: number | string) =>
-    `${assetId || 'TEMP'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-
-  const createRepairItemFromAsset = (asset?: Partial<AssetCandidate>): RepairItemFormData => ({
-    rowKey: buildRowKey(asset?.assetId),
-    assetId: asset?.assetId,
-    assetCode: asset?.assetCode || '',
-    assetName: asset?.assetName || '',
-    beforeStatus: asset?.assetStatus || '',
-    afterStatus: asset?.assetStatus || '',
-    resultType: '',
-    faultDesc: '',
-    remark: '',
-    currentUserId: asset?.currentUserId,
-    currentUserName: asset?.currentUserName,
-    currentDeptId: asset?.useOrgDeptId,
-    currentDeptName: asset?.useOrgDeptName,
-    currentLocationId: asset?.currentLocationId,
-    currentLocationName: asset?.currentLocationName
-  })
 
   const createInitialFormData = () => ({
     repairId: undefined as number | undefined,
@@ -637,70 +621,8 @@
     return userLabelMap.value[String(userId)] || String(userId)
   }
 
-  const normalizeRepairItems = (repair?: Record<string, any>) => {
-    const sourceItems = Array.isArray(repair?.itemList)
-      ? repair?.itemList
-      : Array.isArray(repair?.repairItems)
-        ? repair?.repairItems
-        : []
-
-    if (sourceItems.length > 0) {
-      return sourceItems.map((item: Record<string, any>) => ({
-        rowKey: buildRowKey(item.repairItemId || item.assetId),
-        repairItemId: item.repairItemId,
-        assetId: item.assetId,
-        assetCode: item.assetCode || '',
-        assetName: item.assetName || '',
-        beforeStatus: item.beforeStatus || '',
-        afterStatus: item.afterStatus || item.beforeStatus || '',
-        resultType: item.resultType || '',
-        faultDesc: item.faultDesc || '',
-        remark: item.remark || '',
-        currentUserId: item.currentUserId,
-        currentUserName: item.currentUserName,
-        currentDeptId: item.currentDeptId || item.useOrgDeptId,
-        currentDeptName: item.currentDeptName || item.useOrgDeptName,
-        currentLocationId: item.currentLocationId,
-        currentLocationName: item.currentLocationName
-      }))
-    }
-
-    if (repair?.assetId) {
-      return [
-        {
-          rowKey: buildRowKey(repair.assetId),
-          assetId: repair.assetId,
-          assetCode: repair.assetCode || '',
-          assetName: repair.assetName || '',
-          beforeStatus: repair.beforeStatus || '',
-          afterStatus: repair.afterStatus || repair.beforeStatus || '',
-          resultType: repair.resultType || '',
-          faultDesc: repair.faultDesc || '',
-          remark: repair.remark || '',
-          currentUserId: repair.currentUserId,
-          currentUserName: repair.currentUserName,
-          currentDeptId: repair.currentDeptId || repair.useOrgDeptId,
-          currentDeptName: repair.currentDeptName || repair.useOrgDeptName,
-          currentLocationId: repair.currentLocationId,
-          currentLocationName: repair.currentLocationName
-        }
-      ]
-    }
-
-    return []
-  }
-
   const applyPrimaryItemSnapshot = () => {
-    const primaryItem = formData.repairItems[0]
-    formData.assetId = primaryItem?.assetId
-    formData.assetCode = primaryItem?.assetCode || ''
-    formData.assetName = primaryItem?.assetName || ''
-    formData.beforeStatus = primaryItem?.beforeStatus || ''
-    formData.afterStatus = primaryItem?.afterStatus || ''
-    formData.currentUserId = primaryItem?.currentUserId
-    formData.currentDeptId = primaryItem?.currentDeptId
-    formData.currentLocationId = primaryItem?.currentLocationId
-    formData.faultDesc = formData.faultDesc || primaryItem?.faultDesc || ''
+    Object.assign(formData, buildRepairHeaderStateFromItems(formData.repairItems, formData.faultDesc))
   }
 
   const applyContext = async () => {
@@ -710,9 +632,7 @@
       if (dialogType.value === 'edit' && props.context.repairId) {
         const detail: any = await getAssetRepair(Number(props.context.repairId))
         const repair = detail?.data || detail
-        const repairItems = normalizeRepairItems(repair)
-        Object.assign(formData, createInitialFormData(), repair, { repairItems })
-        applyPrimaryItemSnapshot()
+        Object.assign(formData, createInitialFormData(), repair, resolveRepairFormState(repair))
       } else {
         resetForm()
         if (props.context.assetId) {
@@ -842,28 +762,7 @@
     selectedAssets.value = []
   }
 
-  const buildPayload = (): AssetRepairPayload => {
-    const itemList = formData.repairItems.map((item) => {
-      const payloadItem: Record<string, any> = { ...item }
-      delete payloadItem.rowKey
-      return payloadItem
-    })
-    const primaryItem = itemList[0]
-
-    return {
-      ...formData,
-      assetId: primaryItem?.assetId,
-      assetCode: primaryItem?.assetCode || '',
-      assetName: primaryItem?.assetName || '',
-      beforeStatus: primaryItem?.beforeStatus || '',
-      afterStatus: primaryItem?.afterStatus || '',
-      currentUserId: primaryItem?.currentUserId,
-      currentDeptId: primaryItem?.currentDeptId,
-      currentLocationId: primaryItem?.currentLocationId,
-      faultDesc: String(formData.faultDesc || primaryItem?.faultDesc || '').trim(),
-      itemList
-    }
-  }
+  const buildPayload = () => buildRepairSubmitPayload(formData)
 
   const persistOrder = async (successMessage: string) => {
     if (!formRef.value) return undefined
@@ -874,7 +773,9 @@
     try {
       const payload = buildPayload()
       const response: any =
-        dialogType.value === 'add' ? await addAssetRepair(payload) : await updateAssetRepair(payload)
+        dialogType.value === 'add'
+          ? await addAssetRepair(payload)
+          : await updateAssetRepair(payload)
 
       const repairId = response?.repairId || response?.data?.repairId
       const repairNo = response?.repairNo || response?.data?.repairNo
@@ -899,12 +800,13 @@
     return persistOrder(dialogType.value === 'add' ? '新增成功' : '修改成功')
   }
 
-  const getDraftPayload = () => JSON.parse(JSON.stringify(buildPayload()))
+  const getDraftPayload = () => {
+    return JSON.parse(JSON.stringify(buildRepairDraftCachePayload(formData)))
+  }
 
   const applyDraftPayload = (payload?: Record<string, any>) => {
     if (!payload) return
-    Object.assign(formData, payload)
-    formData.repairItems = Array.isArray(payload.repairItems) ? payload.repairItems : []
+    Object.assign(formData, resolveRepairDraftState(payload))
   }
 
   onMounted(() => {

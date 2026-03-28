@@ -87,7 +87,7 @@
           border
           stripe
           size="small"
-          row-key="repairItemId"
+          row-key="rowKey"
           empty-text="暂无维修资产"
         >
           <ElTableColumn type="index" width="56" label="#" />
@@ -276,6 +276,11 @@
   import AssetPageShell from '../../shared/asset-page-shell.vue'
   import RepairApproveDialog from '../modules/repair-approve-dialog.vue'
   import RepairFinishDialog from '../modules/repair-finish-dialog.vue'
+  import {
+    buildRepairListRestoreQuery,
+    resolveRepairListRestoreState
+  } from '../modules/repair-list-query'
+  import { resolveRepairItems } from '../modules/repair-item-normalize'
   import DictTag from '@/components/DictTag/index.vue'
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
@@ -299,6 +304,9 @@
     const rawRepairId = route.params.repairId || route.query.repairId
     return Number(Array.isArray(rawRepairId) ? rawRepairId[0] : rawRepairId || 0)
   })
+
+  const buildBackQuery = () =>
+    buildRepairListRestoreQuery(resolveRepairListRestoreState(route.query))
 
   const statusMap: Record<
     string,
@@ -330,36 +338,7 @@
     REJECTED: '已驳回'
   }
 
-  const repairItems = computed(() => {
-    const itemList = Array.isArray(repairData.value?.itemList) ? repairData.value.itemList : []
-    if (itemList.length > 0) {
-      return itemList.filter(Boolean)
-    }
-
-    const repairItemsList = Array.isArray(repairData.value?.repairItems)
-      ? repairData.value.repairItems
-      : []
-    if (repairItemsList.length > 0) {
-      return repairItemsList.filter(Boolean)
-    }
-
-    if (repairData.value?.assetId) {
-      return [
-        {
-          assetId: repairData.value.assetId,
-          assetCode: repairData.value.assetCode,
-          assetName: repairData.value.assetName,
-          beforeStatus: repairData.value.beforeStatus,
-          afterStatus: repairData.value.afterStatus,
-          resultType: repairData.value.resultType,
-          faultDesc: repairData.value.faultDesc,
-          remark: repairData.value.remark
-        }
-      ]
-    }
-
-    return []
-  })
+  const repairItems = computed(() => resolveRepairItems(repairData.value))
 
   const currentStatus = computed(() => repairData.value?.repairStatus || 'DRAFT')
   const currentStatusLabel = computed(
@@ -475,7 +454,7 @@
   const loadRepairDetail = async () => {
     if (!repairId.value) {
       ElMessage.error('缺少维修单标识，无法打开详情页')
-      router.push('/asset/repair')
+      router.push({ path: '/asset/repair', query: buildBackQuery() })
       return
     }
 
@@ -492,7 +471,7 @@
 
   const handleEdit = () => {
     if (!repairId.value) return
-    router.push(`/asset/repair/edit/${repairId.value}`)
+    router.push({ path: `/asset/repair/edit/${repairId.value}`, query: buildBackQuery() })
   }
 
   const handleSubmitRepair = async () => {
@@ -573,7 +552,7 @@
   }
 
   const handleClosePage = () => {
-    router.push('/asset/repair')
+    router.push({ path: '/asset/repair', query: buildBackQuery() })
   }
 
   const handleOpenAttachments = () => {
@@ -595,6 +574,8 @@
       query: {
         bridgeSource: 'repair',
         orderType: 'DISPOSAL',
+        sourceBizType: 'ASSET_REPAIR',
+        sourceBizId: String(repairId.value),
         repairId: String(repairId.value),
         bridgeData: JSON.stringify(bridgePayload)
       }

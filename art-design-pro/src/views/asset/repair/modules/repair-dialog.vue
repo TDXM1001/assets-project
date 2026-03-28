@@ -665,6 +665,8 @@
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
   import AssetPageShell from '../../shared/asset-page-shell.vue'
+  import { buildRepairHeaderStateFromItems, buildRepairSubmitPayload } from './repair-draft-payload'
+  import { createRepairItemFromAsset, resolveRepairFormState } from './repair-item-normalize'
 
   interface TreeOption {
     id: number
@@ -740,27 +742,6 @@
   const selectorData = ref<AssetCandidate[]>([])
   const selectorTotal = ref(0)
   const selectedAssets = ref<AssetCandidate[]>([])
-
-  const buildRowKey = (assetId?: number | string) =>
-    `${assetId || 'TEMP'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-
-  const createRepairItemFromAsset = (asset?: Partial<AssetCandidate>): RepairItemFormData => ({
-    rowKey: buildRowKey(asset?.assetId),
-    assetId: asset?.assetId,
-    assetCode: asset?.assetCode || '',
-    assetName: asset?.assetName || '',
-    beforeStatus: asset?.assetStatus || '',
-    afterStatus: asset?.assetStatus || '',
-    resultType: '',
-    faultDesc: '',
-    remark: '',
-    currentUserId: asset?.currentUserId,
-    currentUserName: asset?.currentUserName,
-    currentDeptId: asset?.useOrgDeptId,
-    currentDeptName: asset?.useOrgDeptName,
-    currentLocationId: asset?.currentLocationId,
-    currentLocationName: asset?.currentLocationName
-  })
 
   const createInitialFormData = () => ({
     repairId: undefined as number | undefined,
@@ -911,71 +892,11 @@
     return userLabelMap.value[String(userId)] || String(userId)
   }
 
-  const normalizeRepairItems = (repair?: Record<string, any>) => {
-    // 兼容老数据：详情如果还没返回 itemList，就从单头快照回填成一条明细。
-    const sourceItems = Array.isArray(repair?.itemList)
-      ? repair?.itemList
-      : Array.isArray(repair?.repairItems)
-        ? repair?.repairItems
-        : []
-
-    if (sourceItems.length > 0) {
-      return sourceItems.map((item: Record<string, any>) => ({
-        rowKey: buildRowKey(item.repairItemId || item.assetId),
-        repairItemId: item.repairItemId,
-        assetId: item.assetId,
-        assetCode: item.assetCode || '',
-        assetName: item.assetName || '',
-        beforeStatus: item.beforeStatus || '',
-        afterStatus: item.afterStatus || item.beforeStatus || '',
-        resultType: item.resultType || '',
-        faultDesc: item.faultDesc || '',
-        remark: item.remark || '',
-        currentUserId: item.currentUserId,
-        currentUserName: item.currentUserName,
-        currentDeptId: item.currentDeptId || item.useOrgDeptId,
-        currentDeptName: item.currentDeptName || item.useOrgDeptName,
-        currentLocationId: item.currentLocationId,
-        currentLocationName: item.currentLocationName
-      }))
-    }
-
-    if (repair?.assetId) {
-      return [
-        {
-          rowKey: buildRowKey(repair.assetId),
-          assetId: repair.assetId,
-          assetCode: repair.assetCode || '',
-          assetName: repair.assetName || '',
-          beforeStatus: repair.beforeStatus || '',
-          afterStatus: repair.afterStatus || repair.beforeStatus || '',
-          resultType: repair.resultType || '',
-          faultDesc: repair.faultDesc || '',
-          remark: repair.remark || '',
-          currentUserId: repair.currentUserId,
-          currentUserName: repair.currentUserName,
-          currentDeptId: repair.currentDeptId || repair.useOrgDeptId,
-          currentDeptName: repair.currentDeptName || repair.useOrgDeptName,
-          currentLocationId: repair.currentLocationId,
-          currentLocationName: repair.currentLocationName
-        }
-      ]
-    }
-
-    return []
-  }
-
   const applyPrimaryItemSnapshot = () => {
-    const primaryItem = formData.repairItems[0]
-    formData.assetId = primaryItem?.assetId
-    formData.assetCode = primaryItem?.assetCode || ''
-    formData.assetName = primaryItem?.assetName || ''
-    formData.beforeStatus = primaryItem?.beforeStatus || ''
-    formData.afterStatus = primaryItem?.afterStatus || ''
-    formData.currentUserId = primaryItem?.currentUserId
-    formData.currentDeptId = primaryItem?.currentDeptId
-    formData.currentLocationId = primaryItem?.currentLocationId
-    formData.faultDesc = formData.faultDesc || primaryItem?.faultDesc || ''
+    Object.assign(
+      formData,
+      buildRepairHeaderStateFromItems(formData.repairItems, formData.faultDesc)
+    )
   }
 
   const loadSelectorData = async () => {
@@ -1096,18 +1017,19 @@
         if (props.dialogType === 'edit' && props.repairData?.repairId) {
           const detail: any = await getAssetRepair(props.repairData.repairId)
           const repair = detail?.data || detail || props.repairData
-          const repairItems = normalizeRepairItems(repair)
-          Object.assign(formData, createInitialFormData(), repair, { repairItems })
-          applyPrimaryItemSnapshot()
+          Object.assign(formData, createInitialFormData(), repair, resolveRepairFormState(repair))
         } else {
           resetForm()
         }
       } catch (error) {
         console.error('加载维修单详情失败:', error)
         if (props.dialogType === 'edit') {
-          const repairItems = normalizeRepairItems(props.repairData)
-          Object.assign(formData, createInitialFormData(), props.repairData || {}, { repairItems })
-          applyPrimaryItemSnapshot()
+          Object.assign(
+            formData,
+            createInitialFormData(),
+            props.repairData || {},
+            resolveRepairFormState(props.repairData)
+          )
         } else {
           resetForm()
         }
@@ -1149,29 +1071,8 @@
     visible.value = false
   }
 
-  const buildPayload = (): AssetRepairPayload => {
-    // 这里保留单头字段，是为了兼容仍然读取 assetId / faultDesc 的旧后端实现。
-    const itemList = formData.repairItems.map((item) => {
-      const payloadItem: Record<string, any> = { ...item }
-      delete payloadItem.rowKey
-      return payloadItem
-    })
-    const primaryItem = itemList[0]
-
-    return {
-      ...formData,
-      assetId: primaryItem?.assetId,
-      assetCode: primaryItem?.assetCode || '',
-      assetName: primaryItem?.assetName || '',
-      beforeStatus: primaryItem?.beforeStatus || '',
-      afterStatus: primaryItem?.afterStatus || '',
-      currentUserId: primaryItem?.currentUserId,
-      currentDeptId: primaryItem?.currentDeptId,
-      currentLocationId: primaryItem?.currentLocationId,
-      faultDesc: String(formData.faultDesc || primaryItem?.faultDesc || '').trim(),
-      itemList
-    }
-  }
+  const buildPayload = (): AssetRepairPayload =>
+    buildRepairSubmitPayload(formData) as AssetRepairPayload
 
   const handleSubmit = async () => {
     if (!formRef.value) return
