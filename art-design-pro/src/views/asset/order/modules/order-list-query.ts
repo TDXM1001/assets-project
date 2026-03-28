@@ -5,13 +5,23 @@ export interface OrderListRestoreState {
   applyUserName: string
   applyDeptName: string
   bizDateRange: string[]
+  pageNum: number
+  pageSize: number
 }
 
 const DEFAULT_ORDER_TYPE = 'ALL'
+const DEFAULT_PAGE_NUM = 1
+const DEFAULT_PAGE_SIZE = 10
 
 const toStringValue = (value: unknown) => {
   if (value === null || value === undefined) return ''
   return String(value).trim()
+}
+
+const toNumberValue = (value: unknown, fallback: number) => {
+  if (value === null || value === undefined || value === '') return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
 export const resolveOrderListRestoreState = (
@@ -26,7 +36,9 @@ export const resolveOrderListRestoreState = (
     orderStatus: toStringValue(query.orderStatus),
     applyUserName: toStringValue(query.applyUserName),
     applyDeptName: toStringValue(query.applyDeptName),
-    bizDateRange: [bizDateStart, bizDateEnd].filter(Boolean)
+    bizDateRange: [bizDateStart, bizDateEnd].filter(Boolean),
+    pageNum: toNumberValue(query.pageNum, DEFAULT_PAGE_NUM),
+    pageSize: toNumberValue(query.pageSize, DEFAULT_PAGE_SIZE)
   }
 }
 
@@ -34,6 +46,8 @@ export const buildOrderListRestoreQuery = (state: Partial<OrderListRestoreState>
   const orderType = toStringValue(state.orderType).toUpperCase()
   const bizDateRange = Array.isArray(state.bizDateRange) ? state.bizDateRange : []
   const [bizDateStart = '', bizDateEnd = ''] = bizDateRange
+  const pageNum = toNumberValue(state.pageNum, DEFAULT_PAGE_NUM)
+  const pageSize = toNumberValue(state.pageSize, DEFAULT_PAGE_SIZE)
   const query: Record<string, string> = {}
 
   if (state.orderNo?.trim()) query.orderNo = state.orderNo.trim()
@@ -42,6 +56,8 @@ export const buildOrderListRestoreQuery = (state: Partial<OrderListRestoreState>
   if (state.applyDeptName?.trim()) query.applyDeptName = state.applyDeptName.trim()
   if (bizDateStart) query.bizDateStart = bizDateStart
   if (bizDateEnd) query.bizDateEnd = bizDateEnd
+  if (pageNum && pageNum !== DEFAULT_PAGE_NUM) query.pageNum = String(pageNum)
+  if (pageSize && pageSize !== DEFAULT_PAGE_SIZE) query.pageSize = String(pageSize)
   if (orderType && orderType !== DEFAULT_ORDER_TYPE) query.orderType = orderType
 
   return query

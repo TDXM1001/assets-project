@@ -5,6 +5,8 @@ export interface OrderWorkbenchContext extends Record<string, any> {
   sourceBizType: string
   sourceBizId: string
   repairId: string
+  // 标识桥接数据是否真实存在，供创建页做降级处理。
+  bridgePayloadFound?: boolean
 }
 
 export interface ResolveOrderWorkbenchPageContextInput {
@@ -109,6 +111,7 @@ export const resolveOrderWorkbenchPageContext = (
   const parsedBridgeContext =
     safeParseOrderWorkbenchContext(input.bridgeDataQuery || null) ||
     readOrderWorkbenchContextFromStorage(input.bridgeKeyQuery)
+  const bridgePayloadFound = Boolean(parsedBridgeContext)
   const mergedContext: Record<string, any> = {
     ...(parsedBridgeContext || {})
   }
@@ -126,5 +129,8 @@ export const resolveOrderWorkbenchPageContext = (
   }
   if (input.repairIdQuery) mergedContext.repairId = input.repairIdQuery
 
-  return normalizeOrderWorkbenchContext(mergedContext)
+  return {
+    ...normalizeOrderWorkbenchContext(mergedContext),
+    bridgePayloadFound
+  }
 }

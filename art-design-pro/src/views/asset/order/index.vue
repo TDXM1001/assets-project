@@ -73,7 +73,6 @@
       v-model="orderDialogVisible"
       :dialog-type="dialogType"
       :order-data="currentOrder"
-      :dialog-context="dialogContext"
       @success="refreshData"
     />
 
@@ -152,7 +151,6 @@
   const approveActionType = ref<'approve' | 'reject'>('approve')
   const dialogType = ref<'add' | 'edit'>('add')
   const currentOrder = ref<any>()
-  const dialogContext = ref<Record<string, any>>({})
   const attachmentDrawerVisible = ref(false)
   const exportLoading = ref(false)
 
@@ -233,6 +231,8 @@
     formFilters.applyUserName = restoredState.applyUserName
     formFilters.applyDeptName = restoredState.applyDeptName
     formFilters.bizDateRange = restoredState.bizDateRange
+    searchParams.pageNum = restoredState.pageNum
+    searchParams.pageSize = restoredState.pageSize
 
     return Boolean(
       restoredState.orderType !== 'ALL' ||
@@ -240,7 +240,9 @@
         restoredState.orderStatus ||
         restoredState.applyUserName ||
         restoredState.applyDeptName ||
-        restoredState.bizDateRange.length
+        restoredState.bizDateRange.length ||
+        typeof route.query.pageNum === 'string' ||
+        typeof route.query.pageSize === 'string'
     )
   }
 
@@ -526,9 +528,42 @@
   }
 
   const handleAdd = () => {
-    const query = buildOrderListRestoreQuery(buildQuery())
+    const listRestoreQuery = buildOrderListRestoreQuery({
+      ...buildQuery(),
+      pageNum: pagination.pageNum,
+      pageSize: pagination.pageSize
+    })
+    const bridgeQuery = buildBridgeQueryFromRoute()
     // 新增单据已经升级为独立页面，这里直接路由跳转，避免再把复杂表单塞回弹窗。
-    router.push({ path: '/asset/order/create', query }).catch(() => undefined)
+    router
+      .push({
+        path: '/asset/order/create',
+        query: {
+          ...bridgeQuery,
+          ...listRestoreQuery
+        }
+      })
+      .catch(() => undefined)
+  }
+
+  const buildBridgeQueryFromRoute = () => {
+    const query: Record<string, string> = {}
+
+    if (typeof route.query.bridgeSource === 'string') {
+      query.bridgeSource = route.query.bridgeSource
+    }
+    if (typeof route.query.bridgeKey === 'string') {
+      query.bridgeKey = route.query.bridgeKey
+    }
+    if (typeof route.query.sourceBizType === 'string') {
+      query.sourceBizType = route.query.sourceBizType
+    }
+    if (typeof route.query.sourceBizId === 'string') {
+      query.sourceBizId = route.query.sourceBizId
+    }
+    if (typeof route.query.repairId === 'string') query.repairId = route.query.repairId
+
+    return query
   }
 
   const safeParseBridgeContext = (value: string | null) => {
@@ -577,6 +612,8 @@
     delete nextQuery.bridgeSource
     delete nextQuery.bridgeKey
     delete nextQuery.bridgeData
+    delete nextQuery.sourceBizType
+    delete nextQuery.sourceBizId
     delete nextQuery.repairId
     delete nextQuery.autoOpen
     router.replace({ query: nextQuery }).catch(() => undefined)
@@ -633,6 +670,9 @@
       getData()
     }
 
+    const listRestoreQuery = buildOrderListRestoreQuery(resolveOrderListRestoreState(route.query))
+    delete listRestoreQuery.orderType
+
     router
       .replace({
         path: '/asset/order/create',
@@ -643,7 +683,8 @@
           sourceBizType: String(nextDialogContext.sourceBizType || ''),
           sourceBizId: String(nextDialogContext.sourceBizId || ''),
           repairId: String(nextDialogContext.repairId || ''),
-          bridgeData: JSON.stringify(nextDialogContext)
+          bridgeData: JSON.stringify(nextDialogContext),
+          ...listRestoreQuery
         }
       })
       .catch(() => undefined)
@@ -682,7 +723,6 @@
     if (!row?.orderId) return
     dialogType.value = 'edit'
     currentOrder.value = { ...row }
-    dialogContext.value = {}
     orderDialogVisible.value = true
   }
 
@@ -878,7 +918,6 @@
     const hasRestoredListState = hydrateListStateFromRoute()
     syncSearchParams()
     if (hasRestoredListState) {
-      searchParams.pageNum = 1
       getData()
     }
     void asset_order_type.value

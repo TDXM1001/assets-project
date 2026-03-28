@@ -141,6 +141,7 @@
 
   const draftStorageKey = computed(() => buildOrderWorkbenchDraftStorageKey(pageContext.value))
   const draftScope = computed(() => buildOrderWorkbenchDraftScope(pageContext.value))
+  const invalidBridgeHandledKey = ref('')
 
   const pageTitle = computed(() =>
     pageContext.value.orderType === 'DISPOSAL' ? '新建报废单' : '新建业务单据'
@@ -272,6 +273,53 @@
     }
   }
 
+  const buildFallbackCreateQuery = () => {
+    const nextQuery: Record<string, any> = { ...route.query }
+    delete nextQuery.bridgeSource
+    delete nextQuery.bridgeKey
+    delete nextQuery.bridgeData
+    delete nextQuery.sourceBizType
+    delete nextQuery.sourceBizId
+    delete nextQuery.repairId
+    return nextQuery
+  }
+
+  const handleInvalidBridgeContext = () => {
+    const hasBridgeQuery = Boolean(
+      rawBridgeSourceQuery.value ||
+        rawBridgeKeyQuery.value ||
+        rawBridgeDataQuery.value ||
+        rawSourceBizTypeQuery.value ||
+        rawSourceBizIdQuery.value ||
+        rawRepairIdQuery.value
+    )
+
+    if (!hasBridgeQuery) return
+
+    if (pageContext.value.bridgePayloadFound) {
+      invalidBridgeHandledKey.value = ''
+      return
+    }
+
+    const signature = [
+      rawBridgeSourceQuery.value,
+      rawBridgeKeyQuery.value,
+      rawBridgeDataQuery.value,
+      rawSourceBizTypeQuery.value,
+      rawSourceBizIdQuery.value,
+      rawRepairIdQuery.value
+    ].join('|')
+
+    if (invalidBridgeHandledKey.value === signature) return
+    invalidBridgeHandledKey.value = signature
+
+    // 桥接上下文缺失时自动降级为通用新建，避免页面卡在错误状态。
+    ElMessage.warning('未找到来源上下文，已切换为通用新建单据。')
+    router.replace({ path: '/asset/order/create', query: buildFallbackCreateQuery() }).catch(() => {
+      invalidBridgeHandledKey.value = ''
+    })
+  }
+
   const backToList = () => {
     router.push({ path: '/asset/order', query: buildBackRouteQuery() }).catch(() => undefined)
   }
@@ -326,6 +374,22 @@
     () => draftStorageKey.value,
     () => {
       readSavedDraft()
+    },
+    { immediate: true }
+  )
+
+  watch(
+    () => [
+      rawBridgeSourceQuery.value,
+      rawBridgeKeyQuery.value,
+      rawBridgeDataQuery.value,
+      rawSourceBizTypeQuery.value,
+      rawSourceBizIdQuery.value,
+      rawRepairIdQuery.value,
+      pageContext.value.bridgePayloadFound
+    ],
+    () => {
+      handleInvalidBridgeContext()
     },
     { immediate: true }
   )
