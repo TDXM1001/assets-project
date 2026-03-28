@@ -131,6 +131,7 @@
   import OrderApproveDialog from './modules/order-approve-dialog.vue'
   import OrderDetailDrawer from './modules/order-detail-drawer.vue'
   import OrderDialog from './modules/order-dialog.vue'
+  import { buildOrderPageMeta } from './modules/order-page-meta'
   import {
     buildOrderListRestoreQuery,
     resolveOrderListRestoreState
@@ -170,12 +171,13 @@
       `${asset_order_type.value.length}-${asset_order_status.value.length}-${activeOrderType.value}-${isSelfScopedAssetUser.value}`
   )
 
+  const orderTypeMeta = computed(() =>
+    buildOrderPageMeta(activeOrderType.value, asset_order_type.value || [])
+  )
   const orderScopeTip = computed(() =>
     isSelfScopedAssetUser.value
       ? '当前为“我的单据”视角，只展示由你本人发起的资产单据。'
-      : activeOrderType.value === 'DISPOSAL'
-        ? '当前聚焦报废单，完成后会把资产落到已报废。'
-        : '这里不是普通表格页，而是单据流转工作台，先用类型切换把流程边界收住。'
+      : orderTypeMeta.value.listScopeTip
   )
 
   const hasPermission = (permission: string) => {
@@ -199,10 +201,7 @@
     if (hasAnyFilter.value) {
       return '没有匹配的业务单据，先调整筛选条件再看看。'
     }
-    if (activeOrderType.value === 'DISPOSAL') {
-      return '还没有报废单，先创建一张报废单，把处置流程跑起来。'
-    }
-    return '还没有业务单据，先新增一张单据，把流程跑起来。'
+    return orderTypeMeta.value.listEmptyDescription
   })
 
   const buildQuery = () => {

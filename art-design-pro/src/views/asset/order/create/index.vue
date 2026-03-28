@@ -8,9 +8,14 @@
     <template #tags>
       <ElSpace wrap>
         <!-- 页面本体保持统一壳层，标签只表达当前工作台状态，不再承担页面布局职责。 -->
-        <ElTag type="info" effect="light">独立页面</ElTag>
-        <ElTag type="warning" effect="light">草稿阶段</ElTag>
-        <ElTag type="info" effect="plain">{{ orderTypeLabel }}</ElTag>
+        <ElTag
+          v-for="tag in pageMeta.statusTags"
+          :key="tag.text"
+          :type="tag.type"
+          :effect="tag.effect"
+        >
+          {{ tag.text }}
+        </ElTag>
       </ElSpace>
     </template>
 
@@ -71,6 +76,7 @@
     resolveOrderWorkbenchPageContext,
     type OrderWorkbenchContext
   } from '../modules/order-workbench-context'
+  import { buildOrderPageMeta } from '../modules/order-page-meta'
   import {
     buildOrderListRestoreQuery,
     resolveOrderListRestoreState
@@ -143,20 +149,11 @@
   const draftScope = computed(() => buildOrderWorkbenchDraftScope(pageContext.value))
   const invalidBridgeHandledKey = ref('')
 
-  const pageTitle = computed(() =>
-    pageContext.value.orderType === 'DISPOSAL' ? '新建报废单' : '新建业务单据'
+  const pageMeta = computed(() =>
+    buildOrderPageMeta(pageContext.value.orderType, asset_order_type.value || [])
   )
-  const pageDescription = computed(() =>
-    pageContext.value.orderType === 'DISPOSAL'
-      ? '先补齐报废原因、处置金额和资产明细，再把整张单据提交到正式流程。'
-      : '把流转方向、归属字段和资产明细一次录稳，后续审批、完成和事件流水都会沿用这张单据。'
-  )
-  const orderTypeLabel = computed(() => {
-    const matched = (asset_order_type.value || []).find(
-      (item: any) => String(item.value) === String(pageContext.value.orderType)
-    )
-    return matched?.label || pageContext.value.orderType || '业务单据'
-  })
+  const pageTitle = computed(() => pageMeta.value.pageTitle)
+  const pageDescription = computed(() => pageMeta.value.pageDescription)
   const savedDraftSummary = computed(() =>
     savedDraft.value ? `上次草稿保存时间：${savedDraft.value.savedAt}` : ''
   )
