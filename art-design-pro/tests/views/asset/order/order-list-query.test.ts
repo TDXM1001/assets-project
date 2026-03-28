@@ -31,7 +31,9 @@ describe('order list query helpers', () => {
       orderStatus: 'DRAFT',
       applyUserName: 'alice',
       applyDeptName: 'ops',
-      bizDateRange: ['2026-03-01', '2026-03-28']
+      bizDateRange: ['2026-03-01', '2026-03-28'],
+      pageNum: 1,
+      pageSize: 10
     })
   })
 
@@ -43,7 +45,9 @@ describe('order list query helpers', () => {
       orderStatus: '',
       applyUserName: '',
       applyDeptName: '',
-      bizDateRange: []
+      bizDateRange: [],
+      pageNum: 1,
+      pageSize: 10
     })
   })
 })
