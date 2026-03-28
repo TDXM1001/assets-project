@@ -285,7 +285,7 @@
   import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
 
-  defineOptions({ name: 'AssetRepairDetailPageRoute' })
+  defineOptions({ name: 'AssetRepairDetailPage' })
 
   const route = useRoute()
   const router = useRouter()
@@ -552,6 +552,7 @@
   }
 
   const handleClosePage = () => {
+    // 详情页作为主入口页面，关闭动作统一返回列表并带回筛选态。
     router.push({ path: '/asset/repair', query: buildBackQuery() })
   }
 

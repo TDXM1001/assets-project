@@ -66,48 +66,6 @@
         @pagination:current-change="handleCurrentChange"
       />
     </ElCard>
-
-    <RepairDialog
-      v-model="dialogVisible"
-      :dialog-type="dialogType"
-      :repair-data="currentRepair"
-      @success="refreshData"
-    />
-
-    <RepairDetailDrawer
-      v-model="detailDrawerVisible"
-      :repair-data="currentRepair"
-      @edit="handleEdit(currentRepair)"
-      @submit="handleSubmitRepair(currentRepair)"
-      @approve="openApproveDialog(currentRepair, 'approve')"
-      @reject="openApproveDialog(currentRepair, 'reject')"
-      @finish="openFinishDialog(currentRepair)"
-      @cancel="handleCancelRepairAndRefresh(currentRepair)"
-      @attachments="handleOpenAttachments(currentRepair)"
-      @create-disposal="handleCreateDisposalOrder(currentRepair)"
-      @view-disposal="handleViewRelatedDisposalOrder"
-    />
-
-    <RepairApproveDialog
-      v-model="approveDialogVisible"
-      :action-type="approveActionType"
-      :repair-data="currentRepair"
-      @confirm="handleApproveConfirm"
-    />
-
-    <RepairFinishDialog
-      v-model="finishDialogVisible"
-      :repair-data="currentRepair"
-      @confirm="handleFinishConfirm"
-    />
-
-    <AssetAttachmentDrawer
-      v-model="attachmentDrawerVisible"
-      biz-type="ASSET_REPAIR"
-      :biz-id="currentRepair?.repairId"
-      :biz-title="currentRepair?.repairNo || '维修单'"
-      permission-prefix="asset:repair"
-    />
   </div>
 </template>
 
@@ -115,43 +73,19 @@
   import { computed, h, onMounted, reactive, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import FileSaver from 'file-saver'
-  import { ElButton, ElMessage, ElMessageBox, ElSpace, ElTag } from 'element-plus'
+  import { ElButton, ElMessage, ElSpace, ElTag } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
   import { useUserStore } from '@/store/modules/user'
-  import { getAssetInfo } from '@/api/asset/info'
-  import { getLinkedAssetOrder } from '@/api/asset/order'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
-  import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
-  import {
-    approveAssetRepair,
-    cancelAssetRepair,
-    delAssetRepair,
-    exportAssetRepair,
-    finishAssetRepair,
-    getAssetRepair,
-    listAssetRepair,
-    rejectAssetRepair,
-    submitAssetRepair
-  } from '@/api/asset/repair'
+  import { exportAssetRepair, listAssetRepair } from '@/api/asset/repair'
   import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
-  import RepairApproveDialog from './modules/repair-approve-dialog.vue'
-  import RepairDetailDrawer from './modules/repair-detail-drawer.vue'
-  import RepairDialog from './modules/repair-dialog.vue'
-  import RepairFinishDialog from './modules/repair-finish-dialog.vue'
   import {
     buildRepairListRestoreQuery,
     resolveRepairListRestoreState
   } from './modules/repair-list-query'
-  import {
-    formatRepairAssetCode,
-    formatRepairAssetName,
-    resolveRepairDetailRecord,
-    resolveRepairItems
-  } from './modules/repair-item-normalize'
+  import { formatRepairAssetCode, formatRepairAssetName } from './modules/repair-item-normalize'
 
   defineOptions({ name: 'AssetRepair' })
-
-  const DISPOSAL_BRIDGE_STORAGE_KEY = 'asset-order-disposal-bridge'
 
   const statusOptions = [
     { label: '草稿', value: 'DRAFT' },
@@ -183,35 +117,12 @@
     SUGGEST_DISPOSAL: '建议报废'
   }
 
-  const resultTypeOptions = Object.entries(resultTypeMap).map(([value, label]) => ({
-    value,
-    label
-  }))
-
-  const listItemOptions = { strictListMode: true }
-
-  const getPrimaryRepairItem = (repair?: any) => resolveRepairItems(repair, listItemOptions)[0]
-
-  const normalizeRepairDetail = (repair?: any) => resolveRepairDetailRecord(repair, listItemOptions)
-
-  const formatAssetCode = (repair?: any) => formatRepairAssetCode(repair, listItemOptions)
-
-  const formatAssetName = (repair?: any) => formatRepairAssetName(repair, listItemOptions)
-
   const route = useRoute()
   const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
 
   const activeStatus = ref<'ALL' | string>('ALL')
-  const dialogVisible = ref(false)
-  const detailDrawerVisible = ref(false)
-  const approveDialogVisible = ref(false)
-  const finishDialogVisible = ref(false)
-  const attachmentDrawerVisible = ref(false)
-  const approveActionType = ref<'approve' | 'reject'>('approve')
-  const dialogType = ref<'add' | 'edit'>('add')
-  const currentRepair = ref<any>()
   const exportLoading = ref(false)
 
   const initialSearchState = {
@@ -227,7 +138,7 @@
   const scopeTip = computed(() =>
     isSelfScopedAssetUser.value
       ? '当前是“我的维修单”视角，只展示由你本人发起的维修申请。'
-      : '维修页聚焦故障报修、审批、维修完成和资产状态联动。'
+      : '维修列表页只负责检索与入口跳转，审批与完工在独立页面处理。'
   )
 
   const hasPermission = (permission: string) => {
@@ -245,14 +156,11 @@
   )
 
   const showEmptyState = computed(() => !loading.value && data.value.length === 0)
-  const emptyDescription = computed(() => {
-    if (formFilters.resultType === 'SUGGEST_DISPOSAL') {
-      return '当前没有待转报废的维修单，后续可以从“建议报废”的维修结果继续进入报废单。'
-    }
-    return hasAnyFilter.value
-      ? '没有匹配的维修单，请调整筛选条件后再看看。'
+  const emptyDescription = computed(() =>
+    hasAnyFilter.value
+      ? '没有匹配的维修单，请调整筛选条件后再查看。'
       : '还没有维修单，先创建一张维修单把流程跑起来。'
-  })
+  )
 
   const buildQuery = () => ({
     repairNo: formFilters.repairNo || undefined,
@@ -286,20 +194,6 @@
   }
 
   const canEditRepair = (row: any) => ['DRAFT', 'REJECTED'].includes(row?.repairStatus)
-  const canSubmitRepair = (row: any) => ['DRAFT', 'REJECTED'].includes(row?.repairStatus)
-  const canApproveRepair = (row: any) => ['SUBMITTED'].includes(row?.repairStatus)
-  const canRejectRepair = (row: any) => ['SUBMITTED'].includes(row?.repairStatus)
-  const canFinishRepair = (row: any) => ['APPROVED'].includes(row?.repairStatus)
-  const canCancelRepair = (row: any) =>
-    ['DRAFT', 'SUBMITTED', 'REJECTED', 'APPROVED'].includes(row?.repairStatus)
-  const canDeleteRepair = (row: any) =>
-    ['DRAFT', 'REJECTED', 'CANCELED'].includes(row?.repairStatus)
-  const canCreateDisposalOrder = (row: any) =>
-    row?.repairStatus === 'FINISHED' &&
-    row?.resultType === 'SUGGEST_DISPOSAL' &&
-    !row?.relatedDisposalOrder?.orderId &&
-    hasPermission('asset:order:query') &&
-    hasPermission('asset:order:add')
 
   const displayText = (value: unknown) => {
     if (value === null || value === undefined || value === '') return '-'
@@ -337,13 +231,13 @@
           prop: 'assetCode',
           label: '资产编码',
           minWidth: 160,
-          formatter: (row: any) => formatAssetCode(row)
+          formatter: (row: any) => formatRepairAssetCode(row, { strictListMode: true })
         },
         {
           prop: 'assetName',
           label: '资产名称',
           minWidth: 220,
-          formatter: (row: any) => formatAssetName(row)
+          formatter: (row: any) => formatRepairAssetName(row, { strictListMode: true })
         },
         {
           prop: 'repairStatus',
@@ -372,7 +266,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 360,
+          width: 220,
           align: 'right',
           formatter: (row: any) => renderOperation(row)
         }
@@ -406,187 +300,10 @@
       props: {
         placeholder: '请选择完成结果',
         clearable: true,
-        options: resultTypeOptions
+        options: Object.entries(resultTypeMap).map(([value, label]) => ({ value, label }))
       }
     }
   ])
-
-  const createDisposalBridgePayload = async (repair: any) => {
-    const primaryItem = getPrimaryRepairItem(repair)
-    let assetSnapshot: Record<string, any> | undefined
-    if (primaryItem?.assetId) {
-      try {
-        const response: any = await getAssetInfo(primaryItem.assetId)
-        assetSnapshot = response?.data || response || undefined
-      } catch (error) {
-        console.error('加载报废桥接资产快照失败，回退到维修单快照:', error)
-      }
-    }
-
-    return {
-      source: 'repair',
-      orderType: 'DISPOSAL',
-      sourceBizType: 'ASSET_REPAIR',
-      sourceBizId: repair?.repairId,
-      sourceBizNo: repair?.repairNo || '',
-      repairId: repair?.repairId,
-      repairNo: repair?.repairNo || '',
-      assetId: primaryItem?.assetId || repair?.assetId,
-      assetCode: primaryItem?.assetCode || repair?.assetCode || '',
-      assetName: primaryItem?.assetName || repair?.assetName || '',
-      assetStatus: assetSnapshot?.assetStatus || repair?.afterStatus || repair?.beforeStatus || '',
-      beforeStatus: repair?.beforeStatus || assetSnapshot?.assetStatus || '',
-      afterStatus: repair?.afterStatus || assetSnapshot?.assetStatus || repair?.beforeStatus || '',
-      currentUserId: assetSnapshot?.currentUserId,
-      useOrgDeptId: assetSnapshot?.useOrgDeptId,
-      currentLocationId: assetSnapshot?.currentLocationId,
-      resultType: repair?.resultType || '',
-      faultDesc: repair?.faultDesc || '',
-      repairRemark: repair?.remark || '',
-      repairCost: repair?.repairCost,
-      downtimeHours: repair?.downtimeHours,
-      vendorName: repair?.vendorName || '',
-      finishTime: repair?.finishTime || '',
-      disposalReason:
-        repair?.disposeSuggestion ||
-        repair?.repairConclusion ||
-        repair?.remark ||
-        repair?.faultDesc ||
-        ''
-    }
-  }
-
-  const navigateToDisposalDraft = async (repair?: any) => {
-    if (!repair?.repairId) return
-    if (repair?.relatedDisposalOrder?.orderId) {
-      if (hasPermission('asset:order:query')) {
-        ElMessage.warning('该维修单已有关联报废单，正在打开单据详情')
-        await handleViewRelatedDisposalOrder(repair.relatedDisposalOrder)
-      } else {
-        ElMessage.warning('该维修单已有关联报废单，请联系有单据查询权限的处理人继续查看')
-      }
-      return
-    }
-
-    const bridgePayload = await createDisposalBridgePayload(repair)
-    sessionStorage.setItem(DISPOSAL_BRIDGE_STORAGE_KEY, JSON.stringify(bridgePayload))
-    await router.push({
-      path: '/asset/order',
-      query: {
-        bridgeSource: 'repair',
-        orderType: 'DISPOSAL',
-        repairId: String(repair.repairId)
-      }
-    })
-  }
-
-  const renderOperation = (row: any) => {
-    const actions: AssetRowActionItem[] = []
-
-    if (hasPermission('asset:repair:query')) {
-      actions.push({
-        key: 'view',
-        label: '详情',
-        type: 'primary',
-        icon: 'ri:eye-line',
-        onClick: () => handleView(row)
-      })
-    }
-
-    if (hasPermission('asset:repair:submit') && canSubmitRepair(row)) {
-      actions.push({
-        key: 'submit',
-        label: '提交',
-        type: 'primary',
-        icon: 'ri:send-plane-line',
-        onClick: () => handleSubmitRepair(row)
-      })
-    }
-
-    if (hasPermission('asset:repair:approve') && canApproveRepair(row)) {
-      actions.push({
-        key: 'approve',
-        label: '通过',
-        type: 'success',
-        icon: 'ri:checkbox-circle-line',
-        onClick: () => openApproveDialog(row, 'approve')
-      })
-    }
-
-    if (hasPermission('asset:repair:finish') && canFinishRepair(row)) {
-      actions.push({
-        key: 'finish',
-        label: '完成',
-        type: 'warning',
-        icon: 'ri:flag-line',
-        onClick: () => openFinishDialog(row)
-      })
-    }
-
-    if (canCreateDisposalOrder(row)) {
-      actions.push({
-        key: 'create-disposal',
-        label: '建报废单',
-        type: 'warning',
-        icon: 'ri:file-add-line',
-        onClick: () => handleCreateDisposalOrder(row)
-      })
-    }
-
-    if (hasPermission('asset:repair:edit') && canEditRepair(row)) {
-      actions.push({
-        key: 'edit',
-        label: '编辑',
-        type: 'primary',
-        icon: 'ri:edit-line',
-        onClick: () => handleEdit(row)
-      })
-    }
-
-    if (hasPermission('asset:repair:query')) {
-      actions.push({
-        key: 'attachments',
-        label: '附件',
-        type: 'info',
-        icon: 'ri:attachment-2',
-        onClick: () => handleOpenAttachments(row)
-      })
-    }
-
-    if (hasPermission('asset:repair:reject') && canRejectRepair(row)) {
-      actions.push({
-        key: 'reject',
-        label: '驳回',
-        type: 'danger',
-        icon: 'ri:close-circle-line',
-        color: '#f56c6c',
-        onClick: () => openApproveDialog(row, 'reject')
-      })
-    }
-
-    if (hasPermission('asset:repair:cancel') && canCancelRepair(row)) {
-      actions.push({
-        key: 'cancel',
-        label: '取消',
-        type: 'info',
-        icon: 'ri:forbid-2-line',
-        onClick: () => handleCancelRepairAndRefresh(row)
-      })
-    }
-
-    if (hasPermission('asset:repair:remove') && canDeleteRepair(row)) {
-      actions.push({
-        key: 'delete',
-        label: '删除',
-        type: 'danger',
-        icon: 'ri:delete-bin-line',
-        color: '#f56c6c',
-        onClick: () => handleDelete(row)
-      })
-    }
-
-    return h(AssetRowActionBar, { actions })
-  }
 
   const handleAdd = () => {
     router.push({
@@ -611,52 +328,7 @@
     })
   }
 
-  const loadRepairDetail = async (row?: any) => {
-    if (!row?.repairId) {
-      currentRepair.value = row ? normalizeRepairDetail(row) : undefined
-      return
-    }
-    currentRepair.value = normalizeRepairDetail(row)
-    try {
-      const response: any = await getAssetRepair(row.repairId)
-      const repairDetail = normalizeRepairDetail({ ...row, ...(response?.data || response || {}) })
-      const relatedDisposalOrder = await findRelatedDisposalOrder(repairDetail)
-      currentRepair.value = { ...repairDetail, relatedDisposalOrder }
-    } catch (error) {
-      console.error('加载维修单详情失败，继续使用列表行数据', error)
-    }
-  }
-
-  const findRelatedDisposalOrder = async (repair?: any) => {
-    const repairId = Number(repair?.repairId)
-    if (!repairId) return undefined
-
-    try {
-      const response: any = await getLinkedAssetOrder({
-        orderType: 'DISPOSAL',
-        sourceBizType: 'ASSET_REPAIR',
-        sourceBizId: repairId
-      })
-      const matchedOrder = response?.data || undefined
-      if (!matchedOrder) return undefined
-
-      return {
-        orderId: matchedOrder.orderId,
-        orderNo: matchedOrder.orderNo,
-        orderStatus: matchedOrder.orderStatus,
-        sourceBizNo: matchedOrder.sourceBizNo,
-        disposalAmount: matchedOrder.disposalAmount,
-        disposalReason: matchedOrder.disposalReason,
-        approveUserName: matchedOrder.approveUserName,
-        approveTime: matchedOrder.approveTime
-      }
-    } catch (error) {
-      console.error('查询关联报废单失败，继续展示维修详情主体:', error)
-      return undefined
-    }
-  }
-
-  const handleView = async (row?: any) => {
+  const handleView = (row?: any) => {
     if (!row?.repairId) return
     router.push({
       path: `/asset/repair/detail/${row.repairId}`,
@@ -668,173 +340,31 @@
     })
   }
 
-  const handleCreateDisposalOrder = async (row?: any) => {
-    if (!row?.repairId) return
-    await loadRepairDetail(row)
-    await navigateToDisposalDraft(currentRepair.value || row)
-  }
+  const renderOperation = (row: any) => {
+    const actions: AssetRowActionItem[] = []
 
-  const handleViewRelatedDisposalOrder = async (order?: any) => {
-    const orderId = Number(order?.orderId)
-    if (!orderId) return
-
-    await router.push({
-      path: '/asset/order',
-      query: {
-        orderType: 'DISPOSAL',
-        orderId: String(orderId),
-        openDetail: '1'
-      }
-    })
-  }
-
-  const handleOpenAttachments = async (row?: any) => {
-    if (!row?.repairId) return
-    await loadRepairDetail(row)
-    attachmentDrawerVisible.value = true
-  }
-
-  const handleDelete = async (row?: any) => {
-    if (!row?.repairId) return
-    try {
-      await ElMessageBox.confirm(`确认删除维修单「${row.repairNo || row.repairId}」吗？`, '提示', {
-        type: 'warning'
+    // 列表页只保留路由型入口动作，主流程操作统一在独立页面完成。
+    if (hasPermission('asset:repair:query')) {
+      actions.push({
+        key: 'view',
+        label: '详情',
+        type: 'primary',
+        icon: 'ri:eye-line',
+        onClick: () => handleView(row)
       })
-      await delAssetRepair(row.repairId)
-      ElMessage.success('删除成功')
-      refreshData()
-    } catch (error) {
-      if (error !== 'cancel') {
-        console.error('删除维修单失败', error)
-      }
     }
-  }
 
-  const handleSubmitRepair = async (row?: any) => {
-    if (!row?.repairId) return
-    try {
-      await ElMessageBox.confirm(`确认提交维修单「${row.repairNo || row.repairId}」吗？`, '提示', {
-        type: 'warning'
+    if (hasPermission('asset:repair:edit') && canEditRepair(row)) {
+      actions.push({
+        key: 'edit',
+        label: '编辑',
+        type: 'primary',
+        icon: 'ri:edit-line',
+        onClick: () => handleEdit(row)
       })
-      await submitAssetRepair(row.repairId)
-      ElMessage.success('提交成功')
-      refreshData()
-      if (detailDrawerVisible.value) {
-        await loadRepairDetail(row)
-      }
-    } catch (error) {
-      if (error !== 'cancel') {
-        console.error('提交维修单失败', error)
-      }
     }
-  }
 
-  const openApproveDialog = (row?: any, actionType: 'approve' | 'reject' = 'approve') => {
-    if (!row?.repairId) return
-    currentRepair.value = { ...row }
-    approveActionType.value = actionType
-    approveDialogVisible.value = true
-  }
-
-  const handleApproveConfirm = async (payload: {
-    remark: string
-    actionType: 'approve' | 'reject'
-  }) => {
-    if (!currentRepair.value?.repairId) return
-    try {
-      if (payload.actionType === 'approve') {
-        await approveAssetRepair(currentRepair.value.repairId, { remark: payload.remark })
-        ElMessage.success('审批通过')
-      } else {
-        await rejectAssetRepair(currentRepair.value.repairId, { remark: payload.remark })
-        ElMessage.success('审批驳回')
-      }
-      approveDialogVisible.value = false
-      refreshData()
-      if (detailDrawerVisible.value) {
-        await loadRepairDetail(currentRepair.value)
-      }
-    } catch (error) {
-      console.error('审批维修单失败', error)
-    }
-  }
-
-  const openFinishDialog = async (row?: any) => {
-    if (!row?.repairId) return
-    await loadRepairDetail(row)
-    finishDialogVisible.value = true
-  }
-
-  const handleFinishConfirm = async (payload: any) => {
-    if (!currentRepair.value?.repairId) return
-    try {
-      const finishPayload = {
-        ...payload,
-        // 兼容多资产维修完成场景，优先使用弹窗传回的 itemList。
-        itemList: Array.isArray(payload?.itemList)
-          ? payload.itemList
-          : currentRepair.value?.itemList
-      }
-      await finishAssetRepair(currentRepair.value.repairId, finishPayload)
-      currentRepair.value = normalizeRepairDetail({
-        ...currentRepair.value,
-        ...finishPayload,
-        repairStatus: 'FINISHED'
-      })
-      finishDialogVisible.value = false
-      refreshData()
-      if (detailDrawerVisible.value) {
-        await loadRepairDetail(currentRepair.value)
-      }
-
-      if (payload.resultType === 'SUGGEST_DISPOSAL') {
-        try {
-          await ElMessageBox.confirm(
-            '维修结果已标记为“建议报废”。是否立即去创建报废单草稿？',
-            '维修完成',
-            {
-              type: 'warning',
-              confirmButtonText: '去创建报废单',
-              cancelButtonText: '稍后处理',
-              distinguishCancelAndClose: true
-            }
-          )
-          await navigateToDisposalDraft(currentRepair.value)
-        } catch (error) {
-          if (error === 'cancel') {
-            ElMessage.warning('已标记为建议报废，可稍后从维修详情或列表继续创建报废单')
-          }
-        }
-        return
-      }
-
-      ElMessage.success('维修完成成功')
-    } catch (error) {
-      console.error('完成维修单失败', error)
-    }
-  }
-
-  const handleCancelRepair = async (row?: any) => {
-    if (!row?.repairId) return
-    try {
-      await ElMessageBox.confirm(`确认取消维修单「${row.repairNo || row.repairId}」吗？`, '提示', {
-        type: 'warning'
-      })
-      await cancelAssetRepair(row.repairId)
-      ElMessage.success('取消成功')
-      refreshData()
-    } catch (error) {
-      if (error !== 'cancel') {
-        console.error('取消维修单失败', error)
-      }
-    }
-  }
-
-  const handleCancelRepairAndRefresh = async (row?: any) => {
-    await handleCancelRepair(row)
-    if (detailDrawerVisible.value && row?.repairId) {
-      await loadRepairDetail(row)
-    }
+    return h(AssetRowActionBar, { actions })
   }
 
   const handleStatusChange = () => {
@@ -865,7 +395,7 @@
       FileSaver.saveAs(blob as Blob, '资产维修单.xlsx')
       ElMessage.success('导出成功')
     } catch (error) {
-      console.error('导出维修单失败', error)
+      console.error('导出维修单失败:', error)
     } finally {
       exportLoading.value = false
     }
@@ -919,10 +449,5 @@
 
   .asset-repair-empty {
     padding: 32px 12px 12px;
-  }
-
-  .asset-repair-operation {
-    display: flex;
-    justify-content: flex-end;
   }
 </style>

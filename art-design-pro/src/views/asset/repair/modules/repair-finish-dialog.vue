@@ -187,6 +187,8 @@
   import { useDict } from '@/utils/dict'
   import { resolveRepairItems } from './repair-item-normalize'
 
+  defineOptions({ name: 'RepairFinishDialog' })
+
   const { asset_status } = useDict('asset_status')
 
   const resultTypeOptions = [
@@ -287,6 +289,7 @@
     }
   )
 
+  // 完工弹窗只维护局部表单态，真正的业务提交流程由外层页面承接。
   watch(
     () => formData.resultType,
     (value) => {

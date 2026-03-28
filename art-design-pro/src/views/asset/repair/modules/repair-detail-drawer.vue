@@ -505,6 +505,7 @@
     repairData?: any
   }>()
 
+  // 该组件用于“局部详情承载”，在抽屉和页面内嵌两种场景复用同一套展示结构。
   const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
     (e: 'close'): void
@@ -514,7 +515,6 @@
     (e: 'approve'): void
     (e: 'reject'): void
     (e: 'finish'): void
-    (e: 'cancel'): void
     (e: 'attachments'): void
     (e: 'createDisposal'): void
     (e: 'viewDisposal', order?: any): void
@@ -656,6 +656,7 @@
     () => props.pageMode,
     (value) => {
       if (value) {
+        // 页面模式下由外层页面控制显示，不再让抽屉状态影响主流程入口。
         visible.value = true
       }
     },

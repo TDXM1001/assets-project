@@ -47,6 +47,8 @@
   import { computed, reactive, ref, watch } from 'vue'
   import type { FormRules } from 'element-plus'
 
+  defineOptions({ name: 'RepairApproveDialog' })
+
   const props = defineProps<{
     modelValue: boolean
     actionType: 'approve' | 'reject'
@@ -107,6 +109,7 @@
       if (!valid) return
       submitLoading.value = true
       try {
+        // 弹窗只输出审批参数，真正的业务提交由外层页面处理。
         emit('confirm', { remark: formData.remark, actionType: props.actionType })
       } finally {
         submitLoading.value = false
