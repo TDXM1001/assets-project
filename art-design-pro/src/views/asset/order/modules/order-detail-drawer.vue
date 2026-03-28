@@ -251,6 +251,7 @@
   import { useUserStore } from '@/store/modules/user'
   import DictTag from '@/components/DictTag/index.vue'
   import OrderWorkbenchShell from './order-workbench-shell.vue'
+  import { buildOrderTypeScopeSummary, buildOrderTypeViewConfig } from './order-page-meta'
 
   const { asset_order_type, asset_order_status, asset_status } = useDict(
     'asset_order_type',
@@ -278,7 +279,8 @@
   const visible = ref(false)
 
   const currentStatus = computed(() => props.orderData?.orderStatus || 'DRAFT')
-  const isDisposalOrder = computed(() => props.orderData?.orderType === 'DISPOSAL')
+  const detailTypeConfig = computed(() => buildOrderTypeViewConfig(props.orderData?.orderType))
+  const isDisposalOrder = computed(() => detailTypeConfig.value.requiresDisposalFields)
   const finishButtonText = computed(() => (isDisposalOrder.value ? '执行报废' : '完成'))
 
   const detailItems = computed(() => {
@@ -297,40 +299,7 @@
     }
     return drawerTitle.value
   })
-  const shellDescription = computed(() => scopeSummary.value)
-
-  const scopeSummary = computed(() => {
-    const orderType = props.orderData?.orderType
-    const fromDept =
-      props.orderData?.fromDeptName || props.orderData?.fromDeptId || '来源部门待补充'
-    const toDept = props.orderData?.toDeptName || props.orderData?.toDeptId || '目标部门待补充'
-    const fromUser =
-      props.orderData?.fromUserName || props.orderData?.fromUserId || '来源责任人待补充'
-    const toUser = props.orderData?.toUserName || props.orderData?.toUserId || '目标责任人待补充'
-    const fromLocation =
-      props.orderData?.fromLocationName || props.orderData?.fromLocationId || '来源位置待补充'
-    const toLocation =
-      props.orderData?.toLocationName || props.orderData?.toLocationId || '目标位置待补充'
-
-    switch (orderType) {
-      case 'INBOUND':
-        return `入库至 ${toDept} / ${toLocation}`
-      case 'ASSIGN':
-        return `${fromDept} / ${fromUser} 领用到 ${toDept} / ${toUser}`
-      case 'BORROW':
-        return `借用给 ${toUser}，预计归还日 ${props.orderData?.expectedReturnDate || '待补充'}`
-      case 'RETURN':
-        return `归还到 ${toDept} / ${toLocation}`
-      case 'TRANSFER':
-        return `${fromDept} / ${fromLocation} 调拨到 ${toDept} / ${toLocation}`
-      case 'DISPOSAL':
-        return `报废原因：${props.orderData?.disposalReason || '待补充'} / 处置金额：${displayText(
-          props.orderData?.disposalAmount ?? '待补充'
-        )}`
-      default:
-        return `${fromDept} -> ${toDept}`
-    }
-  })
+  const shellDescription = computed(() => buildOrderTypeScopeSummary(props.orderData || {}))
 
   const canEdit = computed(() => ['DRAFT', 'REJECTED'].includes(currentStatus.value))
   const canSubmit = computed(() => ['DRAFT', 'REJECTED'].includes(currentStatus.value))

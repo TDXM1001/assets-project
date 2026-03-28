@@ -131,7 +131,7 @@
   import OrderApproveDialog from './modules/order-approve-dialog.vue'
   import OrderDetailDrawer from './modules/order-detail-drawer.vue'
   import OrderDialog from './modules/order-dialog.vue'
-  import { buildOrderPageMeta } from './modules/order-page-meta'
+  import { buildOrderPageMeta, buildOrderTypeScopeSummary } from './modules/order-page-meta'
   import {
     buildOrderListRestoreQuery,
     resolveOrderListRestoreState
@@ -265,31 +265,7 @@
    * 把单据类型翻译成业务摘要，列表页就能一眼看出单据大概在做什么。
    */
   const formatScopeSummary = (row: any) => {
-    const fromDept = row?.fromDeptName || row?.fromDeptId || '来源部门待补充'
-    const toDept = row?.toDeptName || row?.toDeptId || '目标部门待补充'
-    const fromUser = row?.fromUserName || row?.fromUserId || '来源责任人待补充'
-    const toUser = row?.toUserName || row?.toUserId || '目标责任人待补充'
-    const fromLocation = row?.fromLocationName || row?.fromLocationId || '来源位置待补充'
-    const toLocation = row?.toLocationName || row?.toLocationId || '目标位置待补充'
-
-    switch (row?.orderType) {
-      case 'INBOUND':
-        return `入库至 ${toDept} / ${toLocation}`
-      case 'ASSIGN':
-        return `${fromDept} / ${fromUser} 领用到 ${toDept} / ${toUser}`
-      case 'BORROW':
-        return `借用给 ${toUser}，预计归还 ${row?.expectedReturnDate || '待补充'}`
-      case 'RETURN':
-        return `归还到 ${toDept} / ${toLocation}`
-      case 'TRANSFER':
-        return `${fromDept} / ${fromLocation} 调拨到 ${toDept} / ${toLocation}`
-      case 'DISPOSAL':
-        return `报废原因：${row?.disposalReason || '待补充'} / 处置金额：${displayText(
-          row?.disposalAmount ?? '待补充'
-        )}`
-      default:
-        return `${fromDept} -> ${toDept}`
-    }
+    return buildOrderTypeScopeSummary(row || {})
   }
 
   const formatApproveSummary = (row: any) => {

@@ -35,3 +35,9 @@
 - [ ] Documentation updated
 - [ ] Code reviewed
 - [ ] 单据类型切换时页面结构和文案按预期变化
+
+## 进展说明
+
+- 已将单据类型的页面元信息收敛到 `art-design-pro/src/views/asset/order/modules/order-page-meta.ts`，统一管理页面标题、默认说明和状态标签。
+- 创建页、列表页和详情页现在共用同一套类型摘要 helper，避免在组件里继续堆散落的 `switch` 逻辑。
+- 后续如果继续补齐浏览器验收和代码审查，可以直接在这张 story 上继续勾选完成定义。
