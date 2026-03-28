@@ -1,0 +1,11 @@
+﻿{
+    "method":  "tools/call",
+    "params":  {
+                   "arguments":  {
+
+                                 },
+                   "name":  "get_windows_and_tabs"
+               },
+    "id":  3,
+    "jsonrpc":  "2.0"
+}

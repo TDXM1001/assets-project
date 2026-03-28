@@ -1,0 +1,12 @@
+﻿{
+    "method":  "tools/call",
+    "params":  {
+                   "arguments":  {
+                                     "tabId":  1373737751,
+                                     "url":  "http://localhost:3006/#/asset/repair"
+                                 },
+                   "name":  "chrome_navigate"
+               },
+    "id":  4,
+    "jsonrpc":  "2.0"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "method":  "tools/call",
+    "params":  {
+                   "arguments":  {
+                                     "code":  "const btn = Array.from(document.querySelectorAll(\u0027button\u0027)).find((item) =\u003e item.innerText.trim() === \u0027新增维修单\u0027);\nif (btn) btn.click();\nawait new Promise((resolve) =\u003e setTimeout(resolve, 700));\nreturn location.href;",
+                                     "timeoutMs":  10000,
+                                     "tabId":  1373737751
+                                 },
+                   "name":  "chrome_javascript"
+               },
+    "id":  27,
+    "jsonrpc":  "2.0"
+}

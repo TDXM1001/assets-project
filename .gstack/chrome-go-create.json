@@ -1,0 +1,13 @@
+﻿{
+    "method":  "tools/call",
+    "params":  {
+                   "arguments":  {
+                                     "code":  "location.hash = \u0027#/asset/repair/create\u0027;\nawait new Promise((resolve) =\u003e setTimeout(resolve, 800));\nreturn { href: location.href, title: document.title };",
+                                     "timeoutMs":  10000,
+                                     "tabId":  1373737751
+                                 },
+                   "name":  "chrome_javascript"
+               },
+    "id":  28,
+    "jsonrpc":  "2.0"
+}

@@ -132,6 +132,10 @@
   import OrderApproveDialog from './modules/order-approve-dialog.vue'
   import OrderDetailDrawer from './modules/order-detail-drawer.vue'
   import OrderDialog from './modules/order-dialog.vue'
+  import {
+    buildOrderListRestoreQuery,
+    resolveOrderListRestoreState
+  } from './modules/order-list-query'
 
   defineOptions({ name: 'AssetOrder' })
 
@@ -219,6 +223,25 @@
       bizDateEnd: bizDateEnd || undefined,
       orderType: activeOrderType.value === 'ALL' ? undefined : activeOrderType.value
     }
+  }
+
+  const hydrateListStateFromRoute = () => {
+    const restoredState = resolveOrderListRestoreState(route.query)
+    activeOrderType.value = restoredState.orderType
+    formFilters.orderNo = restoredState.orderNo
+    formFilters.orderStatus = restoredState.orderStatus
+    formFilters.applyUserName = restoredState.applyUserName
+    formFilters.applyDeptName = restoredState.applyDeptName
+    formFilters.bizDateRange = restoredState.bizDateRange
+
+    return Boolean(
+      restoredState.orderType !== 'ALL' ||
+        restoredState.orderNo ||
+        restoredState.orderStatus ||
+        restoredState.applyUserName ||
+        restoredState.applyDeptName ||
+        restoredState.bizDateRange.length
+    )
   }
 
   const syncSearchParams = () => {
@@ -503,10 +526,7 @@
   }
 
   const handleAdd = () => {
-    const query: Record<string, string> = {}
-    if (activeOrderType.value !== 'ALL') {
-      query.orderType = activeOrderType.value
-    }
+    const query = buildOrderListRestoreQuery(buildQuery())
     // 新增单据已经升级为独立页面，这里直接路由跳转，避免再把复杂表单塞回弹窗。
     router.push({ path: '/asset/order/create', query }).catch(() => undefined)
   }
@@ -544,7 +564,7 @@
     return undefined
   }
 
-  const normalizeBridgeContext = (context: Record<string, any> = {}) => {
+  const normalizeBridgeContext = (context: Record<string, any> = {}): Record<string, any> => {
     const orderType = String(context.orderType || '').toUpperCase()
     return {
       ...context,
@@ -620,6 +640,9 @@
           orderType: String(nextDialogContext.orderType || 'INBOUND'),
           bridgeSource: queryBridgeSource || '',
           bridgeKey: queryBridgeKey || '',
+          sourceBizType: String(nextDialogContext.sourceBizType || ''),
+          sourceBizId: String(nextDialogContext.sourceBizId || ''),
+          repairId: String(nextDialogContext.repairId || ''),
           bridgeData: JSON.stringify(nextDialogContext)
         }
       })
@@ -852,7 +875,12 @@
   }
 
   onMounted(() => {
+    const hasRestoredListState = hydrateListStateFromRoute()
     syncSearchParams()
+    if (hasRestoredListState) {
+      searchParams.pageNum = 1
+      getData()
+    }
     void asset_order_type.value
     void asset_order_status.value
     hydrateBridgeContext()

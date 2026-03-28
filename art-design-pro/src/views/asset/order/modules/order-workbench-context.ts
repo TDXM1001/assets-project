@@ -7,6 +7,16 @@ export interface OrderWorkbenchContext extends Record<string, any> {
   repairId: string
 }
 
+export interface ResolveOrderWorkbenchPageContextInput {
+  orderTypeQuery?: string
+  bridgeSourceQuery?: string
+  bridgeKeyQuery?: string
+  bridgeDataQuery?: string
+  sourceBizTypeQuery?: string
+  sourceBizIdQuery?: string
+  repairIdQuery?: string
+}
+
 const DEFAULT_ORDER_TYPE = 'INBOUND'
 
 // 单据工作台会从 sessionStorage 里短暂接收桥接数据，避免直接依赖来源页状态。
@@ -91,4 +101,30 @@ export const readOrderWorkbenchContextFromStorage = (bridgeKey?: string) => {
   }
 
   return undefined
+}
+
+export const resolveOrderWorkbenchPageContext = (
+  input: ResolveOrderWorkbenchPageContextInput = {}
+): OrderWorkbenchContext => {
+  const parsedBridgeContext =
+    safeParseOrderWorkbenchContext(input.bridgeDataQuery || null) ||
+    readOrderWorkbenchContextFromStorage(input.bridgeKeyQuery)
+  const mergedContext: Record<string, any> = {
+    ...(parsedBridgeContext || {})
+  }
+
+  if (input.orderTypeQuery) mergedContext.orderType = input.orderTypeQuery
+  if (input.bridgeSourceQuery) mergedContext.bridgeSource = input.bridgeSourceQuery
+  if (input.bridgeKeyQuery) mergedContext.bridgeKey = input.bridgeKeyQuery
+  if (input.sourceBizTypeQuery) mergedContext.sourceBizType = input.sourceBizTypeQuery
+  if (
+    input.sourceBizIdQuery !== undefined &&
+    input.sourceBizIdQuery !== null &&
+    input.sourceBizIdQuery !== ''
+  ) {
+    mergedContext.sourceBizId = input.sourceBizIdQuery
+  }
+  if (input.repairIdQuery) mergedContext.repairId = input.repairIdQuery
+
+  return normalizeOrderWorkbenchContext(mergedContext)
 }

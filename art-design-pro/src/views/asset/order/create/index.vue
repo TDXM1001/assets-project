@@ -68,11 +68,13 @@
   import {
     buildOrderWorkbenchDraftScope,
     buildOrderWorkbenchDraftStorageKey,
-    normalizeOrderWorkbenchContext,
-    readOrderWorkbenchContextFromStorage,
-    safeParseOrderWorkbenchContext,
+    resolveOrderWorkbenchPageContext,
     type OrderWorkbenchContext
   } from '../modules/order-workbench-context'
+  import {
+    buildOrderListRestoreQuery,
+    resolveOrderListRestoreState
+  } from '../modules/order-list-query'
 
   defineOptions({ name: 'AssetOrderCreate' })
 
@@ -114,25 +116,28 @@
   const rawBridgeDataQuery = computed(() =>
     typeof route.query.bridgeData === 'string' ? route.query.bridgeData : ''
   )
+  const rawSourceBizTypeQuery = computed(() =>
+    typeof route.query.sourceBizType === 'string' ? route.query.sourceBizType : ''
+  )
+  const rawSourceBizIdQuery = computed(() =>
+    typeof route.query.sourceBizId === 'string' ? route.query.sourceBizId : ''
+  )
   const rawRepairIdQuery = computed(() =>
     typeof route.query.repairId === 'string' ? route.query.repairId : ''
   )
 
   // 页面只认这一份标准化上下文，避免不同入口把创建页带成不同语义。
-  const pageContext = computed<OrderWorkbenchContext>(() => {
-    const queryBridgeKey = rawBridgeKeyQuery.value
-    const parsedBridgeContext =
-      safeParseOrderWorkbenchContext(rawBridgeDataQuery.value) ||
-      readOrderWorkbenchContextFromStorage(queryBridgeKey)
-
-    return normalizeOrderWorkbenchContext({
-      orderType: rawOrderTypeQuery.value,
-      bridgeSource: rawBridgeSourceQuery.value,
-      bridgeKey: queryBridgeKey,
-      repairId: rawRepairIdQuery.value,
-      ...(parsedBridgeContext || {})
+  const pageContext = computed<OrderWorkbenchContext>(() =>
+    resolveOrderWorkbenchPageContext({
+      orderTypeQuery: rawOrderTypeQuery.value,
+      bridgeSourceQuery: rawBridgeSourceQuery.value,
+      bridgeKeyQuery: rawBridgeKeyQuery.value,
+      bridgeDataQuery: rawBridgeDataQuery.value,
+      sourceBizTypeQuery: rawSourceBizTypeQuery.value,
+      sourceBizIdQuery: rawSourceBizIdQuery.value,
+      repairIdQuery: rawRepairIdQuery.value
     })
-  })
+  )
 
   const draftStorageKey = computed(() => buildOrderWorkbenchDraftStorageKey(pageContext.value))
   const draftScope = computed(() => buildOrderWorkbenchDraftScope(pageContext.value))
@@ -245,22 +250,26 @@
   }
 
   const buildBackRouteQuery = () => {
+    const restoredListQuery = buildOrderListRestoreQuery(resolveOrderListRestoreState(route.query))
     const queryOrderType = rawOrderTypeQuery.value.trim().toUpperCase()
     const preservedOrderType =
       queryOrderType || (pageContext.value.bridgeSource ? pageContext.value.orderType : '')
-    const query: Record<string, string> = {}
+    const bridgeQuery: Record<string, string> = {}
 
     if (preservedOrderType && (preservedOrderType !== 'INBOUND' || queryOrderType)) {
-      query.orderType = preservedOrderType
+      bridgeQuery.orderType = preservedOrderType
     }
 
-    if (pageContext.value.bridgeSource) query.bridgeSource = pageContext.value.bridgeSource
-    if (pageContext.value.bridgeKey) query.bridgeKey = pageContext.value.bridgeKey
-    if (pageContext.value.sourceBizType) query.sourceBizType = pageContext.value.sourceBizType
-    if (pageContext.value.sourceBizId) query.sourceBizId = pageContext.value.sourceBizId
-    if (pageContext.value.repairId) query.repairId = pageContext.value.repairId
+    if (pageContext.value.bridgeSource) bridgeQuery.bridgeSource = pageContext.value.bridgeSource
+    if (pageContext.value.bridgeKey) bridgeQuery.bridgeKey = pageContext.value.bridgeKey
+    if (pageContext.value.sourceBizType) bridgeQuery.sourceBizType = pageContext.value.sourceBizType
+    if (pageContext.value.sourceBizId) bridgeQuery.sourceBizId = pageContext.value.sourceBizId
+    if (pageContext.value.repairId) bridgeQuery.repairId = pageContext.value.repairId
 
-    return query
+    return {
+      ...bridgeQuery,
+      ...restoredListQuery
+    }
   }
 
   const backToList = () => {

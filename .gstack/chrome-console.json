@@ -1,0 +1,13 @@
+﻿{
+    "method":  "tools/call",
+    "params":  {
+                   "arguments":  {
+                                     "mode":  "snapshot",
+                                     "onlyErrors":  true,
+                                     "tabId":  1373737751
+                                 },
+                   "name":  "chrome_console"
+               },
+    "id":  6,
+    "jsonrpc":  "2.0"
+}
