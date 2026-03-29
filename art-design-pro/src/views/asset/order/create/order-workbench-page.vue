@@ -68,7 +68,14 @@
           </ElCol>
           <ElCol :xs="24" :md="12">
             <ElFormItem label="单据状态">
-              <ElInput v-model="formData.orderStatus" disabled />
+              <ElSelect v-model="formData.orderStatus" disabled class="w-full">
+                <ElOption
+                  v-for="item in asset_order_status"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </ElSelect>
             </ElFormItem>
           </ElCol>
           <ElCol :xs="24" :md="12">
@@ -334,7 +341,11 @@
   const props = defineProps<{ context: OrderWorkbenchContext }>()
   const emit = defineEmits<{ (e: 'success'): void }>()
   const treeProps = { value: 'id', label: 'label', children: 'children' }
-  const { asset_order_type, asset_status } = useDict('asset_order_type', 'asset_status')
+  const { asset_order_type, asset_status, asset_order_status } = useDict(
+    'asset_order_type',
+    'asset_status',
+    'asset_order_status'
+  )
   const userStore = useUserStore()
   const loading = ref(false)
   const selectorDialogOpen = ref(false)
