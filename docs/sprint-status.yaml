@@ -1,10 +1,10 @@
-﻿# Sprint Status - 资产管理系统
+# Sprint Status - 资产管理系统
 # Generated: 2026-03-27T17:03:04.9475295+08:00
 
 project_name: "资产管理系统"
 project_type: "web-app"
 project_level: 2
-current_sprint: "sprint-5"
+current_sprint: "sprint-6"
 
 # 说明：
 # - 本文件用于跟踪实施阶段的冲刺与故事状态
@@ -18,6 +18,19 @@ sprints:
     capacity_points: 22
     committed_points: 21
     stories:
+      - id: "STORY-E009-S001"
+        title: "资产类型注册与启用机制"
+        owner: "Antigravity"
+        status: "done"
+        progress: 100
+        start_date: "2026-03-29"
+        end_date: "2026-03-29"
+        tasks:
+          - { title: "SQL 脚本注入与字典项初始化", status: "done" }
+          - { title: "Java 枚举 AssetType 创建", status: "done" }
+          - { title: "AssetInfo 实体类字段升级与注解补全", status: "done" }
+          - { title: "MyBatis XML 映射逻辑补全", status: "done" }
+          - { title: "前端台账列表、编辑与新增页接入资产类型", status: "done" }
       - id: "STORY-E001-S001"
         title: "资产分类管理"
         file: "docs/stories/story-E001-S001.md"
@@ -115,7 +128,7 @@ sprints:
   - id: "sprint-5"
     name: "单据工作台与流程连续性"
     goal: "把单据创建页升级成工作台壳，并打通上下文回流与草稿隔离"
-    status: "todo"
+    status: "done"
     capacity_points: 13
     committed_points: 13
     stories:
@@ -123,14 +136,14 @@ sprints:
         title: "单据工作台统一壳"
         file: "docs/stories/story-E008-S001.md"
         points: 5
-        status: "todo"
+        status: "done"
       - id: "STORY-E008-S002"
         title: "上下文回流与草稿隔离"
         file: "docs/stories/story-E008-S002.md"
         points: 5
-        status: "todo"
+        status: "done"
       - id: "STORY-E008-S003"
         title: "单据类型驱动的页面结构统一"
         file: "docs/stories/story-E008-S003.md"
         points: 3
-        status: "todo"
+        status: "done"

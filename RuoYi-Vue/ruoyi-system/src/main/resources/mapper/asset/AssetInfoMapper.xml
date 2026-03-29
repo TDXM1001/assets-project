@@ -8,6 +8,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id property="assetId" column="asset_id"/>
         <result property="assetCode" column="asset_code"/>
         <result property="assetName" column="asset_name"/>
+        <result property="assetType" column="asset_type"/>
         <result property="categoryId" column="category_id"/>
         <result property="brand" column="brand"/>
         <result property="model" column="model"/>
@@ -40,7 +41,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectAssetInfoVo">
-        select a.asset_id, a.asset_code, a.asset_name, a.category_id, a.brand, a.model, a.specification,
+        select a.asset_id, a.asset_code, a.asset_name, a.asset_type, a.category_id, a.brand, a.model, a.specification,
                a.serial_no, a.asset_status, a.asset_source, a.use_org_dept_id, a.manage_dept_id,
                a.current_user_id, a.current_location_id, a.purchase_date, a.inbound_date, a.start_use_date,
                a.original_value, a.residual_value, a.warranty_expire_date, a.supplier_name, a.qr_code,
@@ -58,6 +59,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="assetId != null">and a.asset_id = #{assetId}</if>
             <if test="assetCode != null and assetCode != ''">and a.asset_code like concat('%', #{assetCode}, '%')</if>
             <if test="assetName != null and assetName != ''">and a.asset_name like concat('%', #{assetName}, '%')</if>
+            <if test="assetType != null">and a.asset_type = #{assetType}</if>
             <if test="categoryId != null">and a.category_id = #{categoryId}</if>
             <if test="assetStatus != null and assetStatus != ''">and a.asset_status = #{assetStatus}</if>
             <if test="useOrgDeptId != null">and a.use_org_dept_id = #{useOrgDeptId}</if>
@@ -107,13 +109,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <insert id="insertAssetInfo" parameterType="com.ruoyi.system.domain.asset.AssetInfo" useGeneratedKeys="true" keyProperty="assetId">
         insert into asset_info (
-            asset_code, asset_name, category_id, brand, model, specification, serial_no,
+            asset_code, asset_name, asset_type, category_id, brand, model, specification, serial_no,
             asset_status, asset_source, use_org_dept_id, manage_dept_id, current_user_id, current_location_id,
             purchase_date, inbound_date, start_use_date, original_value, residual_value, warranty_expire_date,
             supplier_name, qr_code, version_no, template_version, extra_fields_json,
             status, del_flag, create_by, create_time, remark
         ) values (
-            #{assetCode}, #{assetName}, #{categoryId}, #{brand}, #{model}, #{specification}, #{serialNo},
+            #{assetCode}, #{assetName}, #{assetType}, #{categoryId}, #{brand}, #{model}, #{specification}, #{serialNo},
             #{assetStatus}, #{assetSource}, #{useOrgDeptId}, #{manageDeptId}, #{currentUserId}, #{currentLocationId},
             #{purchaseDate}, #{inboundDate}, #{startUseDate}, #{originalValue}, #{residualValue}, #{warrantyExpireDate},
             #{supplierName}, #{qrCode}, #{versionNo}, #{templateVersion}, #{extraFieldsJson},
@@ -126,6 +128,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="assetCode != null and assetCode != ''">asset_code = #{assetCode},</if>
             <if test="assetName != null and assetName != ''">asset_name = #{assetName},</if>
+            <if test="assetType != null">asset_type = #{assetType},</if>
             <if test="categoryId != null">category_id = #{categoryId},</if>
             <if test="brand != null">brand = #{brand},</if>
             <if test="model != null">model = #{model},</if>

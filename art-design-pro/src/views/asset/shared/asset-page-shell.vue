@@ -1,25 +1,33 @@
 <template>
   <div class="asset-info-create-page art-full-height" v-loading="!!loading">
+    <!-- 顶部英雄区：展示标题、描述和状态标签 -->
     <ElCard class="asset-info-create-page__hero" shadow="never">
       <div class="asset-info-create-page__hero-main">
         <div>
+          <!--眉页：模块导航标记 -->
           <div class="asset-info-create-page__eyebrow">{{ eyebrow }}</div>
+          <!--主标题 -->
           <h1 class="asset-info-create-page__title">{{ title }}</h1>
+          <!--副描述 -->
           <p class="asset-info-create-page__desc">{{ description }}</p>
         </div>
 
+        <!-- 状态标签插槽 -->
         <ElSpace wrap>
           <slot name="tags" />
         </ElSpace>
       </div>
     </ElCard>
 
+    <!-- 草稿/异常提醒插槽 -->
     <slot name="draftTip" />
 
+    <!-- 核心内容区 -->
     <div class="asset-info-create-page__content">
       <slot />
     </div>
 
+    <!-- 吸底动作页脚 -->
     <div v-if="$slots.footer" class="asset-info-create-page__footer">
       <slot name="footer" />
     </div>
@@ -27,10 +35,19 @@
 </template>
 
 <script setup lang="ts">
+  /**
+   * 资产页面统一壳组件 (AssetPageShell)
+   * 
+   * 提供资产管理模块内创建、详情、审批等页面的统一风格容器。
+   */
   defineProps<{
+    /** 是否正在加载 */
     loading?: boolean
+    /** 眉头小标题 */
     eyebrow: string
+    /** 页面主标题 */
     title: string
+    /** 页面业务描述 */
     description: string
   }>()
 </script>

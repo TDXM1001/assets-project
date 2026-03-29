@@ -118,6 +118,7 @@
           </ElRow>
         </ElCard>
 
+        <!-- 维修资产明细表格区：支持一单多资产 -->
         <ElCard shadow="never">
           <template #header>
             <div class="repair-dialog-page__section-header">
@@ -507,6 +508,11 @@
     assetStatus: ''
   })
 
+  /** 
+   * 维修明细行级验证规 
+   * 
+   * 确保：1. 至少有一条数据；2. 资产不重复；3. 录入了故障描述。
+   */
   const validateRepairItems = (_rule: unknown, value: RepairItemFormData[], callback: any) => {
     if (!Array.isArray(value) || value.length === 0) {
       callback(new Error('请至少选择一条维修资产明细'))
@@ -621,6 +627,11 @@
     return userLabelMap.value[String(userId)] || String(userId)
   }
 
+  /** 
+   * 应用首条明细快照到单据头信息 
+   * 
+   * 目的：为了兼容旧的后端单资产接口，将多资产列表中的第一项同步冗余到 `assetId/assetCode` 等单头字段。
+   */
   const applyPrimaryItemSnapshot = () => {
     Object.assign(formData, buildRepairHeaderStateFromItems(formData.repairItems, formData.faultDesc))
   }

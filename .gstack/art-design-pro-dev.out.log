@@ -12,3 +12,78 @@
   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.31.21:[1m3006[22m/[39m
   ➜  Vue DevTools: Open http://localhost:3006/__devtools__/ as a separate window
   ➜  Vue DevTools: Press Alt(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+[2m20:03:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/views/asset/repair/index.vue[22m
+[2m20:04:21[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/views/asset/repair/index.vue[22m
+[2m20:07:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/repair/modules/repair-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m20:07:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m20:07:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/repair/modules/repair-approve-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m20:09:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/repair/modules/repair-finish-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m20:09:45[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/repair/modules/repair-finish-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m20:57:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m20:57:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m20:58:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue[22m
+[2m20:58:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m20:58:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:00:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue[22m
+[2m21:00:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m21:00:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:00:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:00:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue[22m
+[2m21:00:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m21:00:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:00:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:01:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:01:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:06:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:06:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:07:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:07:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:07:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:08:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:08:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:08:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:08:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:09:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:09:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:09:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:10:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:10:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:10:40[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:10:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:11:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:11:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:11:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:11:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:11:38[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:11:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:12:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:13:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:13:23[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:13:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:13:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/order-workbench-page.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:21:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/views/asset/order/modules/order-workbench-shell.vue[22m
+[2m21:21:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:21:51[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:22:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:22:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m
+[2m21:22:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/create/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:29:00[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-approve-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:29:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-approve-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:29:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:30:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-approve-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:30:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:30:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-approve-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:30:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:31:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:32:22[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:46:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:47:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-dialog.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:53:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m21:54:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:55:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:56:30[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m21:57:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m21:58:21[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/asset/order/index.vue, /src/views/asset/order/create/index.vue, /src/views/asset/order/create/order-workbench-page.vue[22m
+[2m21:58:21[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/modules/order-detail-drawer.vue, /src/assets/styles/core/tailwind.css[22m
+[2m21:58:21[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/asset/order/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m22:13:46[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css[22m

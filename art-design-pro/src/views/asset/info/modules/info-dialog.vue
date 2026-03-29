@@ -25,6 +25,19 @@
             <ElInput v-model="formData.assetName" maxlength="200" placeholder="请输入资产名称" />
           </ElFormItem>
         </ElCol>
+        <ElCol :span="24">
+          <ElFormItem label="资产类型" prop="assetType">
+            <ElRadioGroup v-model="formData.assetType">
+              <ElRadioButton
+                v-for="item in asset_type"
+                :key="item.value"
+                :label="item.value"
+              >
+                {{ item.label }}
+              </ElRadioButton>
+            </ElRadioGroup>
+          </ElFormItem>
+        </ElCol>
 
         <ElCol :span="12">
           <ElFormItem label="资产分类" prop="categoryId">
@@ -307,10 +320,11 @@
     userName: string
   }
 
-  const { sys_normal_disable, asset_status, asset_source } = useDict(
+  const { sys_normal_disable, asset_status, asset_source, asset_type } = useDict(
     'sys_normal_disable',
     'asset_status',
-    'asset_source'
+    'asset_source',
+    'asset_type'
   )
 
   const props = defineProps<{
@@ -340,6 +354,7 @@
     assetId: undefined as number | undefined,
     assetCode: '',
     assetName: '',
+    assetType: 'FIXED_ASSET',
     categoryId: undefined as number | undefined,
     brand: '',
     model: '',
@@ -373,6 +388,7 @@
     assetCode: [{ required: true, message: '资产编码不能为空', trigger: 'blur' }],
     assetName: [{ required: true, message: '资产名称不能为空', trigger: 'blur' }],
     categoryId: [{ required: true, message: '资产分类不能为空', trigger: 'change' }],
+    assetType: [{ required: true, message: '资产类型不能为空', trigger: 'change' }],
     assetStatus: [{ required: true, message: '资产状态不能为空', trigger: 'change' }]
   }
 

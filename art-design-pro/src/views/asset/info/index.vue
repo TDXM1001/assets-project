@@ -209,7 +209,7 @@
   const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
-  const { asset_status, asset_source } = useDict('asset_status', 'asset_source')
+  const { asset_status, asset_source, asset_type } = useDict('asset_status', 'asset_source', 'asset_type')
 
   const filterMode = ref<'category' | 'location'>('category')
   const selectedCategoryId = ref<number | string | null>(null)
@@ -239,6 +239,7 @@
     assetCode: '',
     assetName: '',
     assetStatus: '',
+    assetType: '',
     currentUserId: undefined as number | undefined
   }
 
@@ -264,7 +265,7 @@
 
   const searchBarKey = computed(
     () =>
-      `${asset_status.value.length}-${asset_source.value.length}-${userOptions.value.length}-${filterMode.value}-${isSelfScopedAssetUser.value}`
+      `${asset_status.value.length}-${asset_source.value.length}-${asset_type.value.length}-${userOptions.value.length}-${filterMode.value}-${isSelfScopedAssetUser.value}`
   )
 
   const multiple = computed(() => selection.value.length === 0)
@@ -274,6 +275,7 @@
       Boolean(formFilters.assetCode?.trim()) ||
       Boolean(formFilters.assetName?.trim()) ||
       Boolean(formFilters.assetStatus) ||
+      Boolean(formFilters.assetType) ||
       (!isSelfScopedAssetUser.value && Boolean(formFilters.currentUserId)) ||
       Boolean(selectedCategoryId.value) ||
       Boolean(selectedLocationId.value)
@@ -366,6 +368,16 @@
           clearable: true,
           options: asset_status.value
         }
+      },
+      {
+        label: '资产类型',
+        key: 'assetType',
+        type: 'select',
+        props: {
+          placeholder: '请选择资产类型',
+          clearable: true,
+          options: asset_type.value
+        }
       }
     ]
 
@@ -435,6 +447,14 @@
         { type: 'selection', width: 55, align: 'center' },
         { prop: 'assetCode', label: '资产编码', minWidth: 130 },
         { prop: 'assetName', label: '资产名称', minWidth: 180 },
+        {
+          prop: 'assetType',
+          label: '资产类型',
+          width: 110,
+          align: 'center',
+          formatter: (row: any) =>
+            h(DictTag, { options: asset_type.value, value: row.assetType })
+        },
         {
           prop: 'assetStatus',
           label: '资产状态',
@@ -613,6 +633,7 @@
       assetCode: formFilters.assetCode || undefined,
       assetName: formFilters.assetName || undefined,
       assetStatus: formFilters.assetStatus || undefined,
+      assetType: formFilters.assetType || undefined,
       currentUserId: isSelfScopedAssetUser.value
         ? undefined
         : formFilters.currentUserId || undefined,
@@ -631,6 +652,7 @@
       assetCode: undefined,
       assetName: undefined,
       assetStatus: undefined,
+      assetType: undefined,
       currentUserId: undefined,
       pageNum: 1
     })
@@ -690,6 +712,7 @@
         assetCode: formFilters.assetCode || undefined,
         assetName: formFilters.assetName || undefined,
         assetStatus: formFilters.assetStatus || undefined,
+        assetType: formFilters.assetType || undefined,
         currentUserId: isSelfScopedAssetUser.value
           ? undefined
           : formFilters.currentUserId || undefined,

@@ -11,6 +11,7 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
+import com.ruoyi.common.enums.AssetType;
 
 /**
  * 资产主档对象 asset_info
@@ -26,6 +27,9 @@ public class AssetInfo extends BaseEntity
 
     @Excel(name = "资产名称")
     private String assetName;
+
+    @Excel(name = "资产类型", dictType = "asset_type", comboReadDict = true)
+    private AssetType assetType;
 
     @NotNull(message = "资产分类不能为空")
     @Excel(name = "分类ID")
@@ -137,6 +141,16 @@ public class AssetInfo extends BaseEntity
     public void setAssetName(String assetName)
     {
         this.assetName = assetName;
+    }
+
+    public AssetType getAssetType()
+    {
+        return assetType;
+    }
+
+    public void setAssetType(AssetType assetType)
+    {
+        this.assetType = assetType;
     }
 
     public Long getCategoryId()
@@ -397,6 +411,7 @@ public class AssetInfo extends BaseEntity
             .append("assetId", getAssetId())
             .append("assetCode", getAssetCode())
             .append("assetName", getAssetName())
+            .append("assetType", getAssetType())
             .append("categoryId", getCategoryId())
             .append("assetStatus", getAssetStatus())
             .append("useOrgDeptId", getUseOrgDeptId())

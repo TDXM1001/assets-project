@@ -6,6 +6,7 @@
     description="把报修时间、维修方式和供应商信息录稳，后续审批、完工和附件都会沿用这张单据。"
   >
     <template #tags>
+      <!-- 页面状态标签 -->
       <ElSpace wrap>
         <ElTag type="info" effect="light">独立页面</ElTag>
         <ElTag type="warning" effect="light">草稿阶段</ElTag>
@@ -117,8 +118,15 @@
     typeof route.query.assetId === 'string' ? route.query.assetId : ''
   )
 
+  /** 
+   * 计算页面上下文 (Page Context)
+   * 
+   * 核心逻辑：从路由 Query 或 Storage 中提取 bridgeSource/bridgeKey/assetId 等参数，
+   * 确保页面知道是从哪个业务模块跳入的，从而恢复正确的业务视图和返回路径。
+   */
   const pageContext = computed<RepairPageContext>(() => {
     const queryBridgeKey = rawBridgeKeyQuery.value
+    // 优先尝试从路由参数或持久化缓存中恢复桥接上下文
     const parsedBridgeContext =
       safeParseRepairPageContext(rawBridgeDataQuery.value) ||
       readRepairPageContextFromStorage(queryBridgeKey)
@@ -132,6 +140,7 @@
     })
   })
 
+  /** 根据上下文构建唯一的草稿存储键，实现物理隔离 */
   const draftStorageKey = computed(() => buildRepairDraftStorageKey(pageContext.value))
   const draftScope = computed(() => buildRepairDraftScope(pageContext.value))
 
@@ -217,9 +226,11 @@
     ElMessage.success('草稿已清空')
   }
 
+  /** 构建返回列表时的 Query 参数（恢复列表的筛选状态） */
   const buildBackRouteQuery = () =>
     buildRepairListRestoreQuery(resolveRepairListRestoreState(route.query))
 
+  /** 返回维修列表页 */
   const backToList = () => {
     router.push({ path: '/asset/repair', query: buildBackRouteQuery() }).catch(() => undefined)
   }

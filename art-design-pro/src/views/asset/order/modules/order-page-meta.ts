@@ -1,19 +1,32 @@
+/** 页面状态标签元信息接口 */
 export interface OrderPageTagMeta {
+  /** 标签文本 */
   text: string
+  /** 标签颜色类型 */
   type?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  /** 标签视觉效果 */
   effect?: 'dark' | 'light' | 'plain'
 }
 
+/** 页面元信息接口：控制工作台的外观和文案 */
 export interface OrderPageMeta {
+  /** 单据类型 Key */
   orderType: string
+  /** 单据类型显示名称 */
   orderTypeLabel: string
+  /** 页面主标题 */
   pageTitle: string
+  /** 页面业务描述 */
   pageDescription: string
+  /** 列表页的作用域说明（眉页） */
   listScopeTip: string
+  /** 列表页空数据描述 */
   listEmptyDescription: string
+  /** 状态标签列表 */
   statusTags: OrderPageTagMeta[]
 }
 
+/** 默认元信息配置（兜底） */
 const DEFAULT_META: Omit<OrderPageMeta, 'orderType' | 'orderTypeLabel'> = {
   pageTitle: '新建业务单据',
   pageDescription:
@@ -26,22 +39,38 @@ const DEFAULT_META: Omit<OrderPageMeta, 'orderType' | 'orderTypeLabel'> = {
   ]
 }
 
+/** 资产状态变更策略类型：报废处置 | 归还后恢复 | 继续在用 */
 export type OrderAfterStatusStrategy = 'DISPOSED' | 'RETURN_AFTER' | 'IN_USE'
 
+/** 单据类型视图配置接口：控制表单字段的显示/隐藏与标签 */
 export interface OrderTypeViewConfig {
+  /** 单据类型 Key */
   orderType: string
+  /** 是否显示目标责任链字段（目标部门/人/位置） */
   showTargetFields: boolean
+  /** 是否显示归还后状态（用于归还业务） */
   showReturnAfterStatus: boolean
+  /** 金额/日期字段的标签文本 */
   amountLabel: string
+  /** 金额/日期字段映射的属性名 */
   amountProp: 'disposalAmount' | 'expectedReturnDate'
+  /** 扩展字段的输入类型 */
   amountFieldType: 'number' | 'date'
+  /** 备注字段的标签文本 */
   remarkLabel: string
+  /** 备注字段映射的属性名 */
   remarkProp: 'disposalReason' | 'remark'
+  /** 是否必须录入报废处置相关的特定字段 */
   requiresDisposalFields: boolean
+  /** 对应的资产状态回写策略 */
   afterStatusStrategy: OrderAfterStatusStrategy
+  /** 基础信息区块标题 */
   sectionTitle: string
+  /** 基础信息区块副标题 */
   sectionSubtitle: string
+  /** 明细区块标题 */
   detailSectionTitle: string
+  /** 明细区块副标题 */
   detailSectionSubtitle: string
 }
 
@@ -85,6 +114,11 @@ const displayText = (value: unknown, fallback = '-') => {
 const resolveTypeFieldText = (primary: unknown, secondary: unknown, fallback: string) =>
   displayText(primary ?? secondary, fallback)
 
+/** 
+ * 构建流转范围摘要 
+ * 
+ * 核心逻辑：根据单据类型，实时生成“领用到 XXX”、“入库至 XXX”等自然语言摘要。
+ */
 const buildScopeSummary = (row: OrderPageContextRow, fallbackLabel = '待补充') => {
   const fromDept = resolveTypeFieldText(
     row.fromDeptName,
@@ -244,11 +278,16 @@ const ORDER_TYPE_VIEW_CONFIGS: Record<string, OrderTypeViewConfig> = {
   }
 }
 
+/**
+ * 构建页面元数据
+ * @param orderType 单据类型
+ * @param dictOptions 词典配置（用于翻译单据类型名称）
+ */
 export const buildOrderPageMeta = (orderType?: string, dictOptions: any[] = []): OrderPageMeta => {
   const normalizedType = normalizeOrderType(orderType)
   const customMeta = normalizedType ? ORDER_TYPE_META[normalizedType] : undefined
   const orderTypeLabel = resolveOrderTypeLabel(normalizedType, dictOptions)
-  const statusTags = [
+  const statusTags: OrderPageTagMeta[] = [
     ...(customMeta?.statusTags || DEFAULT_META.statusTags),
     { text: orderTypeLabel, type: 'info', effect: 'plain' }
   ]
@@ -262,6 +301,10 @@ export const buildOrderPageMeta = (orderType?: string, dictOptions: any[] = []):
   }
 }
 
+/**
+ * 构建页面视图配置
+ * @param orderType 单据类型
+ */
 export const buildOrderTypeViewConfig = (orderType?: string): OrderTypeViewConfig => {
   const normalizedType = normalizeOrderType(orderType)
   return ORDER_TYPE_VIEW_CONFIGS[normalizedType] || ORDER_TYPE_VIEW_CONFIGS.DEFAULT
