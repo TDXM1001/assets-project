@@ -15,8 +15,8 @@
           <div class="asset-repair-toolbar__label">维修状态</div>
           <ElRadioGroup v-model="activeStatus" size="small" @change="handleStatusChange">
             <ElRadioButton label="ALL">全部</ElRadioButton>
-            <ElRadioButton v-for="item in statusOptions" :key="item.value" :label="item.value">
-              {{ item.label }}
+            <ElRadioButton v-for="dict in asset_repair_status" :key="dict.value" :label="dict.value">
+              {{ dict.label }}
             </ElRadioButton>
           </ElRadioGroup>
         </div>
@@ -73,10 +73,12 @@
   import { computed, h, onMounted, reactive, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import FileSaver from 'file-saver'
-  import { ElButton, ElMessage, ElSpace, ElTag } from 'element-plus'
+  import { ElButton, ElMessage, ElSpace } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
+  import { useDict } from '@/utils/dict'
   import { useUserStore } from '@/store/modules/user'
   import { useAssetRoleScope } from '../shared/use-asset-role-scope'
+  import DictTag from '@/components/DictTag/index.vue'
   import { exportAssetRepair, listAssetRepair } from '@/api/asset/repair'
   import AssetRowActionBar, { type AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
   import {
@@ -87,35 +89,11 @@
 
   defineOptions({ name: 'AssetRepair' })
 
-  const statusOptions = [
-    { label: '草稿', value: 'DRAFT' },
-    { label: '待审批', value: 'SUBMITTED' },
-    { label: '维修中', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-    { label: '已完成', value: 'FINISHED' },
-    { label: '已取消', value: 'CANCELED' }
-  ]
+  const { asset_repair_status, asset_repair_result_type } = useDict(
+    'asset_repair_status',
+    'asset_repair_result_type'
+  )
 
-  const statusMap = statusOptions.reduce<
-    Record<string, { label: string; type: 'success' | 'warning' | 'info' | 'danger' }>
-  >((acc, item) => {
-    const typeMap: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
-      DRAFT: 'info',
-      SUBMITTED: 'warning',
-      APPROVED: 'warning',
-      REJECTED: 'danger',
-      FINISHED: 'success',
-      CANCELED: 'info'
-    }
-    acc[item.value] = { label: item.label, type: typeMap[item.value] || 'info' }
-    return acc
-  }, {})
-
-  const resultTypeMap: Record<string, string> = {
-    RESUME_USE: '恢复在用',
-    TO_IDLE: '转闲置',
-    SUGGEST_DISPOSAL: '建议报废'
-  }
 
   const route = useRoute()
   const router = useRouter()
@@ -201,13 +179,10 @@
   }
 
   const renderStatus = (status?: string) =>
-    h(
-      ElTag,
-      { type: statusMap[status || '']?.type || 'info', effect: 'light' },
-      () => statusMap[status || '']?.label || status || '-'
-    )
+    h(DictTag, { options: asset_repair_status.value, value: status })
 
-  const formatResultType = (value?: string) => resultTypeMap[value || ''] || value || '-'
+  const formatResultType = (value?: string) =>
+    h(DictTag, { options: asset_repair_result_type.value, value })
 
   const {
     columns,
@@ -300,7 +275,7 @@
       props: {
         placeholder: '请选择完成结果',
         clearable: true,
-        options: Object.entries(resultTypeMap).map(([value, label]) => ({ value, label }))
+        options: asset_repair_result_type.value
       }
     }
   ])
