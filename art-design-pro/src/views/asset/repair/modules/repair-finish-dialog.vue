@@ -42,7 +42,7 @@
           <ElFormItem label="默认结果" prop="resultType">
             <ElSelect v-model="formData.resultType" class="w-full" placeholder="请选择结果">
               <ElOption
-                v-for="item in resultTypeOptions"
+                v-for="item in asset_repair_result_type"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
@@ -131,7 +131,7 @@
           <template #default="{ row }">
             <ElSelect v-model="row.resultType" placeholder="请选择" style="width: 100%">
               <ElOption
-                v-for="item in resultTypeOptions"
+                v-for="item in asset_repair_result_type"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
@@ -189,13 +189,8 @@
 
   defineOptions({ name: 'RepairFinishDialog' })
 
-  const { asset_status } = useDict('asset_status')
+  const { asset_status, asset_repair_result_type } = useDict('asset_status', 'asset_repair_result_type')
 
-  const resultTypeOptions = [
-    { label: '恢复使用', value: 'RESUME_USE' },
-    { label: '转闲置', value: 'TO_IDLE' },
-    { label: '建议处置', value: 'SUGGEST_DISPOSAL' }
-  ]
 
   const resultToStatusMap: Record<string, string> = {
     RESUME_USE: 'IN_USE',

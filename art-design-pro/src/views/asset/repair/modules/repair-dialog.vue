@@ -69,7 +69,7 @@
               <ElFormItem label="维修方式" prop="repairMode">
                 <ElSelect v-model="formData.repairMode" class="w-full" placeholder="请选择维修方式">
                   <ElOption
-                    v-for="item in repairModeOptions"
+                    v-for="item in asset_repair_mode"
                     :key="item.value"
                     :label="item.label"
                     :value="item.value"
@@ -214,7 +214,7 @@
                     style="width: 100%"
                   >
                     <ElOption
-                      v-for="item in resultTypeOptions"
+                      v-for="item in asset_repair_result_type"
                       :key="item.value"
                       :label="item.label"
                       :value="item.value"
@@ -353,7 +353,7 @@
           <ElFormItem label="维修方式" prop="repairMode">
             <ElSelect v-model="formData.repairMode" class="w-full" placeholder="请选择维修方式">
               <ElOption
-                v-for="item in repairModeOptions"
+                v-for="item in asset_repair_mode"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
@@ -469,7 +469,7 @@
             <template #default="{ row }">
               <ElSelect v-model="row.resultType" clearable placeholder="请选择" style="width: 100%">
                 <ElOption
-                  v-for="item in resultTypeOptions"
+                  v-for="item in asset_repair_result_type"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -696,19 +696,12 @@
     rowKey: string
   }
 
-  const repairModeOptions = [
-    { label: '内部维修', value: 'IN_HOUSE' },
-    { label: '外部送修', value: 'VENDOR' },
-    { label: '上门维修', value: 'ONSITE' }
-  ]
 
-  const resultTypeOptions = [
-    { label: '恢复在用', value: 'RESUME_USE' },
-    { label: '转闲置', value: 'TO_IDLE' },
-    { label: '建议报废', value: 'SUGGEST_DISPOSAL' }
-  ]
-
-  const { asset_status } = useDict('asset_status')
+  const { asset_status, asset_repair_mode, asset_repair_result_type } = useDict(
+    'asset_status',
+    'asset_repair_mode',
+    'asset_repair_result_type'
+  )
   const userStore = useUserStore()
   const currentUserInfo = computed(() => userStore.getUserInfo)
 
