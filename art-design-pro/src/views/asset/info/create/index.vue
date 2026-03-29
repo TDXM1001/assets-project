@@ -85,9 +85,10 @@
             <ElFormItem label="资产分类" prop="categoryId">
               <ElTreeSelect
                 v-model="formData.categoryId"
-                :data="categoryOptions"
+                :data="filteredCategoryOptions"
                 :props="{ value: 'id', label: 'label', children: 'children' }"
                 value-key="id"
+                :disabled="currentAssetId !== undefined"
                 filterable
                 clearable
                 check-strictly
@@ -109,23 +110,23 @@
             </ElFormItem>
           </ElCol>
 
-          <ElCol :xs="24" :md="12">
+          <ElCol v-if="isHardwareAsset" :xs="24" :md="12">
             <ElFormItem label="品牌" prop="brand">
               <ElInput v-model="formData.brand" maxlength="50" placeholder="请输入品牌" />
             </ElFormItem>
           </ElCol>
-          <ElCol :xs="24" :md="12">
+          <ElCol v-if="isHardwareAsset" :xs="24" :md="12">
             <ElFormItem label="型号" prop="model">
               <ElInput v-model="formData.model" maxlength="50" placeholder="请输入型号" />
             </ElFormItem>
           </ElCol>
 
-          <ElCol :xs="24" :md="12">
+          <ElCol v-if="isHardwareAsset" :xs="24" :md="12">
             <ElFormItem label="规格" prop="specification">
               <ElInput v-model="formData.specification" maxlength="100" placeholder="请输入规格" />
             </ElFormItem>
           </ElCol>
-          <ElCol :xs="24" :md="12">
+          <ElCol v-if="isHardwareAsset" :xs="24" :md="12">
             <ElFormItem label="序列号" prop="serialNo">
               <ElInput v-model="formData.serialNo" maxlength="100" placeholder="请输入序列号" />
             </ElFormItem>
@@ -267,7 +268,7 @@
               />
             </ElFormItem>
           </ElCol>
-          <ElCol :xs="24" :md="12">
+          <ElCol v-if="showWarranty" :xs="24" :md="12">
             <ElFormItem label="质保到期" prop="warrantyExpireDate">
               <ElDatePicker
                 v-model="formData.warrantyExpireDate"
@@ -543,6 +544,14 @@
     assetStatus: [{ required: true, message: '资产状态不能为空', trigger: 'change' }]
   }
 
+  const isHardwareAsset = computed(() => {
+    return formData.assetType && formData.assetType !== 'REAL_ESTATE'
+  })
+
+  const showWarranty = computed(() => {
+    return formData.assetType === 'FIXED_ASSET'
+  })
+
   const pageTitle = computed(() => (currentAssetId.value ? '继续完善资产' : '新增资产'))
   const pageDescription = computed(() =>
     currentAssetId.value
@@ -570,6 +579,31 @@
       fields: Array.isArray(payload.fields) ? payload.fields : []
     }
   }
+
+  const filteredCategoryOptions = computed(() => {
+    if (!formData.assetType) return categoryOptions.value
+    
+    // 递归过滤分类树，只保留符合当前资产类型的节点（或其子节点符合要求的父节点）
+    const filterTree = (nodes: any[]): any[] => {
+      const result: any[] = []
+      nodes.forEach((node) => {
+        const newNode = { ...node }
+        let hasMatchedChild = false
+        if (newNode.children && newNode.children.length > 0) {
+          newNode.children = filterTree(newNode.children)
+          hasMatchedChild = newNode.children.length > 0
+        }
+        
+        // 如果节点本身类型匹配，或者子孙节点有匹配的，则保留
+        if (newNode.assetType === formData.assetType || hasMatchedChild) {
+          result.push(newNode)
+        }
+      })
+      return result
+    }
+    
+    return filterTree(categoryOptions.value)
+  })
 
   const extractDetail = (response: any) => response?.data || response
   const extractRows = (response: any) =>
@@ -833,10 +867,44 @@
   }
 
   watch(
+    () => formData.assetType,
+    (val, oldVal) => {
+      if (!categoryWatchEnabled.value || val === oldVal) {
+        return
+      }
+      // 类型切换后，如果已选分类不匹配新类型，则清空分类
+      if (formData.categoryId) {
+        // 这里简单处理：类型变了就清空分类和模板，由用户重新选择
+        formData.categoryId = undefined
+        fieldTemplate.value = null
+        formData.extraFieldValues = {}
+      }
+    }
+  )
+
+  watch(
     () => formData.categoryId,
     async (value, oldValue) => {
       if (!categoryWatchEnabled.value || value === oldValue) {
         return
+      }
+
+      // 联动：根据分类自动回传类型 (需要从分类树中查找节点)
+      // 注意：这里需要递归查找 categoryOptions 里的节点来获取 assetType
+      const findNode = (trees: any[], id: number): any => {
+        for (const node of trees) {
+          if (node.id === id) return node
+          if (node.children) {
+            const result = findNode(node.children, id)
+            if (result) return result
+          }
+        }
+        return null
+      }
+
+      const selectedNode = value ? findNode(categoryOptions.value, value) : null
+      if (selectedNode && selectedNode.assetType) {
+        formData.assetType = selectedNode.assetType
       }
 
       // 分类切换后清掉旧模板值，避免上一类资产的扩展字段误写到当前主档。

@@ -43,7 +43,7 @@
           <ElFormItem label="资产分类" prop="categoryId">
             <ElTreeSelect
               v-model="formData.categoryId"
-              :data="categoryOptions"
+              :data="filteredCategoryOptions"
               :props="{ value: 'id', label: 'label', children: 'children' }"
               value-key="id"
               filterable
@@ -67,23 +67,23 @@
           </ElFormItem>
         </ElCol>
 
-        <ElCol :span="12">
+        <ElCol v-if="isHardwareAsset" :span="12">
           <ElFormItem label="品牌" prop="brand">
             <ElInput v-model="formData.brand" maxlength="50" placeholder="请输入品牌" />
           </ElFormItem>
         </ElCol>
-        <ElCol :span="12">
+        <ElCol v-if="isHardwareAsset" :span="12">
           <ElFormItem label="型号" prop="model">
             <ElInput v-model="formData.model" maxlength="50" placeholder="请输入型号" />
           </ElFormItem>
         </ElCol>
 
-        <ElCol :span="12">
+        <ElCol v-if="isHardwareAsset" :span="12">
           <ElFormItem label="规格" prop="specification">
             <ElInput v-model="formData.specification" maxlength="100" placeholder="请输入规格" />
           </ElFormItem>
         </ElCol>
-        <ElCol :span="12">
+        <ElCol v-if="isHardwareAsset" :span="12">
           <ElFormItem label="序列号" prop="serialNo">
             <ElInput v-model="formData.serialNo" maxlength="100" placeholder="请输入序列号" />
           </ElFormItem>
@@ -210,7 +210,7 @@
             />
           </ElFormItem>
         </ElCol>
-        <ElCol :span="12">
+        <ElCol v-if="showWarranty" :span="12">
           <ElFormItem label="质保到期" prop="warrantyExpireDate">
             <ElDatePicker
               v-model="formData.warrantyExpireDate"
@@ -299,7 +299,7 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref, watch } from 'vue'
+  import { computed, reactive, ref, watch } from 'vue'
   import type { FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
   import { useDict } from '@/utils/dict'
@@ -392,6 +392,14 @@
     assetStatus: [{ required: true, message: '资产状态不能为空', trigger: 'change' }]
   }
 
+  const isHardwareAsset = computed(() => {
+    return formData.assetType && formData.assetType !== 'REAL_ESTATE'
+  })
+
+  const showWarranty = computed(() => {
+    return formData.assetType === 'FIXED_ASSET'
+  })
+
   const normalizeTemplate = (payload?: any): AssetCategoryFieldTemplate | null => {
     if (!payload) {
       return null
@@ -403,6 +411,22 @@
       fields: Array.isArray(payload.fields) ? payload.fields : []
     }
   }
+
+  const findNode = (id: number, nodes: any[]): any => {
+    for (const node of nodes) {
+      if (node.id === id) return node
+      if (node.children) {
+        const child = findNode(id, node.children)
+        if (child) return child
+      }
+    }
+    return null
+  }
+
+  const filteredCategoryOptions = computed(() => {
+    if (!formData.assetType || !props.categoryOptions) return props.categoryOptions
+    return props.categoryOptions.filter((item: any) => item.assetType === formData.assetType)
+  })
 
   /**
    * 分类模板跟着资产表单走详情查询，避免台账弹窗自己维护另一套字段配置。
@@ -464,7 +488,32 @@
       // 用户切换分类后，扩展字段重新按新模板初始化，避免旧分类字段串到新分类里。
       formData.extraFieldValues = {}
       formData.extraFieldsJson = null
+
+      // 同步锁定资产类型
+      if (value) {
+        const node = findNode(value, props.categoryOptions)
+        if (node?.assetType && node.assetType !== formData.assetType) {
+          formData.assetType = node.assetType
+        }
+      }
+
       await loadFieldTemplate(value)
+    }
+  )
+
+  watch(
+    () => formData.assetType,
+    (value, oldValue) => {
+      if (!visible.value || !categoryWatchEnabled.value || value === oldValue) {
+        return
+      }
+      // 切换资产类型后，若原分类不属于该类型，自动清空。
+      if (formData.categoryId) {
+        const node = findNode(formData.categoryId, props.categoryOptions)
+        if (node?.assetType && node.assetType !== value) {
+          formData.categoryId = undefined
+        }
+      }
     }
   )
 
