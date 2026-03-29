@@ -47,10 +47,10 @@
           <ElFormItem label="处理状态">
             <ElSelect v-model="formData.processStatus" class="w-full" placeholder="请选择处理状态">
               <ElOption
-                v-for="item in processStatusOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
+                v-for="dict in asset_inventory_process_status"
+                :key="dict.value"
+                :label="dict.label"
+                :value="dict.value"
               />
             </ElSelect>
           </ElFormItem>
@@ -196,10 +196,6 @@
     [key: string]: string
   }
 
-  interface ProcessOption {
-    label: string
-    value: string
-  }
 
   type DiffFilter = 'PENDING' | 'PROCESSED' | 'LOSS' | 'ALL'
 
@@ -245,10 +241,6 @@
     processDesc: ''
   })
 
-  const processStatusOptions: ProcessOption[] = [
-    { label: '已处理', value: 'PROCESSED' },
-    { label: '待处理', value: 'PENDING' }
-  ]
 
   const dialogTitle = computed(() => {
     if (!props.taskData?.taskName) {
