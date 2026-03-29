@@ -129,10 +129,7 @@
   const lockedAssetCode = ref('')
   const lockedAssetName = ref('')
 
-  const sourceTypeOptions = computed(() => [
-    ...(asset_order_type.value || []),
-    { label: '盘点任务', value: 'INVENTORY_TASK' }
-  ])
+  const sourceTypeOptions = computed(() => asset_order_type.value || [])
 
   const searchBarKey = computed(
     () =>
@@ -174,14 +171,9 @@
   })
 
   const formatSourceType = (sourceOrderType?: string) => {
-    if (!sourceOrderType) {
-      return '-'
-    }
-    if (sourceOrderType === 'INVENTORY_TASK') {
-      return '盘点任务'
-    }
+    if (!sourceOrderType) return '-'
     return (
-      sourceTypeOptions.value.find((item) => String(item.value) === String(sourceOrderType))
+      asset_order_type.value.find((item: any) => String(item.value) === String(sourceOrderType))
         ?.label || sourceOrderType
     )
   }
