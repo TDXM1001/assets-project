@@ -103,7 +103,7 @@
       :key="drawerKey"
       v-model="drawerVisible"
       :task-data="currentTask"
-      :scope-type-options="allScopeTypeOptions"
+      :scope-type-options="asset_inventory_scope_type"
       :category-label-map="categoryLabelMap"
       :location-label-map="locationLabelMap"
       :dept-label-map="deptLabelMap"
@@ -168,10 +168,6 @@
     userName: string
   }
 
-  interface ScopeOption {
-    label: string
-    value: string
-  }
 
   interface LabelMap {
     [key: string]: string
@@ -223,22 +219,17 @@
   const userStore = useUserStore()
   const { canUseCategoryInventoryScope, isAssetDeptManager, isSelfScopedAssetUser } =
     useAssetRoleScope()
-  const { asset_inventory_task_status, asset_inventory_result } = useDict(
+  const { asset_inventory_scope_type, asset_inventory_task_status, asset_inventory_result } = useDict(
+    'asset_inventory_scope_type',
     'asset_inventory_task_status',
     'asset_inventory_result'
   )
 
-  const allScopeTypeOptions: ScopeOption[] = [
-    { label: '全量盘点', value: 'ALL' },
-    { label: '按部门盘点', value: 'DEPT' },
-    { label: '按位置盘点', value: 'LOCATION' },
-    { label: '按分类盘点', value: 'CATEGORY' }
-  ]
 
   const availableScopeTypeOptions = computed(() =>
     canUseCategoryInventoryScope.value
-      ? allScopeTypeOptions
-      : allScopeTypeOptions.filter((item) => item.value !== 'CATEGORY')
+      ? asset_inventory_scope_type.value
+      : asset_inventory_scope_type.value.filter((item: any) => item.value !== 'CATEGORY')
   )
 
   const exportLoading = ref(false)
@@ -306,10 +297,6 @@
     })
   }
 
-  const formatScopeType = (scopeType?: string) => {
-    if (!scopeType) return '-'
-    return allScopeTypeOptions.find((item) => item.value === scopeType)?.label || scopeType
-  }
 
   const inventoryScopeNotice = computed(() => {
     if (isSelfScopedAssetUser.value) {
@@ -494,7 +481,8 @@
           label: '盘点范围',
           width: 120,
           align: 'center',
-          formatter: (row: InventoryTaskRow) => formatScopeType(row.taskScopeType)
+          formatter: (row: InventoryTaskRow) =>
+            h(DictTag, { options: asset_inventory_scope_type.value, value: row.taskScopeType })
         },
         {
           prop: 'taskStatus',
