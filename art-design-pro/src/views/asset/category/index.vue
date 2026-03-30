@@ -331,7 +331,9 @@
     loading.value = true
     errorMessage.value = ''
     try {
-      const response: any = await listCategory(formFilters)
+      // 显式将 assetType 注入查询参数，确保初始加载时隔离生效
+      const queryParams = { ...formFilters }
+      const response: any = await listCategory(queryParams)
       const data = Array.isArray(response) ? response : response?.data || response?.rows || []
       categoryList.value = handleTree(data, 'categoryId')
     } catch (error: any) {
@@ -348,6 +350,10 @@
    */
   const handleReset = () => {
     Object.assign(formFilters, initialSearchState)
+    // 重置时也要同步一次路由参数，防止过滤失效
+    if (route.query.assetType) {
+      formFilters.assetType = route.query.assetType as string
+    }
     getList()
   }
 
@@ -429,6 +435,10 @@
   }
 
   onMounted(() => {
+    // 强制同步一次路由参数到搜索过滤器，确保首屏加载和搜索栏文案一致
+    if (route.query.assetType) {
+      formFilters.assetType = route.query.assetType as string
+    }
     getList()
     void sys_normal_disable.value
   })
