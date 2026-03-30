@@ -74,10 +74,24 @@
 - Create: `RuoYi-Vue/sql/asset_patch_20260330_real_estate_migration.sql`
 
 - [ ] **Step 1: 编写 SQL 增加“不动产管理”菜单入口**
-  关键字段：
-  - **一级菜单**: `parentId=0`, `path='real-estate'`, `component='Layout'`, `menuName='不动产管理'`.
-  - **子菜单 (台账)**: `path='index'`, `component='asset/real-estate/index'`, `menuName='不动产台账'`.
-  - **子菜单 (新增)**: `path='create'`, `component='asset/real-estate/create/index'`, `menuName='新增不动产'`.
+  遵循现有的变量定位模式：
+  ```sql
+  -- 定位资产管理根目录
+  select @asset_root_id := menu_id from sys_menu where parent_id = 0 and path = 'asset' limit 1;
+
+  -- 插入“不动产管理”菜单
+  insert into sys_menu (menu_name, parent_id, order_num, path, component, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
+  select '不动产管理', @asset_root_id, 8, 'real-estate', 'asset/real-estate/index', 'RealEstateIndex', 1, 0, 'C', '0', '0', 'asset:real-estate:list', 'cascader', 'admin', sysdate(), '不动产管理独立菜单'
+  where not exists (select 1 from sys_menu where parent_id = @asset_root_id and path = 'real-estate');
+
+  -- 获取新菜单ID用于按钮权限
+  select @re_menu_id := menu_id from sys_menu where parent_id = @asset_root_id and path = 'real-estate' limit 1;
+
+  -- 插入“新增不动产”独立路由 (隐藏)
+  insert into sys_menu (menu_name, parent_id, order_num, path, component, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, remark)
+  select '新增不动产', @asset_root_id, 9, 'real-estate/create', 'asset/real-estate/create/index', 'RealEstateCreate', 1, 0, 'C', '1', '0', 'asset:real-estate:add', 'edit', 'admin', sysdate(), '独立新增入口'
+  where not exists (select 1 from sys_menu where parent_id = @asset_root_id and path = 'real-estate/create');
+  ```
 
 - [ ] **Step 2: 执行数据迁移 SQL**
   将 `asset_type = 'REAL_ESTATE'` 的记录状态映射至 `real_estate_status`。
