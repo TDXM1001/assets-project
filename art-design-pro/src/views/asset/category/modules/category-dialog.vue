@@ -108,6 +108,23 @@
             </ElRadioGroup>
           </ElFormItem>
         </ElCol>
+        <ElCol :span="12">
+          <ElFormItem label="资产类型" prop="assetType">
+            <ElSelect
+              v-model="formData.assetType"
+              :disabled="!!route.query.assetType"
+              class="w-full"
+              placeholder="请选择资产类型"
+            >
+              <ElOption
+                v-for="item in asset_type"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </ElSelect>
+          </ElFormItem>
+        </ElCol>
 
         <ElCol :span="24">
           <ElFormItem label="备注" prop="remark">
@@ -143,6 +160,7 @@
     treeCategorySelect,
     updateCategory
   } from '@/api/asset/category'
+  import { useRoute } from 'vue-router'
   import { useDict } from '@/utils/dict'
 
   interface CategoryTreeOption {
@@ -152,7 +170,8 @@
     children?: CategoryTreeOption[]
   }
 
-  const { sys_normal_disable } = useDict('sys_normal_disable')
+  const { sys_normal_disable, asset_type } = useDict('sys_normal_disable', 'asset_type')
+  const route = useRoute()
 
   const props = defineProps<{
     modelValue: boolean
@@ -182,6 +201,7 @@
     borrowableFlag: '0',
     inventoryRequiredFlag: '1',
     usefulLifeMonths: 36,
+    assetType: (route.query.assetType as string) || 'FIXED_ASSET',
     status: '0',
     remark: ''
   }
@@ -192,6 +212,7 @@
     parentId: [{ required: true, message: '上级分类不能为空', trigger: 'change' }],
     categoryCode: [{ required: true, message: '分类编码不能为空', trigger: 'blur' }],
     categoryName: [{ required: true, message: '分类名称不能为空', trigger: 'blur' }],
+    assetType: [{ required: true, message: '资产类型不能为空', trigger: 'change' }],
     orderNum: [{ required: true, message: '显示排序不能为空', trigger: 'blur' }],
     status: [{ required: true, message: '分类状态不能为空', trigger: 'change' }]
   }

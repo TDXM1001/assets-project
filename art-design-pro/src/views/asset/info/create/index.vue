@@ -3,7 +3,7 @@
     <ElCard class="asset-info-create-page__hero" shadow="never">
       <div class="asset-info-create-page__hero-main">
         <div>
-          <div class="asset-info-create-page__eyebrow">资产台账</div>
+          <div class="asset-info-create-page__eyebrow">固定资产台账</div>
           <h1 class="asset-info-create-page__title">{{ pageTitle }}</h1>
           <p class="asset-info-create-page__desc">{{ pageDescription }}</p>
         </div>
@@ -50,7 +50,7 @@
             <div>
               <div class="asset-info-create-page__section-title">基础信息</div>
               <div class="asset-info-create-page__section-subtitle">
-                先把资产主档身份录稳，后续单据、事件和附件都沿用这套基础字段继续流转。
+                先把固定资产主档身份录稳，后续单据、事件和附件都沿用这套基础字段继续流转。
               </div>
             </div>
           </div>
@@ -63,26 +63,34 @@
             </ElFormItem>
           </ElCol>
           <ElCol :xs="24" :md="12">
-            <ElFormItem label="资产名称" prop="assetName">
-              <ElInput v-model="formData.assetName" maxlength="200" placeholder="请输入资产名称" />
+            <ElFormItem label="固定资产名称" prop="assetName">
+              <ElInput
+                v-model="formData.assetName"
+                maxlength="200"
+                placeholder="请输入固定资产名称"
+              />
             </ElFormItem>
           </ElCol>
           <ElCol :xs="24" :md="24">
-            <ElFormItem label="资产类型" prop="assetType">
-              <ElRadioGroup v-model="formData.assetType">
-                <ElRadioButton
+            <ElFormItem label="固定资产类型" prop="assetType">
+              <ElSelect
+                v-model="formData.assetType"
+                disabled
+                class="w-full"
+                placeholder="请选择固定资产类型"
+              >
+                <ElOption
                   v-for="item in asset_type"
                   :key="item.value"
-                  :label="item.value"
-                >
-                  {{ item.label }}
-                </ElRadioButton>
-              </ElRadioGroup>
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </ElSelect>
             </ElFormItem>
           </ElCol>
 
           <ElCol :xs="24" :md="12">
-            <ElFormItem label="资产分类" prop="categoryId">
+            <ElFormItem label="固定资产分类" prop="categoryId">
               <ElTreeSelect
                 v-model="formData.categoryId"
                 :data="filteredCategoryOptions"
@@ -93,15 +101,20 @@
                 clearable
                 check-strictly
                 class="w-full"
-                placeholder="请选择资产分类"
+                placeholder="请选择固定资产分类"
               />
             </ElFormItem>
           </ElCol>
           <ElCol :xs="24" :md="12">
             <ElFormItem label="资产状态" prop="assetStatus">
-              <ElSelect v-model="formData.assetStatus" class="w-full" placeholder="请选择资产状态">
+              <ElSelect
+                v-model="formData.assetStatus"
+                class="w-full"
+                placeholder="请选择资产状态"
+                disabled
+              >
                 <ElOption
-                  v-for="item in asset_status"
+                  v-for="item in resolvedStatusOptions"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -136,7 +149,7 @@
             <ElFormItem label="资产来源" prop="assetSource">
               <ElSelect v-model="formData.assetSource" class="w-full" placeholder="请选择资产来源">
                 <ElOption
-                  v-for="item in asset_source"
+                  v-for="item in resolvedSourceOptions"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -162,7 +175,7 @@
             <div>
               <div class="asset-info-create-page__section-title">归属信息</div>
               <div class="asset-info-create-page__section-subtitle">
-                这里决定资产在哪、归谁管，后续领用、调拨、盘点会直接复用这组归属字段。
+                这里决定固定资产在哪、归谁管，后续领用、调拨、盘点会直接复用这组归属字段。
               </div>
             </div>
           </div>
@@ -385,7 +398,7 @@
             <div>
               <div class="asset-info-create-page__section-title">附件区域</div>
               <div class="asset-info-create-page__section-subtitle">
-                附件统一走资产附件抽屉，先保存主档再补录，能避免附件挂在临时对象上。
+                附件统一走固定资产附件抽屉，先保存主档再补录，能避免附件挂在临时对象上。
               </div>
             </div>
           </div>
@@ -401,8 +414,8 @@
             <div class="asset-info-create-page__attachment-tip">
               {{
                 currentAssetId
-                  ? '可以继续补录发票、照片、验收单等附件。'
-                  : '请先保存资产主档，再补录附件。'
+                  ? '可以继续补录发票、照片、验收单等固定资产附件。'
+                  : '请先保存固定资产主档，再补录附件。'
               }}
             </div>
           </div>
@@ -437,7 +450,7 @@
       v-model="attachmentDrawerVisible"
       biz-type="ASSET_INFO"
       :biz-id="currentAssetId"
-      :biz-title="formData.assetName || formData.assetCode || '资产台账'"
+      :biz-title="formData.assetName || formData.assetCode || '固定资产台账'"
       permission-prefix="asset:info"
     />
   </div>
@@ -545,17 +558,17 @@
   }
 
   const isHardwareAsset = computed(() => {
-    return formData.assetType && formData.assetType !== 'REAL_ESTATE'
+    return formData.assetType === 'FIXED_ASSET' || formData.assetType === 'LOW_VALUE'
   })
 
   const showWarranty = computed(() => {
     return formData.assetType === 'FIXED_ASSET'
   })
 
-  const pageTitle = computed(() => (currentAssetId.value ? '继续完善资产' : '新增资产'))
+  const pageTitle = computed(() => (currentAssetId.value ? '继续完善资产信息' : '新增固定资产'))
   const pageDescription = computed(() =>
     currentAssetId.value
-      ? '主档已经生成，可以继续补录动态字段、附件和补充说明。'
+      ? '资产主档已经生成，可以继续补录动态字段、附件和补充说明。'
       : '先把资产主档录稳，再通过保存并继续把附件和后续补录接上。'
   )
   const templateVersionLabel = computed(() => fieldTemplate.value?.templateVersion || '')
@@ -565,7 +578,7 @@
   const attachmentTitle = computed(() =>
     currentAssetId.value
       ? '当前资产已经生成主档，可以直接打开附件抽屉继续补录。'
-      : '附件能力已经预留在页面里，但需要先保存主档拿到 assetId。'
+      : '附件能力已经预留在页面里，但需要先保存资产主档拿到 assetId。'
   )
 
   const normalizeTemplate = (payload?: any): AssetCategoryFieldTemplate | null => {
@@ -581,28 +594,50 @@
   }
 
   const filteredCategoryOptions = computed(() => {
-    if (!formData.assetType) return categoryOptions.value
-    
-    // 递归过滤分类树，只保留符合当前资产类型的节点（或其子节点符合要求的父节点）
+    // 强制排除掉不动产分类相关的子树，确保固资台账专注实物资产
     const filterTree = (nodes: any[]): any[] => {
       const result: any[] = []
       nodes.forEach((node) => {
+        if (node.assetType === 'REAL_ESTATE') return // 移除不动产分支
         const newNode = { ...node }
-        let hasMatchedChild = false
         if (newNode.children && newNode.children.length > 0) {
           newNode.children = filterTree(newNode.children)
-          hasMatchedChild = newNode.children.length > 0
         }
-        
-        // 如果节点本身类型匹配，或者子孙节点有匹配的，则保留
-        if (newNode.assetType === formData.assetType || hasMatchedChild) {
-          result.push(newNode)
-        }
+        result.push(newNode)
       })
       return result
     }
     
     return filterTree(categoryOptions.value)
+  })
+
+  const resolvedStatusOptions = computed(() => {
+    if (asset_status.value?.length > 0) return asset_status.value
+    return [
+      { value: 'DRAFT', label: '草稿' },
+      { value: 'IDLE', label: '闲置' },
+      { value: 'USING', label: '在用' },
+      { value: 'IN_USE', label: '在用' },
+      { value: 'REPAIR', label: '维修中' },
+      { value: 'REPAIRING', label: '维修中' },
+      { value: 'SCRAP', label: '报废' },
+      { value: 'SCRAPPED', label: '已报废' },
+      { value: 'DISPOSED', label: '已处置' },
+      { value: 'PENDING_DISPOSAL', label: '待处置' },
+      { value: 'BORROWED', label: '借用中' },
+      { value: 'IN_TRANSFER', label: '调拨中' },
+      { value: 'IN_INVENTORY', label: '盘点中' }
+    ]
+  })
+
+  const resolvedSourceOptions = computed(() => {
+    if (asset_source.value?.length > 0) return asset_source.value
+    return [
+      { value: 'PURCHASE', label: '采购' },
+      { value: 'CONSTRUCT', label: '自建' },
+      { value: 'DONATION', label: '捐赠' },
+      { value: 'LEASE', label: '租赁' }
+    ]
   })
 
   const extractDetail = (response: any) => response?.data || response

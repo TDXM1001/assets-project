@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
   import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
+  import { useRoute } from 'vue-router'
   import { ElButton, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { listCategory, delCategory } from '@/api/asset/category'
   import { handleTree } from '@/utils/ruoyi'
@@ -98,6 +99,8 @@
 
   const { sys_normal_disable } = useDict('sys_normal_disable')
   const userStore = useUserStore()
+  const route = useRoute()
+  const { asset_type } = useDict('asset_type')
 
   const loading = ref(false)
   const isExpanded = ref(true)
@@ -112,7 +115,8 @@
 
   const initialSearchState = {
     categoryName: '',
-    status: ''
+    status: '',
+    assetType: (route.query.assetType as string) || ''
   }
 
   const formFilters = reactive({ ...initialSearchState })
@@ -219,6 +223,17 @@
         placeholder: '请选择分类状态',
         clearable: true,
         options: statusOptions.value
+      }
+    },
+    {
+      label: '资产类型',
+      key: 'assetType',
+      type: 'select',
+      props: {
+        placeholder: '请选择资产类型',
+        clearable: true,
+        disabled: !!route.query.assetType, // 如果是从特定菜单进入的，禁用类型切换
+        options: asset_type.value
       }
     }
   ])
