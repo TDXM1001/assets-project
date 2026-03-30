@@ -47,6 +47,8 @@ public class AssetCategory extends BaseEntity
     private String fieldTemplateStatus;
 
     private String fieldTemplateJson;
+    
+    private String assetType;
 
 
     @Excel(name = "状态", readConverterExp = "0=正常,1=停用")
@@ -204,6 +206,16 @@ public class AssetCategory extends BaseEntity
         this.fieldTemplateJson = fieldTemplateJson;
     }
 
+    public String getAssetType()
+    {
+        return assetType;
+    }
+
+    public void setAssetType(String assetType)
+    {
+        this.assetType = assetType;
+    }
+
     public String getStatus()
     {
         return status;
@@ -257,6 +269,7 @@ public class AssetCategory extends BaseEntity
             .append("fieldTemplateVersion", getFieldTemplateVersion())
             .append("fieldTemplateStatus", getFieldTemplateStatus())
             .append("status", getStatus())
+            .append("assetType", getAssetType())
             .append("delFlag", getDelFlag())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
