@@ -19,7 +19,17 @@
 - Create: `RuoYi-Vue/sql/asset_patch_20260330_real_estate_dicts.sql`
 
 - [ ] **Step 1: 编写 SQL 脚本定义 `real_estate_status` 字典**
-- [ ] **Step 2: 确认 `asset_info` 表包含地理位置字段 (Longitude, Latitude)**
+  包含：闲置 (`VACANT`)、自用 (`IN_USE`)、已出租 (`LEASED`)、维修中 (`UNDER_REPAIR`)、待处置 (`PENDING_DISPOSAL`)、已处置 (`DISPOSED`)。
+
+- [ ] **Step 2: 补齐 `asset_info` 物理字段**
+  SQL 参考：
+  ```sql
+  ALTER TABLE `asset_info` 
+  ADD COLUMN `longitude` decimal(10, 7) DEFAULT NULL COMMENT '经度' AFTER `current_location_id`,
+  ADD COLUMN `latitude` decimal(10, 7) DEFAULT NULL COMMENT '纬度' AFTER `longitude`,
+  ADD COLUMN `addr_detail` varchar(500) DEFAULT NULL COMMENT '详细地址/地理位置说明' AFTER `latitude`;
+  ```
+
 - [ ] **Step 3: 提交 SQL 补丁**
 
 ---
@@ -63,8 +73,15 @@
 **Files:**
 - Create: `RuoYi-Vue/sql/asset_patch_20260330_real_estate_migration.sql`
 
-- [ ] **Step 1: 编写 SQL 将存量不动产记录迁移至新状态机**
-- [ ] **Step 2: 编写 SQL 新增“不动产管理”菜单入口**
+- [ ] **Step 1: 编写 SQL 增加“不动产管理”菜单入口**
+  关键字段：
+  - **一级菜单**: `parentId=0`, `path='real-estate'`, `component='Layout'`, `menuName='不动产管理'`.
+  - **子菜单 (台账)**: `path='index'`, `component='asset/real-estate/index'`, `menuName='不动产台账'`.
+  - **子菜单 (新增)**: `path='create'`, `component='asset/real-estate/create/index'`, `menuName='新增不动产'`.
+
+- [ ] **Step 2: 执行数据迁移 SQL**
+  将 `asset_type = 'REAL_ESTATE'` 的记录状态映射至 `real_estate_status`。
+
 - [ ] **Step 3: 提交代码**
 
 ---
