@@ -93,10 +93,11 @@ export function importAssetInfoFile(formData: FormData) {
 /**
  * 下载资产台账导入模板
  */
-export function downloadAssetInfoTemplate() {
+export function downloadAssetInfoTemplate(query?: any) {
   return http.request({
     url: '/asset/info/importTemplate',
     method: 'post',
+    params: query,
     responseType: 'blob'
   })
 }

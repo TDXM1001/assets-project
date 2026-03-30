@@ -71,6 +71,8 @@ source asset_patch_20260327_repair_page_routes.sql;
 
 -- 2026-03-29 补丁
 source asset_patch_20260329_asset_type_foundation.sql;
+source asset_patch_20260329_fixed_asset_rebranding.sql;
+source asset_patch_20260329_demo_data.sql;
 
 SET FOREIGN_KEY_CHECKS = 1;
 

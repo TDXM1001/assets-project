@@ -649,7 +649,7 @@
    */
   const loadPageOptions = async () => {
     const [categoryRes, locationRes, deptRes, userRes] = await Promise.all([
-      treeCategorySelect(),
+      treeCategorySelect({ assetType: 'FIXED_ASSET' }),
       treeLocationSelect(),
       deptTreeSelect(),
       listUser({ pageNum: 1, pageSize: 200 })
@@ -695,7 +695,19 @@
   const applyAssetDetail = async (detail?: any) => {
     categoryWatchEnabled.value = false
     Object.assign(formData, initialFormData, detail || {})
-    formData.extraFieldValues = { ...(detail?.extraFieldValues || {}) }
+    
+    // 【关键修复】如果后端没传解析好的对象，前端手动解析字符串
+    if (detail?.extraFieldsJson && (!detail.extraFieldValues || Object.keys(detail.extraFieldValues).length === 0)) {
+      try {
+        formData.extraFieldValues = JSON.parse(detail.extraFieldsJson)
+      } catch (e) {
+        console.error('解析动态字段 JSON 失败', e)
+        formData.extraFieldValues = {}
+      }
+    } else {
+      formData.extraFieldValues = { ...(detail?.extraFieldValues || {}) }
+    }
+    
     currentAssetId.value = detail?.assetId
     await loadFieldTemplate(formData.categoryId, formData.templateVersion)
     categoryWatchEnabled.value = true

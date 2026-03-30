@@ -99,7 +99,7 @@
       v-model="attachmentDrawerVisible"
       biz-type="ASSET_ORDER"
       :biz-id="currentOrder?.orderId"
-      :biz-title="currentOrder?.orderNo || '业务单据'"
+      :biz-title="currentOrder?.orderNo || '固定资产单据'"
       permission-prefix="asset:order"
     />
   </div>
@@ -176,7 +176,7 @@
   )
   const orderScopeTip = computed(() =>
     isSelfScopedAssetUser.value
-      ? '当前为“我的单据”视角，只展示由你本人发起的资产单据。'
+      ? '当前为“我的单据”视角，只展示由你本人发起的固定资产单据。'
       : orderTypeMeta.value.listScopeTip
   )
 

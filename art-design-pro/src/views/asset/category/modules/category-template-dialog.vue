@@ -12,7 +12,7 @@
         class="mb-4"
         type="info"
         :closable="false"
-        title="模板用于驱动资产台账的扩展字段，本轮先支持受控字段，不做完全自由表单引擎。"
+        title="模板用于驱动固定资产台账的扩展字段，本轮先支持受控字段，不做完全自由表单引擎。"
       />
 
       <ElForm label-width="110px">

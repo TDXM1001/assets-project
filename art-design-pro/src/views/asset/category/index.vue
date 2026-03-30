@@ -113,10 +113,19 @@
   const currentData = ref<any>()
   const templateTargetCategory = ref<any>()
 
+  // 【动态路由兼容】根据路由路径自动识别资产类型兜底
+  const getBaseAssetType = () => {
+    if (route.query.assetType) return route.query.assetType as string
+    const path = route.path.toLowerCase()
+    if (path.includes('realestate')) return 'REAL_ESTATE'
+    if (path.includes('fixed')) return 'FIXED_ASSET'
+    return ''
+  }
+
   const initialSearchState = {
     categoryName: '',
     status: '',
-    assetType: (route.query.assetType as string) || ''
+    assetType: getBaseAssetType()
   }
 
   const formFilters = reactive({ ...initialSearchState })
@@ -232,8 +241,9 @@
       props: {
         placeholder: '请选择资产类型',
         clearable: true,
-        disabled: !!route.query.assetType, // 如果是从特定菜单进入的，禁用类型切换
-        options: asset_type.value
+        // 【兼容修复】不仅检查 query，还检查路径识别结果，确保类型锁定
+        disabled: !!route.query.assetType || (route.path.toLowerCase().includes('realestate') || route.path.toLowerCase().includes('fixed')),
+        options: asset_type.value || []
       }
     }
   ])
@@ -350,10 +360,8 @@
    */
   const handleReset = () => {
     Object.assign(formFilters, initialSearchState)
-    // 重置时也要同步一次路由参数，防止过滤失效
-    if (route.query.assetType) {
-      formFilters.assetType = route.query.assetType as string
-    }
+    // 【兼容修复】重置时显式同步最新的识别类型
+    formFilters.assetType = getBaseAssetType()
     getList()
   }
 

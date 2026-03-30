@@ -17,6 +17,20 @@
 import { AppRouteRecord } from '@/types/router'
 import { router } from '@/router'
 
+/**
+ * 解析 URL 样式查询字符串到对象
+ * @param queryStr 如 'key1=val1&key2=val2'
+ */
+const parseQuery = (queryStr?: string) => {
+  const query: Record<string, string> = {}
+  if (!queryStr) return query
+  queryStr.split('&').forEach((pair) => {
+    const [key, value] = pair.split('=')
+    if (key) query[key] = value || ''
+  })
+  return query
+}
+
 // 打开外部链接
 export const openExternalLink = (link: string) => {
   window.open(link, '_blank')
@@ -35,9 +49,12 @@ export const handleMenuJump = (item: AppRouteRecord, jumpToFirst: boolean = fals
     return openExternalLink(link)
   }
 
-  // 如果不需要跳转到第一个子菜单，或者没有子菜单，直接跳转当前路径
+  // 如果不需要跳转到第一个子菜单，或者没有子菜单，直接跳转当前路径（附带可能存在的 query）
   if (!jumpToFirst || !item.children?.length) {
-    return router.push(item.path)
+    return router.push({
+      path: item.path,
+      query: parseQuery(item.query)
+    })
   }
 
   // 递归查找第一个可见的叶子节点菜单
@@ -57,6 +74,9 @@ export const handleMenuJump = (item: AppRouteRecord, jumpToFirst: boolean = fals
     return openExternalLink(firstChild.meta.link)
   }
 
-  // 跳转到子菜单路径
-  router.push(firstChild.path)
+  // 跳转到子菜单路径（透传参数）
+  router.push({
+    path: firstChild.path,
+    query: parseQuery(firstChild.query)
+  })
 }

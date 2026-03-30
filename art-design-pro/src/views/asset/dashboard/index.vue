@@ -36,7 +36,7 @@
         <ElCard shadow="never" class="asset-dashboard-card">
           <template #header>
             <div class="card-header">
-              <span>资产状态分布</span>
+              <span>固定资产状态分布</span>
               <ElTag effect="light" type="info">{{ scopeSummaryText }}</ElTag>
             </div>
           </template>
@@ -50,7 +50,8 @@
             <div v-for="item in statusStats" :key="item.status" class="status-item">
               <div class="status-item__top">
                 <div class="status-item__label">
-                  <DictTag :options="asset_status" :value="item.status" />
+                  <span v-if="!asset_status.length">{{ item.label }}</span>
+                  <DictTag v-else :options="asset_status" :value="item.status" />
                 </div>
                 <div class="status-item__meta">
                   <span>{{ item.value }}</span>
@@ -128,7 +129,7 @@
       </template>
 
       <div class="quick-actions">
-        <ElButton type="primary" @click="router.push('/asset/info')">资产台账</ElButton>
+        <ElButton type="primary" @click="router.push('/asset/info')">固定资产台账</ElButton>
         <ElButton v-if="canAccess('asset:order:list')" @click="router.push('/asset/order')">
           业务单据
         </ElButton>
@@ -136,7 +137,7 @@
           盘点任务
         </ElButton>
         <ElButton v-if="canAccess('asset:event:list')" @click="router.push('/asset/event')">
-          资产流水
+          固定资产流水
         </ElButton>
       </div>
 
@@ -173,6 +174,7 @@
   interface DashboardStatusStat {
     status: string
     value: number
+    label?: string
   }
 
   interface DashboardSummary {
@@ -224,7 +226,7 @@
   const summaryCards = computed(() => [
     {
       key: 'assetTotal',
-      label: '可见资产总数',
+      label: '可见固定资产总数',
       value: summaryState.value.assetTotal,
       tip: '按当前角色的数据范围实时聚合'
     },
@@ -279,10 +281,28 @@
 
   const statusStats = computed(() => {
     const total = summaryState.value.assetTotal || 0
+    const fallbackMap: any = {
+      DRAFT: '草稿',
+      IDLE: '闲置',
+      USING: '在用',
+      IN_USE: '在用',
+      REPAIR: '维修中',
+      REPAIRING: '维修中',
+      SCRAP: '报废',
+      SCRAPPED: '已报废',
+      DISPOSED: '已处置',
+      PENDING_DISPOSAL: '待处置',
+      BORROWED: '借用中',
+      IN_TRANSFER: '调拨中',
+      IN_INVENTORY: '盘点中'
+    }
+
     return summaryState.value.statusStats.map((item, index) => {
       const percent = total > 0 ? Math.round((item.value / total) * 100) : 0
+      const dict = asset_status.value.find((i: any) => i.value === item.status)
       return {
         ...item,
+        label: dict ? dict.label : fallbackMap[item.status] || item.status,
         percent,
         percentText: `${percent}%`,
         color: STATUS_COLORS[index % STATUS_COLORS.length]

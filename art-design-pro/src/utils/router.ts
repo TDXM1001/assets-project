@@ -80,7 +80,7 @@ export function generateRoutes(routes: any[]): any[] {
     if (currentRoute.component === 'Layout') {
       currentRoute.component = '/index/index'
     } else if (currentRoute.component === 'ParentView') {
-      currentRoute.component = '/common/ParentView' // 指向纯转发容器，修复多层嵌套问题
+      currentRoute.component = '/common/ParentView'
     } else if (currentRoute.component === 'InnerLink') {
       currentRoute.component = '/index/index'
     } else if (currentRoute.component) {

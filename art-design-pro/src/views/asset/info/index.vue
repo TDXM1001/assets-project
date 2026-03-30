@@ -50,7 +50,7 @@
             <template #left>
               <ElSpace wrap>
                 <ElButton v-auth="'asset:info:add'" type="primary" @click="handleAdd" v-ripple>
-                  新增资产
+                  新增固定资产
                 </ElButton>
                 <!-- 导入入口单独收口到 import 权限，避免未授权角色看到可点击按钮。 -->
                 <ElButton
@@ -146,13 +146,13 @@
       v-model="attachmentDrawerVisible"
       biz-type="ASSET_INFO"
       :biz-id="currentAsset?.assetId"
-      :biz-title="currentAsset?.assetName || currentAsset?.assetCode || '资产台账'"
+      :biz-title="currentAsset?.assetName || currentAsset?.assetCode || '固定资产台账'"
       permission-prefix="asset:info"
     />
 
     <ElDrawer
       v-model="filterDrawerVisible"
-      title="资产筛选"
+      title="固定资产筛选"
       size="85%"
       append-to-body
       destroy-on-close
@@ -209,7 +209,11 @@
   const router = useRouter()
   const userStore = useUserStore()
   const { isSelfScopedAssetUser } = useAssetRoleScope()
-  const { asset_status, asset_source, asset_type } = useDict('asset_status', 'asset_source', 'asset_type')
+  const { asset_status, asset_source, asset_type } = useDict(
+    'asset_status',
+    'asset_source',
+    'asset_type'
+  )
 
   const filterMode = ref<'category' | 'location'>('category')
   const selectedCategoryId = ref<number | string | null>(null)
@@ -236,10 +240,10 @@
   const userLabelMap = ref<Record<string, string>>({})
 
   const initialSearchState = {
+    assetType: 'FIXED_ASSET',
     assetCode: '',
     assetName: '',
     assetStatus: '',
-    assetType: '',
     currentUserId: undefined as number | undefined
   }
 
@@ -452,8 +456,7 @@
           label: '资产类型',
           width: 110,
           align: 'center',
-          formatter: (row: any) =>
-            h(DictTag, { options: asset_type.value, value: row.assetType })
+          formatter: (row: any) => h(DictTag, { options: asset_type.value, value: row.assetType })
         },
         {
           prop: 'assetStatus',
@@ -532,9 +535,9 @@
 
   const emptyDescription = computed(() => {
     if (hasAnyFilter.value) {
-      return '当前筛选条件下暂无资产，请调整左侧节点或搜索条件。'
+      return '当前筛选条件下暂无固定资产，请调整左侧节点或搜索条件。'
     }
-    return '还没有资产台账。你可以先新增一条资产，或者后续接通导入接口后批量导入。'
+    return '还没有固定资产台账。你可以先新增一条固定资产，或者后续接通导入接口后批量导入。'
   })
 
   /**
@@ -666,9 +669,10 @@
   }
 
   const handleEdit = (row: any) => {
-    dialogType.value = 'edit'
-    currentAsset.value = { ...row }
-    dialogVisible.value = true
+    router.push({
+      path: '/asset/info/create',
+      query: { assetId: String(row.assetId) }
+    })
   }
 
   const handleOpenEventDrawer = (row: any) => {
@@ -721,7 +725,7 @@
         currentLocationId:
           filterMode.value === 'location' ? selectedLocationId.value || undefined : undefined
       })
-      FileSaver.saveAs(blob as Blob, '资产台账.xlsx')
+      FileSaver.saveAs(blob as Blob, '固定资产台账.xlsx')
       ElMessage.success('导出成功')
     } catch (error) {
       console.error('导出资产台账失败:', error)

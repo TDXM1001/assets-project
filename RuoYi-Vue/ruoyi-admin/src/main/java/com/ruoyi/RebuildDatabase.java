@@ -57,7 +57,11 @@ public class RebuildDatabase {
                 "asset_patch_20260327_qa_asset_name_fix.sql",
                 "asset_patch_20260327_repair_multi_item.sql",
                 "asset_patch_20260327_repair_page_routes.sql",
-                "asset_patch_20260329_asset_type_foundation.sql"
+                "asset_patch_20260329_asset_type_foundation.sql",
+                "asset_patch_20260329_fixed_asset_rebranding.sql",
+        "asset_patch_20260329_asset_dicts.sql",
+        "asset_patch_20260329_category_asset_type.sql",
+        "asset_patch_20260329_demo_data.sql"
             };
 
             for (String file : files) {

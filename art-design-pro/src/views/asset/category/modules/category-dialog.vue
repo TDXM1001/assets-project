@@ -190,6 +190,15 @@
   const formRef = ref()
   const categoryOptions = ref<CategoryTreeOption[]>([])
 
+  // 【动态路由兼容】自动识别当前模块类型
+  const getBaseAssetType = () => {
+    if (route.query.assetType) return route.query.assetType as string
+    const path = route.path.toLowerCase()
+    if (path.includes('realestate')) return 'REAL_ESTATE'
+    if (path.includes('fixed')) return 'FIXED_ASSET'
+    return 'FIXED_ASSET'
+  }
+
   const initialFormData = {
     categoryId: undefined as number | undefined,
     parentId: 0,
@@ -201,7 +210,7 @@
     borrowableFlag: '0',
     inventoryRequiredFlag: '1',
     usefulLifeMonths: 36,
-    assetType: (route.query.assetType as string) || 'FIXED_ASSET',
+    assetType: getBaseAssetType(),
     status: '0',
     remark: ''
   }
@@ -235,7 +244,7 @@
    */
   const loadCategoryOptions = async () => {
     try {
-      const response: any = await treeCategorySelect()
+      const response: any = await treeCategorySelect({ assetType: getBaseAssetType() })
       const data = Array.isArray(response) ? response : response?.data || []
       buildCategoryOptions(data)
     } catch (error) {
@@ -255,7 +264,8 @@
       if (props.dialogType === 'edit' && props.categoryData?.categoryId) {
         loading.value = true
         try {
-          const detail: any = await getCategory(props.categoryData.categoryId)
+          const detailRes: any = await getCategory(props.categoryData.categoryId)
+          const detail = detailRes.data || detailRes
           Object.assign(formData, initialFormData, detail || {})
           if (formData.parentId === null || formData.parentId === undefined) {
             formData.parentId = 0

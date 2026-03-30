@@ -1,7 +1,7 @@
 <template>
   <ElDialog
     v-model="visible"
-    title="资产导入"
+    :title="`${typeLabel}导入`"
     width="720px"
     destroy-on-close
     append-to-body
@@ -12,7 +12,7 @@
         type="info"
         :closable="false"
         show-icon
-        title="支持导入资产台账 Excel 文件，模板字段与当前资产台账表单保持一致。"
+        :title="`支持导入${typeLabel} Excel 文件，模板字段与当前${typeLabel}表单保持一致。`"
       />
 
       <div class="asset-import-dialog__toolbar">
@@ -93,14 +93,24 @@
 
   defineOptions({ name: 'InfoImportDialog' })
 
-  const props = defineProps<{
-    modelValue: boolean
-  }>()
+  const props = withDefaults(
+    defineProps<{
+      modelValue: boolean
+      assetType?: 'FIXED_ASSET' | 'REAL_ESTATE'
+    }>(),
+    {
+      assetType: 'FIXED_ASSET'
+    }
+  )
 
   const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
     (e: 'success'): void
   }>()
+
+  const typeLabel = computed(() =>
+    props.assetType === 'REAL_ESTATE' ? '不动产台账' : '固定资产台账'
+  )
 
   const selectedFile = ref<File | null>(null)
   const updateSupport = ref(false)
@@ -129,8 +139,8 @@
   const handleDownloadTemplate = async () => {
     templateLoading.value = true
     try {
-      const blob = await downloadAssetInfoTemplate()
-      FileSaver.saveAs(blob as Blob, '资产台账导入模板.xlsx')
+      const blob = await downloadAssetInfoTemplate({ assetType: props.assetType })
+      FileSaver.saveAs(blob as Blob, `${typeLabel.value}导入模板.xlsx`)
       ElMessage.success('模板下载成功')
     } catch (error) {
       console.error('下载导入模板失败:', error)
@@ -151,6 +161,7 @@
       const formData = new FormData()
       formData.append('file', selectedFile.value)
       formData.append('updateSupport', String(updateSupport.value))
+      formData.append('assetType', props.assetType)
       const response: any = await importAssetInfoFile(formData)
       resultType.value = 'success'
       resultMessage.value = response?.msg || response?.message || '导入成功'

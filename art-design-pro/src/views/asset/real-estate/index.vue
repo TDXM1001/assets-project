@@ -1,10 +1,31 @@
 <template>
   <div class="real-estate-page art-full-height">
     <div class="real-estate-layout">
-      <!-- 列表主区域 -->
+      <!-- 1. 侧边栏：过滤树 -->
+      <aside v-if="!isMobile" class="real-estate-aside">
+        <InfoFilterTree
+          :mode="filterMode"
+          :data="currentFilterTree"
+          :current-node-key="currentFilterNodeKey"
+          @switch-mode="handleSwitchMode"
+          @node-click="handleFilterNodeClick"
+          @update:current-node-key="handleFilterNodeKeyChange"
+        />
+      </aside>
+
+      <!-- 2. 列表主区域 -->
       <div class="real-estate-main">
+        <div v-if="isMobile" class="real-estate-mobile-filter">
+          <ElButton @click="filterDrawerVisible = true">
+            {{ filterMode === 'category' ? '按分类筛选' : '按位置筛选' }}
+          </ElButton>
+          <ElTag effect="light" type="info">
+            {{ currentFilterLabel || '未选择节点' }}
+          </ElTag>
+        </div>
+
         <ArtSearchBar
-          v-model="formFilters"
+          v-model="searchParams"
           :items="formItems"
           :showExpand="false"
           @search="handleSearch"
@@ -12,15 +33,25 @@
         />
 
         <ElCard class="art-table-card flex-1 overflow-hidden" shadow="never">
-          <ArtTableHeader
-            :loading="loading"
-            v-model:columns="columnChecks"
-            @refresh="refreshData"
-          >
+          <ArtTableHeader :loading="loading" v-model:columns="columnChecks" @refresh="refreshData">
             <template #left>
               <ElSpace wrap>
-                <ElButton v-auth="'asset:real-estate:add'" type="primary" @click="handleAdd" v-ripple>
+                <ElButton
+                  v-auth="'asset:real-estate:add'"
+                  type="primary"
+                  @click="handleAdd"
+                  v-ripple
+                >
                   新增不动产
+                </ElButton>
+                <ElButton
+                  v-auth="'asset:real-estate:import'"
+                  type="info"
+                  plain
+                  @click="handleImport"
+                  v-ripple
+                >
+                  导入
                 </ElButton>
                 <ElButton
                   v-auth="'asset:real-estate:export'"
@@ -60,6 +91,11 @@
       </div>
     </div>
 
+    <InfoImportDialog
+      v-model="importDialogVisible"
+      assetType="REAL_ESTATE"
+      @success="refreshData"
+    />
     <!-- 附件抽屉 -->
     <AssetAttachmentDrawer
       v-model="attachmentDrawerVisible"
@@ -68,88 +104,227 @@
       :biz-title="currentAsset?.assetName || '不动产详情'"
       permission-prefix="asset:real-estate"
     />
+
+    <!-- 移动端筛选抽屉 -->
+    <ElDrawer
+      v-model="filterDrawerVisible"
+      title="不动产筛选"
+      size="85%"
+      append-to-body
+      destroy-on-close
+    >
+      <InfoFilterTree
+        :mode="filterMode"
+        :data="currentFilterTree"
+        :current-node-key="currentFilterNodeKey"
+        @switch-mode="handleSwitchMode"
+        @node-click="handleMobileFilterNodeClick"
+        @update:current-node-key="handleFilterNodeKeyChange"
+      />
+    </ElDrawer>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { computed, h, onMounted, reactive, ref } from 'vue'
-  import { ElButton, ElMessage, ElMessageBox, ElSpace } from 'element-plus'
+  import { computed, h, onMounted, ref } from 'vue'
+  import { useWindowSize } from '@vueuse/core'
+  import { ElButton, ElDrawer, ElMessage, ElMessageBox, ElSpace, ElTag } from 'element-plus'
   import { useRouter } from 'vue-router'
+  import { treeCategorySelect } from '@/api/asset/category'
+  import { treeLocationSelect } from '@/api/asset/location'
   import { listAssetInfo, delAssetInfo, exportAssetInfo } from '@/api/asset/info'
   import { useDict } from '@/utils/dict'
   import { useTable } from '@/hooks/core/useTable'
+  import { useUserStore } from '@/store/modules/user'
   import DictTag from '@/components/DictTag/index.vue'
   import AssetAttachmentDrawer from '../shared/asset-attachment-drawer.vue'
   import AssetRowActionBar from '../shared/asset-row-action-bar.vue'
+  import type { AssetRowActionItem } from '../shared/asset-row-action-bar.vue'
+  import InfoFilterTree from '../info/modules/info-filter-tree.vue'
+  import InfoImportDialog from '../info/modules/info-import-dialog.vue'
 
   defineOptions({ name: 'RealEstateIndex' })
 
   const router = useRouter()
+  const userStore = useUserStore()
   const { real_estate_status } = useDict('real_estate_status')
 
-  // 1. 强制注入不动产类型过滤器
-  const formFilters = reactive({
-    assetType: 'REAL_ESTATE',
-    assetName: '',
-    assetStatus: ''
-  })
+  const hasPermission = (permission: string) => {
+    const permissions = userStore.permissions || []
+    return permissions.includes('*:*:*') || permissions.includes(permission)
+  }
 
-  const formItems = [
-    { label: '资产名称', prop: 'assetName', type: 'input' },
-    { label: '状态', prop: 'assetStatus', type: 'select', options: real_estate_status }
-  ]
+  // 1. 列定义
+  const rawColumns = computed(() => [
+    { type: 'selection' as const, width: 50 },
+    { label: '不动产编码', prop: 'assetCode', width: 140 },
+    { label: '名称', prop: 'assetName', minWidth: 150, showOverflowTooltip: true },
+    {
+      label: '状态',
+      prop: 'assetStatus',
+      width: 100,
+      render: (row: any) => {
+        return h(DictTag, {
+          options: real_estate_status.value || [],
+          value: row.assetStatus
+        })
+      }
+    },
+    { label: '详细地址', prop: 'addrDetail', minWidth: 200, showOverflowTooltip: true },
+    {
+      label: '地理坐标',
+      prop: 'coordinate',
+      width: 150,
+      render: (row: any) => {
+        const { longitude, latitude } = row
+        return longitude != null && latitude != null ? `${longitude}, ${latitude}` : '-'
+      }
+    },
+    {
+      label: '操作',
+      prop: 'actions',
+      width: 180,
+      fixed: 'right' as const,
+      render: (row: any) => {
+        const actions: AssetRowActionItem[] = []
+        if (hasPermission('asset:real-estate:edit')) {
+          actions.push({
+            key: 'edit',
+            label: '编辑',
+            onClick: () => {
+              void handleEdit(row)
+            }
+          })
+        }
+        actions.push({
+          key: 'attach',
+          label: '附件',
+          onClick: () => {
+            handleAttachment(row)
+          }
+        })
+        if (hasPermission('asset:real-estate:remove')) {
+          actions.push({
+            key: 'del',
+            label: '删除',
+            type: 'danger',
+            onClick: () => {
+              handleDelete(row)
+            }
+          })
+        }
+        return h(AssetRowActionBar, { actions })
+      }
+    }
+  ])
 
+  // 2. 搜索项
+  const formItems = computed(() => [
+    {
+      label: '资产名称',
+      key: 'assetName',
+      type: 'input',
+      props: {
+        placeholder: '请输入资产名称',
+        clearable: true
+      }
+    },
+    {
+      label: '状态',
+      key: 'assetStatus',
+      type: 'select',
+      props: {
+        placeholder: '请选择状态',
+        clearable: true,
+        options: real_estate_status.value || []
+      }
+    }
+  ])
+
+  // 3. useTable
   const {
     loading,
     data,
     pagination,
+    columns,
     handleSizeChange,
     handleCurrentChange,
-    handleSearch,
-    handleReset,
+    getData: handleSearch,
+    resetSearchParams: handleReset,
     refreshData,
-    selection,
-    multiple
+    searchParams,
+    columnChecks
   } = useTable({
-    api: listAssetInfo,
-    initFilters: formFilters
+    core: {
+      apiFn: listAssetInfo,
+      apiParams: { assetType: 'REAL_ESTATE' },
+      columnsFactory: () => rawColumns.value
+    }
   })
 
-  // 2. 列定义优化
-  const columns = [
-    { type: 'selection', width: 50 },
-    { label: '不动产编码', prop: 'assetCode', width: 140 },
-    { label: '名称', prop: 'assetName', minWidth: 150, showOverflowTooltip: true },
-    { 
-      label: '状态', 
-      prop: 'assetStatus', 
-      width: 100,
-      render: (row: any) => h(DictTag, { options: real_estate_status.value, value: row.assetStatus })
-    },
-    { label: '详细地址', prop: 'addrDetail', minWidth: 200, showOverflowTooltip: true },
-    { 
-      label: '地理坐标', 
-      width: 150,
-      render: (row: any) => row.longitude ? `${row.longitude}, ${row.latitude}` : '-'
-    },
-    {
-      label: '操作',
-      width: 180,
-      fixed: 'right',
-      render: (row: any) => h(AssetRowActionBar, {
-        items: [
-          { label: '编辑', onClick: () => handleEdit(row), auth: 'asset:real-estate:edit' },
-          { label: '附件', onClick: () => handleAttachment(row), auth: 'asset:real-estate:list' },
-          { label: '删除', onClick: () => handleDelete(row), auth: 'asset:real-estate:remove', danger: true }
-        ]
-      })
-    }
-  ]
-
-  const columnChecks = ref(columns.map(c => c.label).filter(Boolean))
+  const selection = ref<any[]>([])
+  const multiple = ref(true)
   const exportLoading = ref(false)
+  const importDialogVisible = ref(false)
   const attachmentDrawerVisible = ref(false)
   const currentAsset = ref<any>(null)
+
+  /** 导入按钮操作 */
+  function handleImport() {
+    importDialogVisible.value = true
+  }
+
+  // 4. 树形过滤逻辑
+  const { width } = useWindowSize()
+  const isMobile = computed(() => width.value < 768)
+  const filterMode = ref<'category' | 'location'>('location')
+  const filterDrawerVisible = ref(false)
+  const currentFilterNodeKey = ref<number | string | null>(null)
+  const currentFilterLabel = ref('')
+  const categoryTreeOptions = ref<any[]>([])
+  const locationTreeOptions = ref<any[]>([])
+
+  const currentFilterTree = computed(() => {
+    return filterMode.value === 'category' ? categoryTreeOptions.value : locationTreeOptions.value
+  })
+
+  const getTreeData = async () => {
+    const [catRes, locRes]: any = await Promise.all([treeCategorySelect(), treeLocationSelect()])
+    categoryTreeOptions.value = catRes.data || []
+    locationTreeOptions.value = locRes.data || []
+  }
+
+  const handleSwitchMode = (mode: 'category' | 'location') => {
+    filterMode.value = mode
+    currentFilterNodeKey.value = null
+    currentFilterLabel.value = ''
+    handleReset()
+  }
+
+  const handleFilterNodeClick = (node: any) => {
+    currentFilterLabel.value = node.label
+    if (filterMode.value === 'category') {
+      searchParams.categoryId = node.id
+      searchParams.currentLocationId = undefined
+    } else {
+      searchParams.currentLocationId = node.id
+      searchParams.categoryId = undefined
+    }
+    handleSearch()
+  }
+
+  const handleMobileFilterNodeClick = (node: any) => {
+    handleFilterNodeClick(node)
+    filterDrawerVisible.value = false
+  }
+
+  const handleFilterNodeKeyChange = (key: number | string | null) => {
+    currentFilterNodeKey.value = key
+  }
+
+  onMounted(() => {
+    getTreeData()
+  })
 
   const handleAdd = () => router.push('/asset/real-estate/create')
   const handleEdit = (row: any) => router.push(`/asset/real-estate/create?assetId=${row.assetId}`)
@@ -170,14 +345,11 @@
   const handleExport = async () => {
     exportLoading.value = true
     try {
-      // 导出也要带上 assetType
-      await exportAssetInfo(formFilters)
+      await exportAssetInfo(searchParams)
     } finally {
       exportLoading.value = false
     }
   }
-
-  onMounted(() => refreshData())
 </script>
 
 <style scoped>
@@ -191,11 +363,26 @@
     flex: 1;
     overflow: hidden;
   }
+  .real-estate-aside {
+    width: 240px;
+    height: 100%;
+    padding: 16px;
+    background: var(--default-box-color);
+    border-right: 1px solid var(--art-border-color);
+    flex-shrink: 0;
+  }
   .real-estate-main {
     flex: 1;
     display: flex;
     flex-direction: column;
     padding: 16px;
     gap: 16px;
+    overflow: hidden;
+  }
+  .real-estate-mobile-filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 0;
   }
 </style>

@@ -436,6 +436,17 @@
         const detailRes = await getAssetInfo(currentAssetId.value)
         const detail = (detailRes as any).data || detailRes
         Object.assign(formData, detail)
+
+        // 【关键修复】解析动态字段 JSON 字符串到对象
+        if (detail.extraFieldsJson) {
+          try {
+            formData.extraFieldValues = JSON.parse(detail.extraFieldsJson)
+          } catch (e) {
+            console.error('解析动态字段失败', e)
+            formData.extraFieldValues = {}
+          }
+        }
+
         if (formData.categoryId) {
           loadFieldTemplate(formData.categoryId)
         }
